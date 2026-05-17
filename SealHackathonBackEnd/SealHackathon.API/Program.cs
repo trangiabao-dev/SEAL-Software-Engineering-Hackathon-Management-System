@@ -7,20 +7,15 @@ namespace SealHackathon.API
             var builder = WebApplication.CreateBuilder(args);
 
             // ==========================================
-            // 1. CẤU HÌNH CORS (PHẢI ĐẶT TRƯỚC builder.Build)
+            // 1. CẤU HÌNH CORS (TỐI ƯU BẰNG LAMBDA)
             // ==========================================
             builder.Services.AddCors(options =>
-            {
                 options.AddPolicy("AllowReactApp", policy =>
-                {
-                    // Cho phép ReactJS gọi tới (AllowAnyOrigin), 
-                    // gửi mọi loại dữ liệu (AllowAnyHeader), 
-                    // và dùng mọi phương thức GET, POST, PUT, DELETE (AllowAnyMethod)
                     policy.AllowAnyOrigin()
                           .AllowAnyHeader()
-                          .AllowAnyMethod();
-                });
-            });
+                          .AllowAnyMethod()
+                )
+            );
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
