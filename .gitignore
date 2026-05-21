@@ -427,3 +427,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Bỏ qua file cấu hình môi trường local của từng Dev
+appsettings.Development.json
+appsettings.*.json
