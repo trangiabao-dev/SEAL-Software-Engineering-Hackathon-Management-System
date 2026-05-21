@@ -1,3 +1,6 @@
 <Solution>
   <Project Path="SealHackathon.API/SealHackathon.API.csproj" />
+  <Project Path="SealHackathon.Application/SealHackathon.Application.csproj" Id="cd9390cb-be1e-42e6-960c-358105bff8e5" />
+  <Project Path="SealHackathon.Domain/SealHackathon.Domain.csproj" Id="07af427c-408e-4916-8aaa-9d105911a00d" />
+  <Project Path="SealHackathon.Infrastructure/SealHackathon.Infrastructure.csproj" Id="c51aeb0f-bead-41a6-9da4-6d5a5f224622" />
 </Solution>

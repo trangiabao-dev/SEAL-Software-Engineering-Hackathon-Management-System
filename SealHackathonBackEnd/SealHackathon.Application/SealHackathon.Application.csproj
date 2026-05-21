@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SealHackathon.Domain\SealHackathon.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\Responses\" />
+    <Folder Include="DTOs\Auth\" />
+    <Folder Include="DTOs\Event\" />
+    <Folder Include="DTOs\Round\" />
+    <Folder Include="DTOs\Score\" />
+    <Folder Include="DTOs\Team\" />
+    <Folder Include="Services\Implementations\" />
+    <Folder Include="Services\Interfaces\" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
