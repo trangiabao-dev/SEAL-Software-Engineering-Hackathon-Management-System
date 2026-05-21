@@ -19,5 +19,6 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         //"Một câu lệnh điều kiện (trả về true/false) được
         //viết dưới dạng cấu trúc cây để EF Core có thể dịch thành câu lệnh WHERE trong SQL"
         //vd: SELECT TOP(1) * FROM[Account] WHERE[Username] = 'giabao'
+        // ---
     }
 }
