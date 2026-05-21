@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using SealHackathon.Domain.Interfaces.Repositories;
+using SealHackathon.Infrastructure.Data;
+using SealHackathon.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.OutputEncoding = Encoding.UTF8;
@@ -94,10 +98,22 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// ==========================================
+// 3. ĐĂNG KÝ DEPENDENCY INJECTION (DI) 
+// ==========================================
+// Đăng ký DbContext với chuỗi kết nối lấy từ appsettings.json
+builder.Services.AddDbContext<SealDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
+// Đăng ký UnitOfWork với vòng đời Scoped
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 var app = builder.Build();
 
 // ==========================================
-// 3. DbUp
+// 4. DbUp
 // ==========================================
 RunDbUp(builder.Configuration);
 
