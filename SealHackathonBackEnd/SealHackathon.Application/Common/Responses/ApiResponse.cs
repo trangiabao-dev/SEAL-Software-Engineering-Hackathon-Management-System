@@ -33,6 +33,12 @@ namespace SealHackathon.Application.Common.Responses
                 Message = message,
                 Data = default,
                 Errors = errors
+                //Data = null — compiler sẽ cảnh báo vì int không thể gán null.
+                //default thông minh hơn: tự động chọn giá trị mặc định phù hợp với kiểu T:
+
+                //T là string → default = null
+                //T là int → default = 0
+                //T là class → default = null
             };
         }
     }
