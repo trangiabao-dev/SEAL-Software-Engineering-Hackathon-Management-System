@@ -1,12 +1,13 @@
 using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using SealHackathon.API.Middleware;
 using SealHackathon.Domain.Interfaces.Repositories;
 using SealHackathon.Infrastructure.Data;
 using SealHackathon.Infrastructure.Repositories;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.OutputEncoding = Encoding.UTF8;
@@ -128,9 +129,10 @@ app.UseCors("AllowReactApp");
 
 // QUAN TRỌNG: UseAuthentication phải đứng TRƯỚC UseAuthorization
 // Lý do: Authentication xác định "bạn là ai", Authorization xác định "bạn được làm gì"
-// Nếu đảo ngược thứ tự, Authorization không biết user là ai → mọi request đều bị từ chối
+// Nếu đảo ngược thứ tự, Authorization không biết user là ai → mọi request đều bị từ tionchối
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 app.Run();
 
