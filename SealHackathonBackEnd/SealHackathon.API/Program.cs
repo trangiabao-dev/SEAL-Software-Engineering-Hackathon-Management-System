@@ -131,7 +131,6 @@ app.UseCors("AllowReactApp");
 // Nếu đảo ngược thứ tự, Authorization không biết user là ai → mọi request đều bị từ chối
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.Run();
 
