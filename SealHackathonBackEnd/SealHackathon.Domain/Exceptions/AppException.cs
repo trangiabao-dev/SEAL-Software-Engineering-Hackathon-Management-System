@@ -17,5 +17,6 @@ namespace SealHackathon.Domain.Exceptions
         {
             StatusCode = statusCode;
         }
+        // aaa
     }
 }
