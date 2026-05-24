@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Domain.Exceptions;
-using System.Net;
 using System.Text.Json;
 
 namespace SealHackathon.API.Middleware
@@ -36,7 +35,9 @@ namespace SealHackathon.API.Middleware
             }
             catch (Exception ex)
             {
+                // Ghi lỗi ra Console server — chỉ dev thấy, client không thấy
                 // Bắt được exception không mong muốn — lỗi hệ thống
+                _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
                 await HandleExceptionAsync(context, 500, "Đã có lỗi xảy ra. Vui lòng thử lại sau.");
             }
         }
