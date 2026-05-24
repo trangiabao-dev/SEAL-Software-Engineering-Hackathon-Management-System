@@ -8,6 +8,8 @@ using SealHackathon.Domain.Interfaces.Repositories;
 using SealHackathon.Infrastructure.Data;
 using SealHackathon.Infrastructure.Repositories;
 using System.Text;
+using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.OutputEncoding = Encoding.UTF8;
@@ -110,6 +112,7 @@ builder.Services.AddDbContext<SealDbContext>(options =>
 
 // Đăng ký UnitOfWork với vòng đời Scoped
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
@@ -126,6 +129,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
+app.UseMiddleware<JwtBlacklistMiddleware>();
 
 // QUAN TRỌNG: UseAuthentication phải đứng TRƯỚC UseAuthorization
 // Lý do: Authentication xác định "bạn là ai", Authorization xác định "bạn được làm gì"

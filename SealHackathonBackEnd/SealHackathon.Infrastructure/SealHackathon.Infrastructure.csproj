@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\SealHackathon.Application\SealHackathon.Application.csproj" />
     <ProjectReference Include="..\SealHackathon.Domain\SealHackathon.Domain.csproj" />
   </ItemGroup>
 

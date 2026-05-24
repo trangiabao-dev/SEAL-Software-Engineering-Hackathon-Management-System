@@ -28,5 +28,14 @@ namespace SealHackathon.Infrastructure.Repositories
             // ta nói EF Core không cần theo dõi (track) object này trên RAM làm gì cho nặng.
             return await _dbSet.AsNoTracking().FirstOrDefaultAsync(predicate);
         }
+        public async Task<List<T>> GetAllAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
+        }
+
+        public void Update(T entity)
+        {
+            _dbSet.Update(entity);
+        }
     }
 }
