@@ -17,6 +17,5 @@ namespace SealHackathon.API.Controllers
 
         public AuthController(IAuthService authService) => _authService = authService;
 
-    {
     }
 }
