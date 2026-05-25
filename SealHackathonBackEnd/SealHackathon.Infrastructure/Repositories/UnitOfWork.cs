@@ -3,6 +3,7 @@ using SealHackathon.Infrastructure.Data;
 
 namespace SealHackathon.Infrastructure.Repositories
 {
+    
     public class UnitOfWork : IUnitOfWork
     {
         private readonly SealDbContext _context;
@@ -24,12 +25,12 @@ namespace SealHackathon.Infrastructure.Repositories
 
             return (IGenericRepository<T>)_repositories[type]!;
         }
-
+        //Thức
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
         }
-
+        
         public void Dispose()
         {
             _context.Dispose();
