@@ -14,6 +14,7 @@ namespace SealHackathon.API.Controllers
 
         public AuthController(IAuthService authService) => _authService = authService;
 
+
         // POST api/auth/register
         [HttpPost("register")]
         [AllowAnonymous]
