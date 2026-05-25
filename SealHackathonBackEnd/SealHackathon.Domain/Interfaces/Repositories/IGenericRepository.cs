@@ -22,5 +22,6 @@ namespace SealHackathon.Domain.Interfaces.Repositories
 
         Task<List<T>> GetAllAsync(Expression<Func<T, bool>> predicate);
         void Update(T entity);
+        // aaa
     }
 }
