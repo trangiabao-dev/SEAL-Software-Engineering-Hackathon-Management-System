@@ -8,7 +8,6 @@
     <Folder Include="DTOs\Event\" />
     <Folder Include="DTOs\Round\" />
     <Folder Include="DTOs\Team\" />
-    <Folder Include="Services\Implementations\" />
   </ItemGroup>
 
   <PropertyGroup>
