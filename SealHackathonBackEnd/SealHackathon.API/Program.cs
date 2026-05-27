@@ -10,6 +10,7 @@ using SealHackathon.Infrastructure.Repositories;
 using System.Text;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Infrastructure.Services;
+using SealHackathon.Application.Services.Implementations;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.OutputEncoding = Encoding.UTF8;
@@ -113,6 +114,7 @@ builder.Services.AddDbContext<SealDbContext>(options =>
 // Đăng ký UnitOfWork với vòng đời Scoped
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IScoreService, ScoreService>();
 
 var app = builder.Build();
 
