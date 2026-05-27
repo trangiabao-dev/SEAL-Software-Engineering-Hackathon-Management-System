@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace SealHackathon.Application.Common.Responses
 {
-    public class PaginationResponse<T>
+    public class PaginatedResponse<T>
     {
         // Danh sách data của trang hiện tại
-        public List<T> Data { get; set; } = new List<T>();
+        public List<T> Items { get; set; } = new List<T>();
 
         // Trang hiện tại
         public int PageNumber { get; set; }
@@ -30,9 +30,9 @@ namespace SealHackathon.Application.Common.Responses
         // Có trang sau không?
         public bool HasNextPage => PageNumber < TotalPages;
 
-        public PaginationResponse(List<T> data, int totalRecords, int pageNumber, int pageSize)
+        public PaginatedResponse(List<T> items, int totalRecords, int pageNumber, int pageSize)
         {
-            Data = data;
+            Items = items;
             TotalRecords = totalRecords;
             PageNumber = pageNumber;
             PageSize = pageSize;
