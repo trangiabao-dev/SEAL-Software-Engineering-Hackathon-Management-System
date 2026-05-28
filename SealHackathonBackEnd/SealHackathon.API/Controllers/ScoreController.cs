@@ -10,7 +10,7 @@ namespace SealHackathon.API.Controllers
     [ApiController]
     [Route("api/scores")]
     [Authorize] // Phải login mới được dùng — mọi API trong Controller này
-    public class ScoreController : ControllerBase
+    public class ScoreController : BaseController
     {
         private readonly IScoreService _scoreService;
 
@@ -18,16 +18,7 @@ namespace SealHackathon.API.Controllers
         {
             _scoreService = scoreService;
         }
-
-        // Lấy JudgeId từ JWT token
-        // Lý do: Không để client tự nhập JudgeId — tránh giả mạo
-        private Guid GetCurrentJudgeId()
-        {
-            var judgeIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(judgeIdClaim))
-                throw new UnauthorizedAccessException("Không tìm thấy thông tin Judge.");
-            return Guid.Parse(judgeIdClaim);
-        }
+        
 
         // POST api/scores/submissions/{submissionId}
         // Chỉ Judge mới được chấm điểm
@@ -37,7 +28,7 @@ namespace SealHackathon.API.Controllers
             Guid submissionId,
             [FromBody] SubmitScoreRequest request)
         {
-            var judgeId = GetCurrentJudgeId();
+            var judgeId = GetCurrentAccountId();
             var result = await _scoreService.SubmitScoreAsync(submissionId, judgeId, request);
             return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Chấm điểm thành công."));
         }
