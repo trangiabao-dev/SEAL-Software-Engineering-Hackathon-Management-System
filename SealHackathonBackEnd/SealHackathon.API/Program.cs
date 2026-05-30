@@ -131,12 +131,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
-app.UseMiddleware<JwtBlacklistMiddleware>();
+
 
 // QUAN TRỌNG: UseAuthentication phải đứng TRƯỚC UseAuthorization
 // Lý do: Authentication xác định "bạn là ai", Authorization xác định "bạn được làm gì"
 // Nếu đảo ngược thứ tự, Authorization không biết user là ai → mọi request đều bị từ tionchối
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<JwtBlacklistMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

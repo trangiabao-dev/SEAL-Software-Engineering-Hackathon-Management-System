@@ -1,5 +1,4 @@
-﻿using SealHackathon.Domain.Entities;
-using SealHackathon.Domain.Exceptions;
+﻿using SealHackathon.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
