@@ -38,5 +38,14 @@ namespace SealHackathon.Infrastructure.Repositories
         {
             _dbSet.Update(entity);
         }
+
+        // Bảo thêm
+        /// <summary>
+        /// Gọi hàm CountAsync của Entity Framework Core để đếm dữ liệu bằng SQL Server.
+        /// </summary>
+        public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.CountAsync(predicate);
+        }
     }
 }

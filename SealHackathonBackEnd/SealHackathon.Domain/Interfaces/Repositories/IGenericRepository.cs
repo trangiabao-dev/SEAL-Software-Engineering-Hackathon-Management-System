@@ -12,6 +12,13 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         // Lấy ra bản ghi đầu tiên thỏa mãn điều kiện, nếu không có trả về null
         Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
 
+        /// <summary>
+        /// Thực thi câu lệnh đếm (SELECT COUNT) trực tiếp dưới CSDL.
+        /// BẮT BUỘC dùng hàm này khi chỉ cần biết số lượng, tuyệt đối không dùng GetAllAsync().Count để tránh tràn RAM.
+        /// </summary>
+        /// <param name="predicate">Điều kiện đếm (Ví dụ: x => x.IsDeleted == false)</param>
+        Task<int> CountAsync(Expression<Func<T, bool>> predicate);
+
         // Thêm một bản ghi mới (Dùng cho chức năng Register sau này)
         Task AddAsync(T entity);
 
