@@ -97,7 +97,50 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
         {
-            throw new NotImplementedException();
+            var repo = _uow.GetRepository<Team>();
+
+            var team = await repo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.LeaderId != leaderId)
+                throw new ForbiddenException("Bạn không có quyền chỉnh sửa đội này.");
+
+            if (team.Status == "Approved")
+            {
+                if (team.TeamName != request.TeamName || team.University != request.University)
+                {
+                    throw new BadRequestException("Đội thi đã được duyệt. Bạn chỉ được phép cập nhật Link Github, không được đổi Tên đội hay Tên trường.");
+                }
+
+                team.GithubRepoLink = request.GithubRepoLink;
+            }
+            else
+            {
+                if (!string.Equals(team.TeamName, request.TeamName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Nếu có đổi tên mới -> thì đưa xuống Database xem tên này đã có đội nào đặt tên đó chưa
+                    var isNameTaken = await repo
+                        .GetFirstOrDefaultAsync(t => t.TeamName.ToLower() == request.TeamName.ToLower() && !t.IsDeleted);
+
+                    if (isNameTaken is not null)
+                        throw new ConflictException("Tên đội này đã có người đăng ký. Vui lòng chọn tên khác.");
+
+                    // Không trùng thì cập nhật tên mới
+                    team.TeamName = request.TeamName;
+                }
+
+                team.University = request.University;
+                team.GithubRepoLink = request.GithubRepoLink;
+            }
+
+            team.UpdatedAt = DateTime.UtcNow;
+            team.UpdatedBy = leaderId;
+
+            repo.Update(team);
+            await _uow.SaveChangesAsync();
+
+            return MapToDto(team);
         }
     }
 }
