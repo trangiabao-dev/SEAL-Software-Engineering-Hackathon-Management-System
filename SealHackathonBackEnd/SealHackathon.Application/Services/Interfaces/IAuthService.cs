@@ -16,5 +16,6 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<List<AccountPendingResponse>> GetPendingAccountsAsync();
         Task ApproveAccountAsync(Guid accountId, Guid coordinatorId);
         Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason);
+        Task VerifyEmailAsync(string token);
     }
 }

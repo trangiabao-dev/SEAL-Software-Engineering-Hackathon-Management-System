@@ -22,10 +22,17 @@ namespace SealHackathon.API.Controllers
         {
             await _authService.RegisterAsync(request);
             return Ok(ApiResponse<object>.SuccessResult(
-                null!, "Đăng ký thành công. Vui lòng chờ Coordinator duyệt tài khoản."
+                null!, "Đăng ký thành công. Vui lòng xác nhận email."
             ));
         }
-
+        // GET api/auth/verify-email — Người dùng click vào link để xác nhận email
+        [HttpGet("verify-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+        {
+            await _authService.VerifyEmailAsync(token);
+            return Ok(ApiResponse<object>.SuccessResult(null!, "Xác nhận email thành công. Bạn đã có thể đăng nhập."));
+        }       
         // POST api/auth/login
         [HttpPost("login")]
         [AllowAnonymous]

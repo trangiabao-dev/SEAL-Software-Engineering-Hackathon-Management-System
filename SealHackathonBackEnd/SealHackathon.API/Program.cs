@@ -106,6 +106,7 @@ builder.Services.AddSwaggerGen(options =>
 // 3. ĐĂNG KÝ DEPENDENCY INJECTION (DI) 
 // ==========================================
 // Đăng ký DbContext với chuỗi kết nối lấy từ appsettings.json
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddDbContext<SealDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));

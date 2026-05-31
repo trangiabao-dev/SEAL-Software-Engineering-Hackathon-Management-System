@@ -20,6 +20,9 @@ public partial class Account
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+    // Thêm 2 thuộc tính này vào file Account.cs
+    public string? EmailConfirmToken { get; set; }
+    public DateTime? TokenExpiresAt { get; set; }
 
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
