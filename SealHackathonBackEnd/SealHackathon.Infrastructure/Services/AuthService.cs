@@ -106,7 +106,7 @@ public class AuthService : IAuthService
             throw new BadRequestException("Link xác nhận đã hết hạn. Vui lòng yêu cầu gửi lại email.");
 
         // Bước 3: Nếu mọi thứ OK -> Nâng cấp Role cho người dùng
-        account.SystemRole = "Participant"; // Trở thành thí sinh chính thức
+        account.SystemRole = "Leader"; // Trở thành thí sinh chính thức
 
         // Xóa mã Token đi để người dùng không thể bấm lại link này lần 2
         account.EmailConfirmToken = null;
