@@ -72,7 +72,7 @@ public class AuthService : IAuthService
 
         // Bước 4: Tạo link xác nhận và gửi Email cho người dùng
         // Lưu ý: Port 3000 là port mặc định của React. 
-        var confirmationLink = $"http://localhost:3000/verify-email?token={account.EmailConfirmToken}";
+        var confirmationLink = $"http://localhost:3000/api/auth/verify-email?token={account.EmailConfirmToken}";
 
         var emailSubject = "Xác nhận đăng ký tài khoản FPT Hackathon 2026";
         // Nội dung Email được thiết kế dưới dạng HTML để có nút bấm đẹp mắt
@@ -230,5 +230,84 @@ public class AuthService : IAuthService
 
         // Trả về chuỗi Token dạng string
         return (new JwtSecurityTokenHandler().WriteToken(tokenObj), expiresAt);
+    }
+    // ==========================================
+    // 7. TẠO TÀI KHOẢN JUDGE/MENTOR (Dành cho Coordinator)
+    // ==========================================
+    public async Task CreateAccountByCoordinatorAsync(CreateAccountRequest request, Guid coordinatorId)
+    {
+        var repo = _uow.GetRepository<Account>();
+
+        // 1. Kiểm tra Role hợp lệ (Chỉ cho phép tạo Judge hoặc Mentor)
+        var allowedRoles = new[] { "Judge", "Mentor" };
+        if (!allowedRoles.Contains(request.Role))
+            throw new BadRequestException("Role không hợp lệ. Chỉ hỗ trợ tạo tài khoản Judge hoặc Mentor.");
+
+        // 2. Kiểm tra Email đã tồn tại chưa
+        var existingEmail = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
+        if (existingEmail is not null)
+            throw new ConflictException("Email này đã được sử dụng trong hệ thống.");
+
+        // 3. Xử lý Username (Dùng request.Username thay vì FullName)
+        var normalizedName = RemoveVietnameseTone(request.Username).Replace(" ", "");
+        var randomSuffix = Guid.NewGuid().ToString("N")[..4];
+        var generatedUsername = $"{normalizedName}_{randomSuffix}";
+
+        // 4. Sinh Mật khẩu ngẫu nhiên (Ví dụ: 8 ký tự alphanumeric)
+        var tempPassword = Guid.NewGuid().ToString("N")[..8];
+
+        // 5. Tạo đối tượng Account
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Username = generatedUsername,
+            Email = request.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
+
+            SystemRole = request.Role,
+            IsDeleted = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await repo.AddAsync(account);
+        await _uow.SaveChangesAsync();
+
+        // 6. Gửi Email thông báo Mật khẩu tạm thời cho họ
+        var loginLink = "http://localhost:3000/login";
+        var emailSubject = $"Thư mời tham gia giải đấu Seal Hackathon 2026 - Vai trò {request.Role}";
+
+        // Đổi lời chào thành request.Username
+        var emailBody = $@"
+        <h3>Kính gửi {request.Username},</h3>
+        <p>Ban tổ chức Seal Hackathon trân trọng kính mời bạn tham gia hệ thống với vai trò <strong>{request.Role}</strong>.</p>
+        <p>Tài khoản của bạn đã được khởi tạo thành công. Dưới đây là thông tin đăng nhập của bạn:</p>
+        <ul>
+            <li><strong>Tên đăng nhập / Email:</strong> {request.Email}</li>
+            <li><strong>Mật khẩu tạm thời:</strong> <span style='color: red; font-weight: bold;'>{tempPassword}</span></li>
+        </ul>
+        <p>Vui lòng đăng nhập vào hệ thống và tiến hành <strong>đổi mật khẩu ngay lần đăng nhập đầu tiên</strong> để đảm bảo tính bảo mật.</p>
+        <p><a href='{loginLink}' style='padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;'>Đăng nhập hệ thống</a></p>
+        <p>Trân trọng,<br/>Ban Tổ Chức Seal Hackathon</p>";
+
+        await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
+    }
+    // Hàm phụ trợ giúp xóa dấu tiếng Việt
+    private string RemoveVietnameseTone(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "User";
+
+        var normalizedString = text.Normalize(System.Text.NormalizationForm.FormD);
+        var stringBuilder = new System.Text.StringBuilder();
+
+        foreach (var c in normalizedString)
+        {
+            var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+            if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+            {
+                stringBuilder.Append(c);
+            }
+        }
+        return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
     }
 }

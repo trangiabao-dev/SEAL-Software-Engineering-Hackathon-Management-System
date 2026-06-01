@@ -83,5 +83,20 @@ namespace SealHackathon.API.Controllers
             await _authService.RejectAccountAsync(id, coordinatorId, request.Reason);
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã từ chối tài khoản."));
         }
+        // POST api/auth/create-staff — Coordinator tạo tài khoản cho Giám khảo / Mentor
+        [HttpPost("create-staff")]
+        [Authorize(Roles = "Coordinator")]
+        public async Task<IActionResult> CreateStaffAccount([FromBody] CreateAccountRequest request)
+        {
+            // Lấy ID của Coordinator đang đăng nhập từ Token
+            var coordinatorId = GetCurrentAccountId();
+
+            await _authService.CreateAccountByCoordinatorAsync(request, coordinatorId);
+
+            return Ok(ApiResponse<object>.SuccessResult(
+                null!,
+                $"Tạo tài khoản {request.Role} thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
+            ));
+        }
     }
 }

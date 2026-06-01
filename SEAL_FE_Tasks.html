@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEAL — FE Task Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #4f6ef7;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .header-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  /* MAIN */
+  .main { padding: 40px; max-width: 1400px; margin: 0 auto; }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-green { background: var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .dot-blue { background: var(--accent); }
+
+  /* ROLE SECTIONS */
+  .role-section {
+    margin-bottom: 48px;
+  }
+
+  .role-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .role-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .badge-coordinator { background: rgba(79,110,247,0.15); color: var(--accent); border: 1px solid rgba(79,110,247,0.3); }
+  .badge-leader { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-mentor { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .badge-judge { background: rgba(124,58,237,0.15); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3); }
+  .badge-public { background: rgba(100,116,139,0.15); color: var(--muted); border: 1px solid rgba(100,116,139,0.3); }
+
+  .role-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .role-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: auto;
+    font-family: var(--mono);
+  }
+
+  /* PAGE GRID */
+  .page-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 16px;
+  }
+
+  /* PAGE CARD */
+  .page-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .page-card:hover { border-color: var(--accent); }
+
+  .card-header {
+    padding: 16px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .page-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .card-route {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .be-status {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .status-done { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .status-wip { background: rgba(234,179,8,0.1); color: var(--yellow); border: 1px solid rgba(234,179,8,0.2); }
+  .status-todo { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  .card-body { padding: 16px 20px; }
+
+  /* SECTIONS */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    margin-top: 14px;
+  }
+
+  .section-label:first-child { margin-top: 0; }
+
+  /* FEATURE LIST */
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .feature-list li {
+    font-size: 12.5px;
+    color: #94a3b8;
+    padding: 4px 0 4px 14px;
+    position: relative;
+    line-height: 1.4;
+  }
+
+  .feature-list li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* NAV LIST */
+  .nav-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-list li {
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 4px 8px;
+    background: rgba(79,110,247,0.05);
+    border: 1px solid rgba(79,110,247,0.1);
+    border-radius: 4px;
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-arrow {
+    color: var(--accent);
+    font-size: 11px;
+  }
+
+  /* API CHIPS */
+  .api-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .api-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  .chip-get { background: rgba(34,197,94,0.08); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+  .chip-post { background: rgba(79,110,247,0.08); color: #818cf8; border-color: rgba(79,110,247,0.2); }
+  .chip-put { background: rgba(234,179,8,0.08); color: #fbbf24; border-color: rgba(234,179,8,0.2); }
+  .chip-delete { background: rgba(239,68,68,0.08); color: #f87171; border-color: rgba(239,68,68,0.2); }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 0;
+  }
+
+  /* SUMMARY BAR */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .summary-num {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--accent);
+    display: block;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* NOTE BOX */
+  .note-box {
+    background: rgba(234,179,8,0.05);
+    border: 1px solid rgba(234,179,8,0.2);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #fbbf24;
+    font-family: var(--mono);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  .note-box b { color: #fde68a; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SEAL <span>/ FE Task Board</span></div>
+  <div class="header-meta">
+    SEAL Hackathon Management System<br>
+    React · 2 FE Devs · Cập nhật theo tiến độ BE
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="dot dot-green"></div> BE đã xong — FE có thể connect</div>
+    <div class="legend-item"><div class="dot dot-yellow"></div> BE đang làm — FE thiết kế tĩnh trước</div>
+    <div class="legend-item"><div class="dot dot-red"></div> BE chưa làm — FE làm UI trống trước</div>
+    <div class="legend-item"><div class="dot dot-blue"></div> API cần gọi</div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-card">
+      <span class="summary-num">4</span>
+      <div class="summary-label">Loại tài khoản</div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-num">14</span>
+      <div class="summary-label">Trang cần thiết kế</div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-num">3</span>
+      <div class="summary-label">BE đang làm song song</div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-num">React</span>
+      <div class="summary-label">Framework FE</div>
+    </div>
+  </div>
+
+  <!-- ==================== PUBLIC ==================== -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-public">Public</span>
+      <span class="role-title">Trang công khai — Không cần đăng nhập</span>
+      <span class="role-desc">Bất kỳ ai truy cập</span>
+    </div>
+    <div class="page-grid">
+
+      <!-- TRANG ĐĂNG NHẬP -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">🔐</div>
+          <div>
+            <div class="card-title">Trang Đăng Nhập</div>
+            <div class="card-route">/login</div>
+          </div>
+          <span class="be-status status-done">BE XONG</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Form nhập Email và Password</li>
+            <li>Nút "Đăng nhập"</li>
+            <li>Link "Chưa có tài khoản? Đăng ký"</li>
+            <li>Thông báo lỗi nếu sai email/password</li>
+            <li>Thông báo nếu tài khoản chờ duyệt</li>
+          </ul>
+          <div class="section-label">Sau khi đăng nhập thành công</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> Coordinator → /coordinator/dashboard</li>
+            <li><span class="nav-arrow">→</span> Leader (Participant) → /leader/dashboard</li>
+            <li><span class="nav-arrow">→</span> Mentor → /mentor/dashboard</li>
+            <li><span class="nav-arrow">→</span> Judge → /judge/dashboard</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-post">POST /api/auth/login</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRANG ĐĂNG KÝ -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(34,197,94,0.1)">📝</div>
+          <div>
+            <div class="card-title">Trang Đăng Ký</div>
+            <div class="card-route">/register</div>
+          </div>
+          <span class="be-status status-done">BE XONG</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Form nhập: Username, Email, Password</li>
+            <li>Nút "Đăng ký"</li>
+            <li>Link "Đã có tài khoản? Đăng nhập"</li>
+            <li>Sau khi đăng ký: hiển thị thông báo "Chờ Coordinator duyệt"</li>
+          </ul>
+          <div class="note-box"><b>Lưu ý:</b> Chỉ Leader mới tự đăng ký. Mentor và Judge do Coordinator tạo tài khoản.</div>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-post">POST /api/auth/register</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== COORDINATOR ==================== -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-coordinator">Coordinator</span>
+      <span class="role-title">Ban Tổ Chức — Quản lý toàn bộ hệ thống</span>
+      <span class="role-desc">SystemRole = Coordinator</span>
+    </div>
+    <div class="page-grid">
+
+      <!-- DASHBOARD COORDINATOR -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">📊</div>
+          <div>
+            <div class="card-title">Dashboard Coordinator</div>
+            <div class="card-route">/coordinator/dashboard</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị số liệu tổng quan</div>
+          <ul class="feature-list">
+            <li>Tổng số team đăng ký trong Event đang active</li>
+            <li>Số team đang Pending chờ duyệt</li>
+            <li>Round hiện tại đang ở status nào</li>
+            <li>Số Submission chưa được chấm đủ điểm</li>
+          </ul>
+          <div class="section-label">Điều hướng từ Dashboard</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> Nhấn "Duyệt tài khoản" → /coordinator/accounts</li>
+            <li><span class="nav-arrow">→</span> Nhấn "Quản lý Event" → /coordinator/events</li>
+            <li><span class="nav-arrow">→</span> Nhấn "Quản lý Team" → /coordinator/teams</li>
+            <li><span class="nav-arrow">→</span> Nhấn "Audit Log" → /coordinator/audit-logs</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/dashboard/coordinator</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUẢN LÝ EVENT -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">🏆</div>
+          <div>
+            <div class="card-title">Quản lý Event</div>
+            <div class="card-route">/coordinator/events</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Danh sách tất cả Event (tên, trạng thái, ngày bắt đầu/kết thúc)</li>
+            <li>Badge trạng thái: Draft / Open / Ongoing / Closed</li>
+            <li>Nút "Tạo Event mới"</li>
+            <li>Nút "Sửa" và "Xóa" cho từng Event</li>
+          </ul>
+          <div class="section-label">Nhấn vào 1 Event</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> /coordinator/events/{id} — Chi tiết Event</li>
+          </ul>
+          <div class="section-label">Trang chi tiết Event hiển thị</div>
+          <ul class="feature-list">
+            <li>Thông tin Event: tên, mô tả, ngày, trạng thái</li>
+            <li>Danh sách Track trong Event</li>
+            <li>Nút "Thêm Track", "Sửa Track", "Xóa Track"</li>
+            <li>Nhấn vào Track → /coordinator/tracks/{id}</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/events</span>
+            <span class="api-chip chip-post">POST /api/events</span>
+            <span class="api-chip chip-put">PUT /api/events/{id}</span>
+            <span class="api-chip chip-delete">DELETE /api/events/{id}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUẢN LÝ TRACK & ROUND -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">🎯</div>
+          <div>
+            <div class="card-title">Chi tiết Track — Round & Tiêu chí</div>
+            <div class="card-route">/coordinator/tracks/{id}</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Thông tin Track: tên, mô tả, số đội tối đa</li>
+            <li>Danh sách Round theo thứ tự (OrderIndex): tên, thời gian, trạng thái, số slot thăng vòng</li>
+            <li>Danh sách Mentor được assign vào Track này</li>
+            <li>Danh sách Prize của Track (Giải Nhất, Nhì, Ba...)</li>
+          </ul>
+          <div class="section-label">Thao tác</div>
+          <ul class="feature-list">
+            <li>Thêm/sửa Round — form nhập tên, thời gian bắt đầu/kết thúc, số slot</li>
+            <li>Chuyển trạng thái Round: Upcoming → Active → Scoring → Closed</li>
+            <li>Assign Mentor vào Track — dropdown chọn từ danh sách Mentor</li>
+            <li>Assign Judge vào Round — dropdown chọn từ danh sách Judge</li>
+            <li>Thêm tiêu chí cho Round — nhập tên, MaxScore, Weight</li>
+            <li>Nhấn vào Round → /coordinator/rounds/{id}/topics — quản lý Topic</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/events/{id}/tracks</span>
+            <span class="api-chip chip-post">POST /api/rounds</span>
+            <span class="api-chip chip-put">PUT /api/rounds/{id}/status</span>
+            <span class="api-chip chip-post">POST /api/tracks/{id}/mentors</span>
+            <span class="api-chip chip-post">POST /api/rounds/{id}/judges</span>
+            <span class="api-chip chip-post">POST /api/rounds/{id}/criteria</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUẢN LÝ TEAM -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">👨‍💻</div>
+          <div>
+            <div class="card-title">Quản lý Team</div>
+            <div class="card-route">/coordinator/teams</div>
+          </div>
+          <span class="be-status status-wip">BE ĐANG LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Bảng tất cả team: Tên team, Trường, Track, Trạng thái, Mentor được assign</li>
+            <li>Filter theo Track, theo Status (Pending / Approved / Disqualified)</li>
+            <li>Nút "Duyệt" và "Loại" cho team đang Pending</li>
+            <li>Nút "Assign Mentor" cho team đã Approved</li>
+          </ul>
+          <div class="section-label">Nhấn vào 1 Team</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> /coordinator/teams/{id} — Chi tiết Team</li>
+          </ul>
+          <div class="section-label">Trang chi tiết Team hiển thị</div>
+          <ul class="feature-list">
+            <li>Thông tin team: tên, trường, track, Github repo, trạng thái</li>
+            <li>Danh sách thành viên: FullName, StudentCode, Email, IsFPTStudent, IsLeader</li>
+            <li>Mentor đang phụ trách (nếu đã assign)</li>
+            <li>Topic được gán (nếu Round đã Active)</li>
+            <li>Lịch sử Submission của team</li>
+            <li>Dropdown chọn Mentor để assign</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/admin/teams</span>
+            <span class="api-chip chip-put">PUT /api/teams/{id}/approve</span>
+            <span class="api-chip chip-put">PUT /api/teams/{id}/disqualify</span>
+            <span class="api-chip chip-put">PUT /api/teams/{id}/mentor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RANKING & EXPORT -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(79,110,247,0.1)">🏅</div>
+          <div>
+            <div class="card-title">Ranking & Export</div>
+            <div class="card-route">/coordinator/rounds/{id}/ranking</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Bảng xếp hạng: Hạng, Tên team, Tổng điểm, Lên vòng tiếp hay không</li>
+            <li>Giải thưởng tự động map theo hạng (Giải Nhất, Nhì, Ba)</li>
+            <li>Nút "Chốt Ranking" — chỉ hiện khi chưa chốt</li>
+            <li>Nút "Export CSV/Excel" — tải file kết quả</li>
+            <li>Sau khi chốt: bảng khóa lại, không sửa được</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-post">POST /api/rounds/{id}/ranking/calculate</span>
+            <span class="api-chip chip-get">GET /api/rounds/{id}/ranking</span>
+            <span class="api-chip chip-get">GET /api/rounds/{id}/export</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== LEADER ==================== -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-leader">Leader</span>
+      <span class="role-title">Trưởng Nhóm — Đại diện đội thi</span>
+      <span class="role-desc">EventRole = Leader</span>
+    </div>
+    <div class="page-grid">
+
+      <!-- DASHBOARD LEADER -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(34,197,94,0.1)">🏠</div>
+          <div>
+            <div class="card-title">Dashboard Leader</div>
+            <div class="card-route">/leader/dashboard</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Tên team, Track đang tham gia, trạng thái team (Pending/Approved)</li>
+            <li>Round hiện tại: tên, trạng thái, đồng hồ đếm ngược đến EndTime</li>
+            <li>Topic được gán (hiện sau khi Round Active)</li>
+            <li>Đã nộp bài vòng này chưa — badge "Đã nộp" / "Chưa nộp"</li>
+          </ul>
+          <div class="section-label">Điều hướng</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> Nhấn "Quản lý Team" → /leader/team</li>
+            <li><span class="nav-arrow">→</span> Nhấn "Nộp bài" → /leader/submit</li>
+            <li><span class="nav-arrow">→</span> Nhấn "Xếp hạng" → /leader/ranking</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/dashboard/leader</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUẢN LÝ TEAM (LEADER) -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(34,197,94,0.1)">⚙️</div>
+          <div>
+            <div class="card-title">Quản lý Team của tôi</div>
+            <div class="card-route">/leader/team</div>
+          </div>
+          <span class="be-status status-wip">BE ĐANG LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Nếu chưa có team — hiển thị</div>
+          <ul class="feature-list">
+            <li>Form tạo team: Tên team, Trường, chọn Track, Github Repo (tuỳ chọn)</li>
+            <li>Danh sách Track còn chỗ để chọn</li>
+            <li>Nút "Tạo Team"</li>
+          </ul>
+          <div class="section-label">Nếu đã có team — hiển thị</div>
+          <ul class="feature-list">
+            <li>Thông tin team: tên, trường, track, github, trạng thái</li>
+            <li>Nút "Sửa thông tin team" (tên, trường, github)</li>
+            <li>Bảng danh sách thành viên (3–5 người): FullName, StudentCode, Email, Phone, IsFPTStudent</li>
+            <li>Nút "Thêm thành viên" — form nhập thông tin</li>
+            <li>Nút "Sửa" và "Xóa" từng thành viên</li>
+            <li>Cảnh báo nếu team chưa đủ 3 người</li>
+            <li>Chặn thêm nếu đã đủ 5 người</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-post">POST /api/teams</span>
+            <span class="api-chip chip-put">PUT /api/teams/{id}</span>
+            <span class="api-chip chip-get">GET /api/teams/{id}</span>
+            <span class="api-chip chip-post">POST /api/teams/{id}/members</span>
+            <span class="api-chip chip-put">PUT /api/teams/{id}/members/{memberId}</span>
+            <span class="api-chip chip-delete">DELETE /api/teams/{id}/members/{memberId}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NỘP BÀI -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(34,197,94,0.1)">📤</div>
+          <div>
+            <div class="card-title">Nộp Bài</div>
+            <div class="card-route">/leader/submit</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Thông tin round đang diễn ra và đồng hồ đếm ngược</li>
+            <li>Form nộp bài: Demo URL, Report URL</li>
+            <li>Nút "Nộp bài" — bị disable sau khi hết thời gian</li>
+            <li>Thông báo nếu đã nộp rồi (không cho nộp lại)</li>
+            <li>Lịch sử các lần nộp trước (URL, thời gian nộp)</li>
+          </ul>
+          <div class="note-box"><b>Quan trọng:</b> Chặn hoàn toàn sau khi hết deadline. Hiển thị rõ thời gian còn lại.</div>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-post">POST /api/submissions</span>
+            <span class="api-chip chip-get">GET /api/teams/{id}/submissions</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- XEM RANKING (LEADER) -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(34,197,94,0.1)">📈</div>
+          <div>
+            <div class="card-title">Xem Kết Quả & Xếp Hạng</div>
+            <div class="card-route">/leader/ranking</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Chỉ hiện sau khi Coordinator đã chốt Ranking</li>
+            <li>Bảng xếp hạng: Hạng, Tên team, Tổng điểm</li>
+            <li>Highlight dòng của team mình</li>
+            <li>Thông báo "Đội bạn lên vòng tiếp" / "Đội bạn dừng ở đây"</li>
+            <li>Nếu chưa chốt: hiển thị "Kết quả chưa được công bố"</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/rounds/{id}/ranking</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MENTOR ==================== -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-mentor">Mentor</span>
+      <span class="role-title">Mentor — Hỗ trợ đội thi theo Track</span>
+      <span class="role-desc">EventRole = Mentor</span>
+    </div>
+    <div class="page-grid">
+
+      <!-- DASHBOARD MENTOR -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(234,179,8,0.1)">🏠</div>
+          <div>
+            <div class="card-title">Dashboard Mentor</div>
+            <div class="card-route">/mentor/dashboard</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Track mình được assign (tên Track)</li>
+            <li>Số team đang phụ trách (tối đa 3 team)</li>
+            <li>Danh sách team phụ trách: tên, trạng thái, round hiện tại</li>
+          </ul>
+          <div class="section-label">Nhấn vào 1 Team</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> /mentor/teams/{id} — Chi tiết team</li>
+          </ul>
+          <div class="section-label">Trang chi tiết team (Mentor view)</div>
+          <ul class="feature-list">
+            <li>Thông tin team, danh sách thành viên</li>
+            <li>Topic được gán</li>
+            <li>Lịch sử nộp bài của team</li>
+            <li>KHÔNG hiển thị thông tin Judge phụ trách round</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/dashboard/mentor</span>
+            <span class="api-chip chip-get">GET /api/mentors/me/teams</span>
+            <span class="api-chip chip-get">GET /api/teams/{id}/detail</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== JUDGE ==================== -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-judge">Judge</span>
+      <span class="role-title">Judge — Chấm điểm theo tiêu chí</span>
+      <span class="role-desc">EventRole = Judge (Internal / Guest)</span>
+    </div>
+    <div class="page-grid">
+
+      <!-- DASHBOARD JUDGE -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(124,58,237,0.1)">🏠</div>
+          <div>
+            <div class="card-title">Dashboard Judge</div>
+            <div class="card-route">/judge/dashboard</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Danh sách Round được phân công (tên Round, thời gian, trạng thái)</li>
+            <li>Đồng hồ đếm ngược đến EndTime của Round đang Active</li>
+            <li>Số bài cần chấm / đã chấm xong</li>
+          </ul>
+          <div class="section-label">Nhấn vào 1 Round</div>
+          <ul class="nav-list">
+            <li><span class="nav-arrow">→</span> /judge/rounds/{id}/score — Trang chấm điểm</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/dashboard/judge</span>
+            <span class="api-chip chip-get">GET /api/judges/me/rounds</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHẤM ĐIỂM -->
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(124,58,237,0.1)">⭐</div>
+          <div>
+            <div class="card-title">Trang Chấm Điểm</div>
+            <div class="card-route">/judge/rounds/{id}/score</div>
+          </div>
+          <span class="be-status status-wip">BE ĐANG LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Danh sách Submission cần chấm trong Round (chỉ hiện sau EndTime)</li>
+            <li>Mỗi Submission: Demo URL, Report URL</li>
+            <li>Form chấm điểm: danh sách tiêu chí, ô nhập điểm (0 → MaxScore), ô nhập nhận xét</li>
+            <li>Nút "Lưu điểm" cho từng tiêu chí</li>
+            <li>Nút "Sửa điểm" — chỉ cho phép trước khi Ranking được chốt</li>
+          </ul>
+          <div class="note-box"><b>Quan trọng:</b> KHÔNG hiển thị tên Mentor, MentorId của team trong trang này. Yêu cầu nghiên cứu RBL.</div>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/rounds/{id}/submissions</span>
+            <span class="api-chip chip-get">GET /api/rounds/{id}/criteria</span>
+            <span class="api-chip chip-post">POST /api/submissions/{id}/scores</span>
+            <span class="api-chip chip-put">PUT /api/submissions/{id}/scores</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SHARED: NOTIFICATION -->
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge badge-public">Tất cả roles</span>
+      <span class="role-title">Thông báo — Hiển thị cho mọi tài khoản đã đăng nhập</span>
+    </div>
+    <div class="page-grid">
+      <div class="page-card">
+        <div class="card-header">
+          <div class="page-icon" style="background:rgba(100,116,139,0.1)">🔔</div>
+          <div>
+            <div class="card-title">Trung tâm Thông báo</div>
+            <div class="card-route">/notifications</div>
+          </div>
+          <span class="be-status status-todo">BE CHƯA LÀM</span>
+        </div>
+        <div class="card-body">
+          <div class="section-label">Hiển thị trên trang</div>
+          <ul class="feature-list">
+            <li>Icon chuông trên navbar — badge số thông báo chưa đọc</li>
+            <li>Danh sách thông báo: tiêu đề, nội dung, thời gian, đã đọc/chưa đọc</li>
+            <li>Nhấn vào thông báo → đánh dấu đã đọc</li>
+            <li>Các loại thông báo: TeamApproved, RoundStarted, ScorePublished</li>
+          </ul>
+          <div class="section-label">API cần gọi</div>
+          <div class="api-chips">
+            <span class="api-chip chip-get">GET /api/notifications/me</span>
+            <span class="api-chip chip-put">PUT /api/notifications/{id}/read</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+</body>
+</html>
