@@ -17,5 +17,6 @@ namespace SealHackathon.Application.Services.Interfaces
         Task ApproveAccountAsync(Guid accountId, Guid coordinatorId);
         Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason);
         Task VerifyEmailAsync(string token);
+        Task CreateAccountByCoordinatorAsync(CreateAccountRequest request, Guid coordinatorId);
     }
 }
