@@ -16,7 +16,7 @@ namespace SealHackathon.Application.DTOs.Score
 
         // ID và tên Judge chấm
         public Guid JudgeId { get; set; }
-        public string JudgeName { get; set; } = string.Empty;
+        public string JudgeName { get; set; } 
 
         // ID và tên tiêu chí
         public int CriterionId { get; set; }
