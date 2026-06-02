@@ -47,5 +47,10 @@ namespace SealHackathon.Infrastructure.Repositories
         {
             return await _dbSet.CountAsync(predicate);
         }
+
+        public void Delete(T entity)
+        {
+            _dbSet.Remove(entity);
+        }
     }
 }

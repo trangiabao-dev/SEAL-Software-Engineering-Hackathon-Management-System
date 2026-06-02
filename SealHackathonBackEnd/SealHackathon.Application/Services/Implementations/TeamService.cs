@@ -1,4 +1,5 @@
-﻿using SealHackathon.Application.DTOs.Team;
+﻿using SealHackathon.Application.Common.Responses;
+using SealHackathon.Application.DTOs.Team;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
@@ -18,14 +19,14 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
         {
-            // Bước 1: Kiểm tra Track tồn tại
+            // Kiểm tra Track tồn tại
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == request.TrackId && !t.IsDeleted);
 
             if (track is null)
                 throw new NotFoundException("Track", request.TrackId);
 
-            // Bước 2: Kiểm tra Track còn chỗ
+            // Kiểm tra Track còn chỗ
             if (track.MaxTeams is not null)
             {
                 var teamCount = await _uow.GetRepository<Team>()
@@ -35,7 +36,7 @@ namespace SealHackathon.Application.Services.Implementations
                     throw new BadRequestException("Track này đã đạt số lượng đội tối đa.");
             }
 
-            // Bước 3: Kiểm tra Leader đã có team trong Track này chưa
+            // Kiểm tra Leader đã có team trong Track này chưa
             var teamRepo = _uow.GetRepository<Team>();
 
             var existingTeam = await teamRepo
@@ -55,7 +56,7 @@ namespace SealHackathon.Application.Services.Implementations
                 TrackId = request.TrackId,
                 LeaderId = leaderId,
                 GithubRepoLink = request.GithubRepoLink,
-                Status = TeamStatus.Pending,  // ← constant
+                Status = TeamStatus.Pending,  // ← Không đổi
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -64,7 +65,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await teamRepo.AddAsync(newTeam);
 
-            // Bước 5: Tạo TeamMember cho Leader
+            // Tạo TeamMember cho Leader
             var leaderMember = new TeamMember
             {
                 TeamId = newTeam.Id,
@@ -101,17 +102,17 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var repo = _uow.GetRepository<Team>();
 
-            // Bước 1: Tìm team
+            // Tìm team
             var team = await repo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
             if (team is null)
                 throw new NotFoundException("Team", teamId);
 
-            // Bước 2: Kiểm tra quyền
+            // Kiểm tra quyền
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException("Bạn không có quyền chỉnh sửa đội này.");
 
-            // Bước 3: Kiểm tra status
-            if (team.Status == TeamStatus.Approved)  // ← constant
+            // Kiểm tra status
+            if (team.Status == TeamStatus.Approved) // ← Không đổi
             {
                 if (!string.Equals(team.TeamName, request.TeamName, StringComparison.OrdinalIgnoreCase)
                  || !string.Equals(team.University, request.University, StringComparison.OrdinalIgnoreCase))
@@ -138,7 +139,7 @@ namespace SealHackathon.Application.Services.Implementations
                 team.GithubRepoLink = request.GithubRepoLink;
             }
 
-            // Bước 4: Lưu
+            // Lưu
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = leaderId;
 
@@ -146,6 +147,240 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
 
             return MapToDto(team);
+        }
+
+        // ===========
+        // COORDINATOR 
+        // ===========
+
+        public async Task<PaginatedResponse<TeamDetailDto>> GetAllTeamsAsync(
+            int pageNumber, int pageSize, string? status, int? trackId)
+        {
+            // Lấy tất cả team không bị xóa
+            var allTeams = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => !t.IsDeleted
+                    && (status == null || t.Status == status)
+                    && (trackId == null || t.TrackId == trackId));
+
+            var totalRecords = allTeams.Count;
+
+            // Phân trang thủ công — skip và take
+            // Skip: bỏ qua bao nhiêu record
+            // Take: lấy bao nhiêu record
+            var items = allTeams
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(MapToDto)
+                .ToList();
+
+            return new PaginatedResponse<TeamDetailDto>(items, totalRecords, pageNumber, pageSize);
+        }
+
+        public async Task ApproveTeamAsync(Guid teamId, Guid coordinatorId)
+        {
+            var repo = _uow.GetRepository<Team>();
+
+            var team = await repo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.Status != TeamStatus.Pending)
+                throw new BadRequestException("Chỉ có thể duyệt team đang ở trạng thái Pending.");
+
+            // Kiểm tra team có đủ 3 thành viên không
+            var memberCount = await _uow.GetRepository<TeamMember>()
+                .CountAsync(m => m.TeamId == teamId);
+
+            if (memberCount < 3)
+                throw new BadRequestException($"Team cần ít nhất 3 thành viên trước khi được duyệt. Hiện tại có {memberCount} người.");
+
+            team.Status = TeamStatus.Approved;
+            team.UpdatedAt = DateTime.UtcNow;
+            team.UpdatedBy = coordinatorId;
+
+            repo.Update(team);
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task DisqualifyTeamAsync(Guid teamId, Guid coordinatorId)
+        {
+            var repo = _uow.GetRepository<Team>();
+
+            var team = await repo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.Status == TeamStatus.Disqualified)
+                throw new BadRequestException("Team này đã bị loại trước đó.");
+
+            team.Status = TeamStatus.Disqualified;
+            team.UpdatedAt = DateTime.UtcNow;
+            team.UpdatedBy = coordinatorId;
+
+            repo.Update(team);
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId)
+        {
+            var teamRepo = _uow.GetRepository<Team>();
+
+            // Tìm team
+            var team = await teamRepo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            // Kiểm tra Mentor có tồn tại và đúng role không
+            var mentor = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == request.MentorId && !a.IsDeleted);
+            if (mentor is null)
+                throw new NotFoundException("Mentor", request.MentorId);
+
+            // Kiểm tra Mentor có được assign vào Track của team không
+            var mentorAssign = await _uow.GetRepository<MentorAssign>()
+                .GetFirstOrDefaultAsync(ma => ma.MentorId == request.MentorId
+                                           && ma.TrackId == team.TrackId);
+            if (mentorAssign is null)
+                throw new BadRequestException("Mentor này chưa được phân công vào Track của đội thi.");
+
+            // Kiểm tra Mentor không được phụ trách quá 3 team
+            var currentTeamCount = await teamRepo
+                .CountAsync(t => t.MentorId == request.MentorId && !t.IsDeleted);
+
+            if (currentTeamCount >= 3)
+                throw new BadRequestException("Mentor này đã phụ trách tối đa 3 đội. Vui lòng chọn Mentor khác.");
+
+            // Assign
+            team.MentorId = request.MentorId;
+            team.UpdatedAt = DateTime.UtcNow;
+            team.UpdatedBy = coordinatorId;
+
+            teamRepo.Update(team);
+            await _uow.SaveChangesAsync();
+        }
+
+        // ================
+        // LEADER — MEMBER
+        // ================
+
+        public async Task<TeamMemberDto> AddMemberAsync(Guid teamId, AddMemberRequest request, Guid leaderId)
+        {
+            var teamRepo = _uow.GetRepository<Team>();
+
+            // Tìm team và kiểm tra quyền
+            var team = await teamRepo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.LeaderId != leaderId)
+                throw new ForbiddenException("Bạn không có quyền thêm thành viên vào đội này.");
+
+            // Bước 2: Kiểm tra không quá 5 người
+            var memberCount = await _uow.GetRepository<TeamMember>()
+                .CountAsync(m => m.TeamId == teamId);
+
+            if (memberCount >= 5)
+                throw new BadRequestException("Đội đã đủ 5 thành viên. Không thể thêm nữa.");
+
+            // Kiểm tra StudentCode không trùng trong cùng Event
+            // Lấy tất cả team trong cùng Track (cùng Event)
+            var teamsInTrack = await teamRepo
+                .GetAllAsync(t => t.TrackId == team.TrackId && !t.IsDeleted);
+
+            var teamIdsInTrack = teamsInTrack.Select(t => t.Id).ToList();
+
+            var duplicateStudent = await _uow.GetRepository<TeamMember>()
+                .GetFirstOrDefaultAsync(m => teamIdsInTrack.Contains(m.TeamId)
+                                          && m.StudentCode == request.StudentCode);
+
+            if (duplicateStudent is not null)
+                throw new ConflictException($"StudentCode '{request.StudentCode}' đã tồn tại trong một đội khác cùng Track.");
+
+            // Tạo member mới
+            var newMember = new TeamMember
+            {
+                TeamId = teamId,
+                FullName = request.FullName,
+                StudentCode = request.StudentCode,
+                Email = request.Email,
+                Phone = request.Phone,
+                IsLeader = false,
+                IsFptstudent = request.IsFPTStudent,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = leaderId
+            };
+
+            await _uow.GetRepository<TeamMember>().AddAsync(newMember);
+            await _uow.SaveChangesAsync();
+
+            return MapToMemberDto(newMember);
+        }
+
+        public async Task<TeamMemberDto> UpdateMemberAsync(
+            Guid teamId, int memberId, UpdateMemberRequest request, Guid leaderId)
+        {
+            // Kiểm tra team tồn tại và quyền
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.LeaderId != leaderId)
+                throw new ForbiddenException("Bạn không có quyền chỉnh sửa thành viên của đội này.");
+
+            // Tìm member
+            var memberRepo = _uow.GetRepository<TeamMember>();
+            var member = await memberRepo
+                .GetFirstOrDefaultAsync(m => m.Id == memberId && m.TeamId == teamId);
+            if (member is null)
+                throw new NotFoundException("TeamMember", memberId);
+
+            // Không cho sửa StudentCode — đây là định danh cố định
+            // Chỉ cho sửa thông tin cá nhân
+            member.FullName = request.FullName;
+            member.Email = request.Email;
+            member.Phone = request.Phone;
+            member.IsFptstudent = request.IsFPTStudent;
+            member.UpdatedAt = DateTime.UtcNow;
+            member.UpdatedBy = leaderId;
+
+            memberRepo.Update(member);
+            await _uow.SaveChangesAsync();
+
+            return MapToMemberDto(member);
+        }
+
+        public async Task DeleteMemberAsync(Guid teamId, int memberId, Guid leaderId)
+        {
+            // Kiểm tra team và quyền
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            if (team is null)
+                throw new NotFoundException("Team", teamId);
+
+            if (team.LeaderId != leaderId)
+                throw new ForbiddenException("Bạn không có quyền xóa thành viên của đội này.");
+
+            // Tìm member
+            var memberRepo = _uow.GetRepository<TeamMember>();
+            var member = await memberRepo
+                .GetFirstOrDefaultAsync(m => m.Id == memberId && m.TeamId == teamId);
+            if (member is null)
+                throw new NotFoundException("TeamMember", memberId);
+
+            // Không cho xóa Leader
+            if (member.IsLeader)
+                throw new BadRequestException("Không thể xóa Đội trưởng. Hãy chuyển quyền trước.");
+
+            // Không được để dưới 3 người
+            var memberCount = await memberRepo.CountAsync(m => m.TeamId == teamId);
+            if (memberCount <= 3)
+                throw new BadRequestException("Đội cần ít nhất 3 thành viên. Không thể xóa thêm.");
+
+            // Xóa
+            memberRepo.Delete(member);
+            await _uow.SaveChangesAsync();
         }
 
         private TeamDetailDto MapToDto(Team team)
@@ -161,6 +396,20 @@ namespace SealHackathon.Application.Services.Implementations
                 TopicId = team.TopicId,
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status
+            };
+        }
+
+        private TeamMemberDto MapToMemberDto(TeamMember member)
+        {
+            return new TeamMemberDto
+            {
+                Id = member.Id,
+                FullName = member.FullName,
+                StudentCode = member.StudentCode,
+                Email = member.Email,
+                Phone = member.Phone,
+                IsLeader = member.IsLeader,
+                IsFPTStudent = member.IsFptstudent
             };
         }
     }

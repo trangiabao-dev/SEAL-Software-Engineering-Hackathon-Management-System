@@ -116,6 +116,7 @@ builder.Services.AddDbContext<SealDbContext>(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IScoreService, ScoreService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 
 var app = builder.Build();
 
