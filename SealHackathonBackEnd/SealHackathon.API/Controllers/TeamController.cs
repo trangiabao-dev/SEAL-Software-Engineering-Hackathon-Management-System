@@ -27,7 +27,7 @@ namespace SealHackathon.API.Controllers
         [Authorize(Roles = "Participant")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request)
         {
-            var leaderId = GetCurrentAccountId();
+            var leaderId = GetCurrentAccountId(); // // Lấy từ JWT Token — không thể giả mạo
             var result = await _teamService.CreateTeamAsync(request, leaderId);
             return Ok(ApiResponse<TeamDetailDto>.SuccessResult(result, "Tạo đội thành công. Chờ Coordinator duyệt."));
         }

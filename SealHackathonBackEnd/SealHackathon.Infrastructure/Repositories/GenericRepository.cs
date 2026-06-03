@@ -21,13 +21,6 @@ namespace SealHackathon.Infrastructure.Repositories
             await _dbSet.AddAsync(entity);
         }
 
-        public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
-        {
-            // AsNoTracking() là tư duy tối ưu hiệu năng của Senior.
-            // Nếu chỉ đọc dữ liệu lên để kiểm tra (như check Login) mà không sửa, 
-            // ta nói EF Core không cần theo dõi (track) object này trên RAM làm gì cho nặng.
-            return await _dbSet.AsNoTracking().FirstOrDefaultAsync(predicate);
-        }
         public async Task<List<T>> GetAllAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
@@ -51,6 +44,32 @@ namespace SealHackathon.Infrastructure.Repositories
         public void Delete(T entity)
         {
             _dbSet.Remove(entity);
+        }
+
+        /// <summary>
+        /// Chỉ đọc data, KHÔNG sửa (Kiểm tra tên team trùng, check track tồn tại)
+        /// </summary>
+        public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.AsNoTracking().FirstOrDefaultAsync(predicate);
+        }
+
+        /// <summary>
+        /// Bảo thêm 2: (Đọc xong rồi SỬA entity đó: Lấy team ra → đổi status → save)
+        /// </summary>
+        public async Task<T?> GetFirstOrDefaultTrackingAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate); // KHÔNG có AsNoTracking
+        }
+
+        // Bảo thêm 3
+        public async Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate, int skip, int take)
+        {
+            return await _dbSet.AsNoTracking()
+                .Where(predicate)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
         }
     }
 }

@@ -33,5 +33,10 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         // Bảo thêm 1
         void Delete(T entity);
 
+        // Bảo thêm 2
+        Task<T?> GetFirstOrDefaultTrackingAsync(Expression<Func<T, bool>> predicate);
+
+        // Bảo thêm 3
+        Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate,int skip,int take);
     }
 }
