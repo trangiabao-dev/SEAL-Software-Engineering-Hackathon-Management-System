@@ -33,7 +33,7 @@ namespace SealHackathon.Infrastructure.Repositories
             return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
         }
         // Thức 
-        
+
         public void Update(T entity)
         {
             _dbSet.Update(entity);

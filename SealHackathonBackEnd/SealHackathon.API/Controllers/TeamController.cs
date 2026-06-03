@@ -6,9 +6,9 @@ using SealHackathon.Application.Services.Interfaces;
 
 namespace SealHackathon.API.Controllers
 {
-    [ApiController]
-    [Route("api/teams")]
-    [Authorize]
+    [ApiController] // Báo cho .NET biết đây là API. Check người dùng có gửi thiếu field bắt buộc trong DTO không
+    [Route("api/teams")] // Quy định URL gốc cho toàn bộ API trong file này.
+    [Authorize] // Thực thi cơ chế xác thực
     public class TeamController : BaseController
     {
         private readonly ITeamService _teamService;
@@ -18,12 +18,12 @@ namespace SealHackathon.API.Controllers
             _teamService = teamService;
         }
 
-        // ==========================================
-        // LEADER OPERATIONS
-        // ==========================================
+        // =======
+        // LEADER
+        // =======
 
         // POST api/teams — Leader tạo team
-        [HttpPost]
+        [HttpPost] // Quy định API này chỉ nhận các Request gửi qua phương thức POST (chuyên dùng để tạo mới dữ liệu).
         [Authorize(Roles = "Participant")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request)
         {
@@ -34,7 +34,7 @@ namespace SealHackathon.API.Controllers
 
         // GET api/teams/{id} — Lấy thông tin team
         [HttpGet("{id:guid}")]
-        public async Task<IActionResult> GetById(Guid id)
+        public async Task<IActionResult> GetByIdTeam(Guid id)
         {
             var result = await _teamService.GetByIdAsync(id);
             return Ok(ApiResponse<TeamDetailDto>.SuccessResult(result));
