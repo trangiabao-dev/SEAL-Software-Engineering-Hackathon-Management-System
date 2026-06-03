@@ -97,10 +97,9 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(Guid submissionId)
         {
-            // Kiểm tra Submission có tồn tại không
-            // Lý do: Tránh trả về list rỗng khi submissionId không hợp lệ —
-            // client sẽ không biết là ID sai hay submission chưa có điểm.
-            // Throw NotFoundException rõ ràng hơn.
+            // Bước 1: Kiểm tra Submission có tồn tại không
+            // Lý do: Tránh trả về list rỗng khi submissionId không hợp lệ
+            // Client không biết là ID sai hay submission chưa có điểm
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -108,8 +107,61 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission == null)
                 throw new NotFoundException("Submission", submissionId);
 
-            // Tạm thời trả về list rỗng — sẽ bổ sung sau
-            return new List<ScoreRecordResponse>();
+            // Bước 2: Lấy tất cả ScoreRecord của submission này
+            // Lý do: Lấy hết điểm của mọi Judge, kể cả IsCalibration
+            var scoreRecords = await _unitOfWork
+                .GetRepository<ScoreRecord>()
+                .GetAllAsync(sr => sr.SubmissionId == submissionId);
+
+            // Nếu chưa có điểm nào thì trả về list rỗng — đây là trường hợp hợp lệ
+            // Khác với submissionId không tồn tại ở trên
+            if (!scoreRecords.Any())
+                return new List<ScoreRecordResponse>();
+
+            // Bước 3: Lấy thông tin Judge và Criterion
+            // Lý do: ScoreRecord chỉ lưu JudgeId và CriterionId
+            // Cần query thêm để lấy tên — tránh trả về ID thô cho FE
+
+            // Lấy danh sách JudgeId và CriterionId không trùng lặp
+            // Lý do dùng Distinct(): 1 Judge có thể chấm nhiều tiêu chí
+            // không cần query Account cùng 1 JudgeId nhiều lần
+            var judgeIds = scoreRecords.Select(sr => sr.JudgeId).Distinct().ToList();
+            var criterionIds = scoreRecords.Select(sr => sr.CriterionId).Distinct().ToList();
+
+            // Query Account cho tất cả JudgeId cùng lúc — 1 round trip duy nhất
+            var judges = await _unitOfWork
+                .GetRepository<Account>()
+                .GetAllAsync(a => judgeIds.Contains(a.Id));
+
+            // Query Criterion cho tất cả CriterionId cùng lúc — 1 round trip duy nhất
+            var criteria = await _unitOfWork
+                .GetRepository<Criterion>()
+                .GetAllAsync(c => criterionIds.Contains(c.Id));
+
+            // Bước 4: Convert sang Dictionary để lookup nhanh O(1)
+            // Lý do: Nếu dùng .FirstOrDefault() trong vòng lặp bên dưới
+            // thì mỗi iteration lại duyệt toàn bộ list — O(n²) không cần thiết
+            var judgeDict = judges.ToDictionary(a => a.Id, a => a.Username);
+            var criterionDict = criteria.ToDictionary(c => c.Id, c => c.Name);
+
+            // Bước 5: Map sang Response DTO
+            var result = scoreRecords.Select(sr => new ScoreRecordResponse
+            {
+                Id = sr.Id,
+                SubmissionId = sr.SubmissionId,
+                JudgeId = sr.JudgeId,
+                // GetValueOrDefault: nếu JudgeId không có trong dict
+                // trả về string.Empty thay vì throw exception
+                JudgeName = judgeDict.GetValueOrDefault(sr.JudgeId, string.Empty),
+                CriterionId = sr.CriterionId,
+                CriterionName = criterionDict.GetValueOrDefault(sr.CriterionId, string.Empty),
+                Score = sr.Score,
+                Comment = sr.Comment,
+                IsCalibration = sr.IsCalibration,
+                ScoredAt = sr.ScoredAt
+            }).ToList();
+
+            return result;
         }
     }
 }
