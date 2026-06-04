@@ -1,6 +1,5 @@
 using DbUp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SealHackathon.API.Middleware;
@@ -16,9 +15,17 @@ var builder = WebApplication.CreateBuilder(args);
 Console.OutputEncoding = Encoding.UTF8;
 
 // ==========================================
-// 1. CORS
+// 1. CORS — FE Vite (localhost:5173)
 // ==========================================
-builder.Services.AddCors(ConfigureCorsOptions);
+var frontendBaseUrl = builder.Configuration["AppSettings:FrontendBaseUrl"]
+    ?? "http://localhost:5173";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+        policy.WithOrigins(frontendBaseUrl)
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
 // ==========================================
 // 2. JWT Authentication
@@ -152,12 +159,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
-
-static void ConfigureCorsOptions(CorsOptions options)
-    => options.AddPolicy("AllowReactApp", ConfigureCorsPolicy);
-
-static void ConfigureCorsPolicy(CorsPolicyBuilder policy)
-    => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
 
 static void RunDbUp(IConfiguration configuration)
 {
