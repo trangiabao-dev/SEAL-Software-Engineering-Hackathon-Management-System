@@ -70,9 +70,8 @@ public class AuthService : IAuthService
         await repo.AddAsync(account);
         await _uow.SaveChangesAsync();
 
-        // Bước 4: Tạo link xác nhận và gửi Email cho người dùng
-        // Lưu ý: Port 3000 là port mặc định của React. 
-        var confirmationLink = $"http://localhost:3000/api/auth/verify-email?token={account.EmailConfirmToken}";
+        // Link trỏ thẳng API BE — bấm email là xác nhận được (không cần FE proxy)
+        var confirmationLink = BuildEmailVerificationLink(account.EmailConfirmToken!);
 
         var emailSubject = "Xác nhận đăng ký tài khoản FPT Hackathon 2026";
         // Nội dung Email được thiết kế dưới dạng HTML để có nút bấm đẹp mắt
@@ -92,29 +91,25 @@ public class AuthService : IAuthService
     // ==========================================
     public async Task VerifyEmailAsync(string token)
     {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new BadRequestException("Token xác nhận không hợp lệ.");
+
         var repo = _uow.GetRepository<Account>();
 
-        // Bước 1: Tìm xem có tài khoản nào đang giữ cái mã Token này không
-        var account = await repo.GetFirstOrDefaultAsync(a => a.EmailConfirmToken == token);
+        // Phải dùng tracking — GetFirstOrDefaultAsync (AsNoTracking) + Update() có thể không ghi DB
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.EmailConfirmToken == token);
 
-        // Nếu không tìm thấy (token ảo) thì báo lỗi
         if (account == null)
             throw new BadRequestException("Token xác nhận không hợp lệ hoặc không tồn tại.");
 
-        // Bước 2: Kiểm tra xem Link này đã quá hạn (24h) chưa
-        if (account.TokenExpiresAt < DateTime.UtcNow)
+        if (account.TokenExpiresAt is not null && account.TokenExpiresAt < DateTime.UtcNow)
             throw new BadRequestException("Link xác nhận đã hết hạn. Vui lòng yêu cầu gửi lại email.");
 
-        // Bước 3: Nếu mọi thứ OK -> Nâng cấp Role cho người dùng
-        account.SystemRole = "Leader"; // Trở thành thí sinh chính thức
-
-        // Xóa mã Token đi để người dùng không thể bấm lại link này lần 2
+        account.SystemRole = "Leader";
         account.EmailConfirmToken = null;
         account.TokenExpiresAt = null;
         account.UpdatedAt = DateTime.UtcNow;
 
-        // Cập nhật Database
-        repo.Update(account);
         await _uow.SaveChangesAsync();
     }
 
@@ -178,12 +173,11 @@ public class AuthService : IAuthService
     public async Task ApproveAccountAsync(Guid accountId, Guid coordinatorId)
     {
         var repo = _uow.GetRepository<Account>();
-        var account = await repo.GetFirstOrDefaultAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
         if (account is null) throw new NotFoundException("Account", accountId);
 
         account.SystemRole = "Leader";
         account.UpdatedAt = DateTime.UtcNow;
-        repo.Update(account);
         await _uow.SaveChangesAsync();
     }
 
@@ -191,12 +185,11 @@ public class AuthService : IAuthService
     public async Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason)
     {
         var repo = _uow.GetRepository<Account>();
-        var account = await repo.GetFirstOrDefaultAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
         if (account is null) throw new NotFoundException("Account", accountId);
 
-        account.IsDeleted = true; // Đánh dấu là đã xóa (Xóa mềm)
+        account.IsDeleted = true;
         account.UpdatedAt = DateTime.UtcNow;
-        repo.Update(account);
         await _uow.SaveChangesAsync();
     }
 
@@ -274,7 +267,7 @@ public class AuthService : IAuthService
         await _uow.SaveChangesAsync();
 
         // 6. Gửi Email thông báo Mật khẩu tạm thời cho họ
-        var loginLink = "http://localhost:3000/api/auth/login";
+        var loginLink = GetFrontendBaseUrl().TrimEnd('/') + "/login";
         var emailSubject = $"Thư mời tham gia giải đấu Seal Hackathon 2026 - Vai trò {request.Role}";
 
         // Đổi lời chào thành request.Username
@@ -292,6 +285,16 @@ public class AuthService : IAuthService
 
         await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
     }
+    private string BuildEmailVerificationLink(string confirmToken)
+    {
+        // Link mở trang FE — FE đọc token từ URL rồi gọi GET {ApiBaseUrl}/api/auth/verify-email?token=...
+        return $"{GetFrontendBaseUrl()}/verify-email?token={Uri.EscapeDataString(confirmToken)}";
+    }
+
+    private string GetFrontendBaseUrl()
+        => _config["AppSettings:FrontendBaseUrl"]?.TrimEnd('/')
+           ?? "http://localhost:5173";
+
     // Hàm phụ trợ giúp xóa dấu tiếng Việt
     private string RemoveVietnameseTone(string text)
     {
