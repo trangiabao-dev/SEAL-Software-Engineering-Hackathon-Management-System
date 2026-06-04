@@ -14,9 +14,6 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<LoginResponse> LoginAsync(LoginRequest request);
         Task LogoutAsync(string token);
 
-        Task<List<AccountPendingResponse>> GetPendingAccountsAsync();
-        Task ApproveAccountAsync(Guid accountId, Guid coordinatorId);
-        Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason);
         Task CreateAccountByCoordinatorAsync(CreateAccountRequest request, Guid coordinatorId);
     }
 }
