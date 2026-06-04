@@ -119,6 +119,7 @@ builder.Services.AddDbContext<SealDbContext>(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IScoreService, ScoreService>();
+builder.Services.AddScoped<IRankingService, RankingService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
