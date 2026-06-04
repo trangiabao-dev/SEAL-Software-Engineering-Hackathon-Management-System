@@ -24,7 +24,7 @@ namespace SealHackathon.API.Controllers
 
         // POST api/teams — Leader tạo team
         [HttpPost] // Quy định API này chỉ nhận các Request gửi qua phương thức POST (chuyên dùng để tạo mới dữ liệu).
-        [Authorize(Roles = "Participant")]
+        [Authorize(Roles = "Leader")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request)
         {
             var leaderId = GetCurrentAccountId(); // // Lấy từ JWT Token — không thể giả mạo
@@ -42,7 +42,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id} — Leader sửa team
         [HttpPut("{id:guid}")]
-        [Authorize(Roles = "Participant")]
+        [Authorize(Roles = "Leader")]
         public async Task<IActionResult> UpdateTeam(Guid id, [FromBody] UpdateTeamRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -52,7 +52,7 @@ namespace SealHackathon.API.Controllers
 
         // POST api/teams/{id}/members — Leader thêm thành viên
         [HttpPost("{id:guid}/members")]
-        [Authorize(Roles = "Participant")]
+        [Authorize(Roles = "Leader")]
         public async Task<IActionResult> AddMember(Guid id, [FromBody] AddMemberRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -62,7 +62,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id}/members/{memberId} — Leader sửa thành viên
         [HttpPut("{id:guid}/members/{memberId:int}")]
-        [Authorize(Roles = "Participant")]
+        [Authorize(Roles = "Leader")]
         public async Task<IActionResult> UpdateMember(Guid id, int memberId, [FromBody] UpdateMemberRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -72,7 +72,7 @@ namespace SealHackathon.API.Controllers
 
         // DELETE api/teams/{id}/members/{memberId} — Leader xóa thành viên
         [HttpDelete("{id:guid}/members/{memberId:int}")]
-        [Authorize(Roles = "Participant")]
+        [Authorize(Roles = "Leader")]
         public async Task<IActionResult> DeleteMember(Guid id, int memberId)
         {
             var leaderId = GetCurrentAccountId();
