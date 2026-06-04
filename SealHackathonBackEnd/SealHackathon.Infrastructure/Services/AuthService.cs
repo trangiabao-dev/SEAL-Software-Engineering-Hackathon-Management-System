@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SealHackathon.Application.DTOs.Auth;
 using SealHackathon.Application.Services.Interfaces;
@@ -274,7 +274,7 @@ public class AuthService : IAuthService
         await _uow.SaveChangesAsync();
 
         // 6. Gửi Email thông báo Mật khẩu tạm thời cho họ
-        var loginLink = "http://localhost:3000/login";
+        var loginLink = "http://localhost:3000/api/auth/login";
         var emailSubject = $"Thư mời tham gia giải đấu Seal Hackathon 2026 - Vai trò {request.Role}";
 
         // Đổi lời chào thành request.Username

@@ -76,6 +76,9 @@ builder.Services.AddEndpointsApiExplorer();
 // Cấu hình Swagger hiểu JWT — cho phép test API có auth trực tiếp trên Swagger UI
 builder.Services.AddSwaggerGen(options =>
 {
+    // Sửa lỗi trùng tên DTO trong Swagger
+    options.CustomSchemaIds(type => type.FullName);
+
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -117,7 +120,11 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IScoreService, ScoreService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
-
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<ITrackService, TrackService>();
+builder.Services.AddScoped<IRoundService, RoundService>();
+builder.Services.AddScoped<ITopicService, TopicService>();
+builder.Services.AddScoped<ICriterionService, CriterionService>();
 var app = builder.Build();
 
 // ==========================================

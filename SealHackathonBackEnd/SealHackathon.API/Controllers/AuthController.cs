@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Auth;
@@ -7,7 +7,7 @@ using SealHackathon.Application.Services.Interfaces;
 namespace SealHackathon.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     public class AuthController : BaseController
     {
         private readonly IAuthService _authService;

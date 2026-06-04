@@ -1,4 +1,4 @@
-﻿using SealHackathon.Domain.Exceptions;
+using SealHackathon.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +13,11 @@ namespace SealHackathon.Domain.Exceptions
         // Ví dụ: Tìm Account theo Id nhưng không có trong DB
         public NotFoundException(string resourceName, object key)
             : base($"{resourceName} with id '{key}' not exist.", 404)
+        {
+        }
+
+        public NotFoundException(string message) 
+            : base(message, 404)
         {
         }
     }
