@@ -102,7 +102,10 @@ namespace SealHackathon.Application.Services.Implementations
             if (team is null)
                 throw new NotFoundException("Team", teamId);
 
-            return MapToDto(team);
+            var members = await _uow.GetRepository<TeamMember>()
+                .GetAllAsync(m => m.TeamId == teamId);
+
+            return MapToDto(team, members);
         }
 
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
@@ -174,7 +177,8 @@ namespace SealHackathon.Application.Services.Implementations
             var teams = await _uow.GetRepository<Team>()
                 .GetPagedAsync(predicate, skip, pageSize);
 
-            var items = teams.Select(MapToDto).ToList();
+            var items = teams.Select(team => MapToDto(team)).ToList(); // team => MapToDto(team)
+                                                                       // nghĩa là với mỗi team, gọi hàm MapToDto(team).
 
             return new PaginatedResponse<TeamDetailDto>(items, totalRecords, pageNumber, pageSize);
         }
@@ -224,6 +228,9 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId)
         {
+            if (request.MentorId == Guid.Empty)
+                throw new BadRequestException("MentorId không hợp lệ.");
+
             var teamRepo = _uow.GetRepository<Team>();
 
             // Tìm team
@@ -246,8 +253,9 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException("Mentor này chưa được phân công vào Track của đội thi.");
 
             // Kiểm tra Mentor không được phụ trách quá 3 team
-            var currentTeamCount = await teamRepo
-                .CountAsync(t => t.MentorId == request.MentorId && !t.IsDeleted);
+            var currentTeamCount = await teamRepo.CountAsync(t => t.MentorId == request.MentorId
+                  && t.TrackId == team.TrackId
+                  && !t.IsDeleted);
 
             if (currentTeamCount >= TeamConstants.Rules.MaxTeamsPerMentor)
                 throw new BadRequestException($"Mentor này đã hướng dẫn tối đa {TeamConstants.Rules.MaxTeamsPerMentor} đội. Vui lòng chọn Mentor khác.");
@@ -283,19 +291,30 @@ namespace SealHackathon.Application.Services.Implementations
             if (memberCount >= TeamConstants.Rules.MaxMembersPerTeam)
                 throw new BadRequestException($"Đội đã đạt giới hạn tối đa {TeamConstants.Rules.MaxMembersPerTeam} thành viên.");
 
-            // Kiểm tra StudentCode không trùng trong cùng Event
-            // Lấy tất cả team trong cùng Track (cùng Event)
-            var teamsInTrack = await teamRepo
-                .GetAllAsync(t => t.TrackId == team.TrackId && !t.IsDeleted);
+            // StudentCode không được trùng trong cùng Event.
+            // Quan hệ DB: Event -> Track -> Team -> TeamMember.
+            var currentTrack = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
 
-            var teamIdsInTrack = teamsInTrack.Select(t => t.Id).ToList();
+            if (currentTrack is null)
+                throw new NotFoundException("Track", team.TrackId);
+
+            var tracksInEvent = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => t.EventId == currentTrack.EventId && !t.IsDeleted);
+
+            var trackIdsInEvent = tracksInEvent.Select(t => t.Id).ToList();
+
+            var teamsInEvent = await teamRepo
+                .GetAllAsync(t => trackIdsInEvent.Contains(t.TrackId) && !t.IsDeleted);
+
+            var teamIdsInEvent = teamsInEvent.Select(t => t.Id).ToList();
 
             var duplicateStudent = await _uow.GetRepository<TeamMember>()
-                .GetFirstOrDefaultAsync(m => teamIdsInTrack.Contains(m.TeamId)
+                .GetFirstOrDefaultAsync(m => teamIdsInEvent.Contains(m.TeamId)
                                           && m.StudentCode == request.StudentCode);
 
             if (duplicateStudent is not null)
-                throw new ConflictException($"StudentCode '{request.StudentCode}' đã tồn tại trong một đội khác cùng Track.");
+                throw new ConflictException($"StudentCode '{request.StudentCode}' đã tồn tại trong một đội khác cùng Event.");
 
             // Tạo member mới
             var newMember = new TeamMember
@@ -385,7 +404,7 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
         }
 
-        private TeamDetailDto MapToDto(Team team)
+        private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null)
         {
             return new TeamDetailDto
             {
@@ -397,7 +416,8 @@ namespace SealHackathon.Application.Services.Implementations
                 MentorId = team.MentorId,
                 TopicId = team.TopicId,
                 GithubRepoLink = team.GithubRepoLink,
-                Status = team.Status
+                Status = team.Status,
+                Members = members?.Select(MapToMemberDto).ToList() ?? new List<TeamMemberDto>()
             };
         }
 
