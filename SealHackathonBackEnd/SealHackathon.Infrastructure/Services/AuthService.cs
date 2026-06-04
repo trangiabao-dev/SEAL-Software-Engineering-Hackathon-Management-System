@@ -174,14 +174,14 @@ public class AuthService : IAuthService
         return pending.Select(a => new AccountPendingResponse { Id = a.Id, Username = a.Username, Email = a.Email, SystemRole = a.SystemRole, CreatedAt = a.CreatedAt }).ToList();
     }
 
-    // Coordinator duyệt thủ công (Nâng role lên Participant)
+    // Coordinator duyệt thủ công (Nâng role lên Leader)
     public async Task ApproveAccountAsync(Guid accountId, Guid coordinatorId)
     {
         var repo = _uow.GetRepository<Account>();
         var account = await repo.GetFirstOrDefaultAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
         if (account is null) throw new NotFoundException("Account", accountId);
 
-        account.SystemRole = "Participant";
+        account.SystemRole = "Leader";
         account.UpdatedAt = DateTime.UtcNow;
         repo.Update(account);
         await _uow.SaveChangesAsync();

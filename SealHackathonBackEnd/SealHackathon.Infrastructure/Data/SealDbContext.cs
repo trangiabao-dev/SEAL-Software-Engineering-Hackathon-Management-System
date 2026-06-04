@@ -75,7 +75,7 @@ public partial class SealDbContext : DbContext
             entity.Property(e => e.SystemRole)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("Participant");
+                .HasDefaultValue("Leader");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Username)
                 .HasMaxLength(255)
