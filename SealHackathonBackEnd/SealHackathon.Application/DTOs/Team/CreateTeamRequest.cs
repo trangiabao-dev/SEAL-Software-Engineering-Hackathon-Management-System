@@ -13,7 +13,7 @@ namespace SealHackathon.Application.DTOs.Team
         [StringLength(200, ErrorMessage = "Tên trường tối đa 200 ký tự.")]
         public string University { get; set; } = null!;
 
-        [Range(1, int.MaxValue, ErrorMessage = "TrackId không hợp lệ.")]
+        [Range(1, int.MaxValue, ErrorMessage = "TrackId phải lớn hơn 0")]
         public int TrackId { get; set; }
 
         [Url(ErrorMessage = "Link Github không đúng định dạng URL.")]
