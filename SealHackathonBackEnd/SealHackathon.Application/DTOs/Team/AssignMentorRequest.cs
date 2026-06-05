@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Application.DTOs.Team //  Coordinator assign Mentor vào Team
+﻿namespace SealHackathon.Application.DTOs.Team
 {
     public class AssignMentorRequest
     {

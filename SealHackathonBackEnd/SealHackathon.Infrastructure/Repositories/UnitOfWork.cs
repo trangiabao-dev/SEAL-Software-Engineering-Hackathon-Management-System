@@ -4,7 +4,7 @@ using SealHackathon.Infrastructure.Data;
 namespace SealHackathon.Infrastructure.Repositories
 {
     
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork : IUnitOfWork // UnitOfWork: pattern gom nhiều thay đổi database rồi lưu một lần.
     {
         private readonly SealDbContext _context;
         private readonly Dictionary<string, object> _repositories = new();
