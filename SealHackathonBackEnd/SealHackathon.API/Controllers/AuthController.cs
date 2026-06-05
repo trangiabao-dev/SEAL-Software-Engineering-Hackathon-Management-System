@@ -55,34 +55,7 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đăng xuất thành công."));
         }
 
-        // GET api/auth/pending — Coordinator xem danh sách chờ duyệt
-        [HttpGet("pending")]
-        [Authorize(Roles = "Coordinator")]
-        public async Task<IActionResult> GetPendingAccounts()
-        {
-            var result = await _authService.GetPendingAccountsAsync();
-            return Ok(ApiResponse<List<AccountPendingResponse>>.SuccessResult(result));
-        }
 
-        // PUT api/auth/{id}/approve — Coordinator duyệt
-        [HttpPut("{id:guid}/approve")]
-        [Authorize(Roles = "Coordinator")]
-        public async Task<IActionResult> ApproveAccount(Guid id)
-        {
-            var coordinatorId = GetCurrentAccountId();
-            await _authService.ApproveAccountAsync(id, coordinatorId);
-            return Ok(ApiResponse<object>.SuccessResult(null!, "Đã duyệt tài khoản thành công."));
-        }
-
-        // PUT api/auth/{id}/reject — Coordinator từ chối
-        [HttpPut("{id:guid}/reject")]
-        [Authorize(Roles = "Coordinator")]
-        public async Task<IActionResult> RejectAccount(Guid id, [FromBody] RejectRequest request)
-        {
-            var coordinatorId = GetCurrentAccountId();
-            await _authService.RejectAccountAsync(id, coordinatorId, request.Reason);
-            return Ok(ApiResponse<object>.SuccessResult(null!, "Đã từ chối tài khoản."));
-        }
         // POST api/auth/create-staff — Coordinator tạo tài khoản cho Giám khảo / Mentor
         [HttpPost("create-staff")]
         [Authorize(Roles = "Coordinator")]

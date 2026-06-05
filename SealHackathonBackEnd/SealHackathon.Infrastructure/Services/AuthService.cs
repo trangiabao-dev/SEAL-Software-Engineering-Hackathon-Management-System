@@ -37,37 +37,82 @@ public class AuthService : IAuthService
         var repo = _uow.GetRepository<Account>();
 
         // Bước 1: Kiểm tra xem Email do người dùng nhập đã tồn tại trong Database chưa
-        var existingEmail = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
-        if (existingEmail is not null)
-            throw new ConflictException("Email này đã được sử dụng. Vui lòng chọn email khác.");
+        var existingAccount = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
 
-        // Bước 2: Tự động tạo Username từ Email để tránh lỗi trùng lặp Username trong DB
-        // Cắt lấy phần trước chữ @ và cộng thêm 4 ký tự ngẫu nhiên
-        var generatedUsername = request.Email.Split('@')[0] + "_" + Guid.NewGuid().ToString("N")[..4];
+        // Tạo tự động Username từ Tên người dùng (Username) nhập vào
+        // Loại bỏ dấu tiếng việt, viết thường và xóa khoảng trắng
+        var baseUsername = RemoveVietnameseTone(request.Username).Replace(" ", "").ToLower();
+        var finalUsername = baseUsername;
+        bool isUnique = false;
+        int counter = 1;
 
-        // Bước 3: Tạo một đối tượng Account mới để chuẩn bị lưu vào Database
-        var account = new Account
+        // Vòng lặp kiểm tra xem Username này có ai xài chưa, nếu có rồi thì thêm số 1, 2, 3... vào đuôi
+        while (!isUnique)
         {
-            Id = Guid.NewGuid(),
-            Username = generatedUsername,
-            Email = request.Email,
-            // Mã hóa mật khẩu bằng BCrypt trước khi lưu để bảo mật
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            var userWithSameName = await repo.GetFirstOrDefaultAsync(a => a.Username == finalUsername);
+            if (userWithSameName == null)
+            {
+                isUnique = true; // Không ai xài -> Hợp lệ
+            }
+            else
+            {
+                // Nếu bị trùng với account hiện tại (trong trường hợp Ghi đè Pending) thì không cần đếm lên
+                if (existingAccount != null && userWithSameName.Id == existingAccount.Id)
+                {
+                    isUnique = true;
+                }
+                else
+                {
+                    finalUsername = $"{baseUsername}{counter}";
+                    counter++;
+                }
+            }
+        }
 
-            // Đặt Role tạm thời là "Pending" (Chờ xác thực)
-            SystemRole = "Pending",
-            // Tạo ra một chuỗi mã ngẫu nhiên để làm Link xác nhận
-            EmailConfirmToken = Guid.NewGuid().ToString(),
-            // Đặt thời gian hết hạn cho link là 24 giờ tính từ hiện tại
-            TokenExpiresAt = DateTime.UtcNow.AddHours(24),
+        var generatedUsername = finalUsername;
+        Account account;
 
-            IsDeleted = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        if (existingAccount is not null)
+        {
+            // Nếu Email tồn tại nhưng KHÔNG phải trạng thái Pending (Đã được xác nhận hoặc là admin)
+            if (existingAccount.SystemRole != "Pending")
+            {
+                throw new ConflictException("Email này đã được sử dụng. Vui lòng chọn email khác.");
+            }
+            else
+            {
+                // Nếu đang là "Pending", ta sẽ GHI ĐÈ dữ liệu mới để họ đăng ký lại (Cách các Ngân hàng cấp lại OTP)
+                account = existingAccount;
+                account.Username = generatedUsername;
+                account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                account.EmailConfirmToken = Guid.NewGuid().ToString();
+                account.TokenExpiresAt = DateTime.UtcNow.AddMinutes(5); // Có thể chỉnh thành 5 phút (AddMinutes(5)) nếu muốn giống ngân hàng
+                account.UpdatedAt = DateTime.UtcNow;
 
-        // Lưu tài khoản mới vào Database
-        await repo.AddAsync(account);
+                repo.Update(account);
+            }
+        }
+        else
+        {
+            // Bước 2: Tạo một đối tượng Account mới hoàn toàn
+            account = new Account
+            {
+                Id = Guid.NewGuid(),
+                Username = generatedUsername,
+                Email = request.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                SystemRole = "Pending",
+                EmailConfirmToken = Guid.NewGuid().ToString(),
+                TokenExpiresAt = DateTime.UtcNow.AddMinutes(5), // <-- SỬA Ở ĐÂY: Đổi thành 5 phút cho nhánh Tạo Mới
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await repo.AddAsync(account);
+        }
+
+        // Lưu tài khoản (Mới hoặc Ghi đè) vào Database
         await _uow.SaveChangesAsync();
 
         // Link trỏ thẳng API BE — bấm email là xác nhận được (không cần FE proxy)
@@ -78,7 +123,7 @@ public class AuthService : IAuthService
         var emailBody = $@"
             <h3>Chào bạn,</h3>
             <p>Cảm ơn bạn đã đăng ký tham gia hệ thống giải đấu Seal Hackathon.</p>
-            <p>Vui lòng click vào đường link bên dưới để xác minh địa chỉ email và kích hoạt tài khoản của bạn (Link có hiệu lực trong 24 giờ):</p>
+            <p>Vui lòng click vào đường link bên dưới để xác minh địa chỉ email và kích hoạt tài khoản của bạn (Link có hiệu lực trong 5 phút):</p>
             <p><a href='{confirmationLink}' style='padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;'>Xác nhận Email</a></p>
             <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>";
 
@@ -160,7 +205,6 @@ public class AuthService : IAuthService
     // ==========================================
     // 5. CÁC HÀM CỦA QUẢN TRỊ VIÊN (COORDINATOR)
     // ==========================================
-
     // Lấy danh sách các tài khoản đang ở trạng thái Pending (Chưa duyệt/chưa xác thực)
     public async Task<List<AccountPendingResponse>> GetPendingAccountsAsync()
     {
