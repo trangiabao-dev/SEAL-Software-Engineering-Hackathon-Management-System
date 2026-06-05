@@ -173,8 +173,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.SaveChangesAsync();
 
-            var members = await _uow.GetRepository<TeamMember>()
-                .GetAllAsync(m => m.TeamId == team.Id);
+            var members = await _uow.GetRepository<TeamMember>().GetAllAsync(m => m.TeamId == team.Id);
 
             return MapToDto(team, members);
         }
