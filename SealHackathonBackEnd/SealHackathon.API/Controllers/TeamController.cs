@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Team;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 
 namespace SealHackathon.API.Controllers
 {
@@ -24,7 +25,7 @@ namespace SealHackathon.API.Controllers
 
         // POST api/teams — Leader tạo team
         [HttpPost] // Quy định API này chỉ nhận các Request gửi qua phương thức POST (chuyên dùng để tạo mới dữ liệu).
-        [Authorize(Roles = "Leader")]
+        [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request)
         {
             var leaderId = GetCurrentAccountId(); // // Lấy từ JWT Token — không thể giả mạo
@@ -42,7 +43,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id} — Leader sửa team
         [HttpPut("{id:guid}")]
-        [Authorize(Roles = "Leader")]
+        [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> UpdateTeam(Guid id, [FromBody] UpdateTeamRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -52,7 +53,7 @@ namespace SealHackathon.API.Controllers
 
         // POST api/teams/{id}/members — Leader thêm thành viên
         [HttpPost("{id:guid}/members")]
-        [Authorize(Roles = "Leader")]
+        [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> AddMember(Guid id, [FromBody] AddMemberRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -62,7 +63,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id}/members/{memberId} — Leader sửa thành viên
         [HttpPut("{id:guid}/members/{memberId:int}")]
-        [Authorize(Roles = "Leader")]
+        [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> UpdateMember(Guid id, int memberId, [FromBody] UpdateMemberRequest request)
         {
             var leaderId = GetCurrentAccountId();
@@ -72,7 +73,7 @@ namespace SealHackathon.API.Controllers
 
         // DELETE api/teams/{id}/members/{memberId} — Leader xóa thành viên
         [HttpDelete("{id:guid}/members/{memberId:int}")]
-        [Authorize(Roles = "Leader")]
+        [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> DeleteMember(Guid id, int memberId)
         {
             var leaderId = GetCurrentAccountId();
@@ -86,7 +87,7 @@ namespace SealHackathon.API.Controllers
 
         // GET api/admin/teams — Coordinator xem tất cả team
         [HttpGet("/api/admin/teams")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> GetAllTeams(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
@@ -99,7 +100,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id}/approve — Coordinator duyệt team
         [HttpPut("{id:guid}/approve")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> ApproveTeam(Guid id)
         {
             var coordinatorId = GetCurrentAccountId();
@@ -109,7 +110,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id}/disqualify — Coordinator loại team
         [HttpPut("{id:guid}/disqualify")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> DisqualifyTeam(Guid id)
         {
             var coordinatorId = GetCurrentAccountId();
@@ -119,7 +120,7 @@ namespace SealHackathon.API.Controllers
 
         // PUT api/teams/{id}/mentor — Coordinator assign Mentor
         [HttpPut("{id:guid}/mentor")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> AssignMentor(Guid id, [FromBody] AssignMentorRequest request)
         {
             var coordinatorId = GetCurrentAccountId();

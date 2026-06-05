@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Auth;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 
 namespace SealHackathon.API.Controllers
 {
@@ -58,7 +59,7 @@ namespace SealHackathon.API.Controllers
 
         // POST api/auth/create-staff — Coordinator tạo tài khoản cho Giám khảo / Mentor
         [HttpPost("create-staff")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CreateStaffAccount([FromBody] CreateAccountRequest request)
         {
             // Lấy ID của Coordinator đang đăng nhập từ Token
