@@ -182,6 +182,42 @@ public class AuthService : IAuthService
     // 5. CÁC HÀM CỦA QUẢN TRỊ VIÊN (COORDINATOR)
     // ==========================================
 
+
+//=======
+    // Lấy danh sách các tài khoản đang ở trạng thái Pending (Chưa duyệt/chưa xác thực)
+    public async Task<List<AccountPendingResponse>> GetPendingAccountsAsync()
+    {
+        var repo = _uow.GetRepository<Account>();
+        var pending = await repo.GetAllAsync(a => a.SystemRole == "Pending" && !a.IsDeleted);
+        return pending.Select(a => new AccountPendingResponse { Id = a.Id, Username = a.Username, Email = a.Email, SystemRole = a.SystemRole, CreatedAt = a.CreatedAt }).ToList();
+    }
+
+    // Coordinator duyệt thủ công (Nâng role lên Leader)
+    public async Task ApproveAccountAsync(Guid accountId, Guid coordinatorId)
+    {
+        var repo = _uow.GetRepository<Account>();
+        var account = await repo.GetFirstOrDefaultAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        if (account is null) throw new NotFoundException("Account", accountId);
+
+        account.SystemRole = "Leader";
+        account.UpdatedAt = DateTime.UtcNow;
+        repo.Update(account);
+        await _uow.SaveChangesAsync();
+    }
+
+    // Coordinator từ chối tài khoản (Xóa mềm tài khoản đó)
+    public async Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason)
+    {
+        var repo = _uow.GetRepository<Account>();
+        var account = await repo.GetFirstOrDefaultAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        if (account is null) throw new NotFoundException("Account", accountId);
+
+        account.IsDeleted = true; // Đánh dấu là đã xóa (Xóa mềm)
+        account.UpdatedAt = DateTime.UtcNow;
+        repo.Update(account);
+        await _uow.SaveChangesAsync();
+    }
+
     // ==========================================
     // 6. HÀM TẠO CHÌA KHÓA (JWT TOKEN)
     // ==========================================
