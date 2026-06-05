@@ -39,8 +39,37 @@ public class AuthService : IAuthService
         // Bước 1: Kiểm tra xem Email do người dùng nhập đã tồn tại trong Database chưa
         var existingAccount = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
 
-        // Tạo tự động Username từ Email để tránh lỗi trùng lặp
-        var generatedUsername = request.Email.Split('@')[0] + "_" + Guid.NewGuid().ToString("N")[..4];
+        // Tạo tự động Username từ Tên người dùng (Username) nhập vào
+        // Loại bỏ dấu tiếng việt, viết thường và xóa khoảng trắng
+        var baseUsername = RemoveVietnameseTone(request.Username).Replace(" ", "").ToLower();
+        var finalUsername = baseUsername;
+        bool isUnique = false;
+        int counter = 1;
+
+        // Vòng lặp kiểm tra xem Username này có ai xài chưa, nếu có rồi thì thêm số 1, 2, 3... vào đuôi
+        while (!isUnique)
+        {
+            var userWithSameName = await repo.GetFirstOrDefaultAsync(a => a.Username == finalUsername);
+            if (userWithSameName == null)
+            {
+                isUnique = true; // Không ai xài -> Hợp lệ
+            }
+            else
+            {
+                // Nếu bị trùng với account hiện tại (trong trường hợp Ghi đè Pending) thì không cần đếm lên
+                if (existingAccount != null && userWithSameName.Id == existingAccount.Id)
+                {
+                    isUnique = true;
+                }
+                else
+                {
+                    finalUsername = $"{baseUsername}{counter}";
+                    counter++;
+                }
+            }
+        }
+
+        var generatedUsername = finalUsername;
         Account account;
 
         if (existingAccount is not null)
@@ -57,7 +86,7 @@ public class AuthService : IAuthService
                 account.Username = generatedUsername;
                 account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
                 account.EmailConfirmToken = Guid.NewGuid().ToString();
-                account.TokenExpiresAt = DateTime.UtcNow.AddHours(24); // Có thể chỉnh thành 5 phút (AddMinutes(5)) nếu muốn giống ngân hàng
+                account.TokenExpiresAt = DateTime.UtcNow.AddMinutes(5); // Có thể chỉnh thành 5 phút (AddMinutes(5)) nếu muốn giống ngân hàng
                 account.UpdatedAt = DateTime.UtcNow;
 
                 repo.Update(account);
@@ -176,9 +205,6 @@ public class AuthService : IAuthService
     // ==========================================
     // 5. CÁC HÀM CỦA QUẢN TRỊ VIÊN (COORDINATOR)
     // ==========================================
-
-
-//=======
     // Lấy danh sách các tài khoản đang ở trạng thái Pending (Chưa duyệt/chưa xác thực)
     public async Task<List<AccountPendingResponse>> GetPendingAccountsAsync()
     {
