@@ -134,6 +134,7 @@ builder.Services.AddScoped<IRoundService, RoundService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<ICriterionService, CriterionService>();
 builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 var app = builder.Build();
 
 // ==========================================
