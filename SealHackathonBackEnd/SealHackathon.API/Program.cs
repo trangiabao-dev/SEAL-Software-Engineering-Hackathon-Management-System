@@ -133,6 +133,7 @@ builder.Services.AddScoped<ITrackService, TrackService>();
 builder.Services.AddScoped<IRoundService, RoundService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<ICriterionService, CriterionService>();
+builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>();
 var app = builder.Build();
 
 // ==========================================
