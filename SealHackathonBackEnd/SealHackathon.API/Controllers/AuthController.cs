@@ -25,7 +25,7 @@ namespace SealHackathon.API.Controllers
                 null!, "Đăng ký thành công. Vui lòng xác nhận email."
             ));
         }
-        // GET api/auth/verify-email — Người dùng click vào link để xác nhận email
+        // GET api/auth/verify-email — FE gọi API này (link email mở trang FE, FE gọi BE)
         [HttpGet("verify-email")]
         [AllowAnonymous]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
