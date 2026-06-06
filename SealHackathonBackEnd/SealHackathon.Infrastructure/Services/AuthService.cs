@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SealHackathon.Application.DTOs.Auth;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
@@ -176,8 +177,23 @@ public class AuthService : IAuthService
         if (account.SystemRole == "Pending")
             throw new ForbiddenException("Tài khoản của bạn chưa được xác thực. Vui lòng kiểm tra hộp thư email của bạn để kích hoạt tài khoản.");
 
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+        if (account.SystemRole == RoleConstants.Inactive)
+        {
+            var activeEventAccount = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea =>
+                    ea.AccountId == account.Id &&
+                    ea.Status == "Approved" &&
+                    !ea.Event.IsDeleted &&
+                    ea.Event.Status == "Active");
+
+            if (activeEventAccount is null)
+                throw new ForbiddenException("Tài khoản này hiện không hoạt động trong sự kiện nào.");
+        }
+
         // Nếu qua hết các vòng kiểm tra trên -> Tạo chìa khóa JWT cho người dùng
-        var (token, expiresAt) = GenerateJwtToken(account);
+        var roles = await GetCurrentRolesAsync(account);
+        var (token, expiresAt) = GenerateJwtToken(account, roles);
 
         return new LoginResponse
         {
@@ -185,6 +201,7 @@ public class AuthService : IAuthService
             Email = account.Email,
             Username = account.Username,
             SystemRole = account.SystemRole,
+            Roles = roles,
             ExpiresAt = expiresAt
         };
     }
@@ -240,32 +257,37 @@ public class AuthService : IAuthService
     // ==========================================
     // 6. HÀM TẠO CHÌA KHÓA (JWT TOKEN)
     // ==========================================
-    private (string token, DateTime expiresAt) GenerateJwtToken(Account account)
+
+    // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+    private (string token, DateTime expiresAt) GenerateJwtToken(Account account, List<string> roles)
     {
         var jwt = _config.GetSection("JwtSettings");
 
-        // Mã hóa SecretKey từ file appsettings.json
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SecretKey"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Tính thời gian hết hạn của token
         var expiresAt = DateTime.UtcNow.AddMinutes(int.Parse(jwt["ExpirationInMinutes"]!));
 
-        // Nhét các thông tin cơ bản (ID, Email, Role) vào bên trong Token
-        // Giúp Frontend lấy được thông tin user mà không cần gọi thêm API
-        var claims = new[]
+        var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, account.Id.ToString()),
+        new Claim(JwtRegisteredClaimNames.Email, account.Email),
+        new Claim("username", account.Username),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
+
+        foreach (var role in roles)
         {
-            new Claim(JwtRegisteredClaimNames.Sub,   account.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, account.Email),
-            new Claim("username",                    account.Username),
-            new Claim(ClaimTypes.Role,               account.SystemRole),
-            new Claim(JwtRegisteredClaimNames.Jti,   Guid.NewGuid().ToString())
-        };
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
-        // Đóng gói Token
-        var tokenObj = new JwtSecurityToken(issuer: jwt["Issuer"], audience: jwt["Audience"], claims: claims, expires: expiresAt, signingCredentials: creds);
+        var tokenObj = new JwtSecurityToken(
+            issuer: jwt["Issuer"],
+            audience: jwt["Audience"],
+            claims: claims,
+            expires: expiresAt,
+            signingCredentials: creds);
 
-        // Trả về chuỗi Token dạng string
         return (new JwtSecurityTokenHandler().WriteToken(tokenObj), expiresAt);
     }
     // ==========================================
@@ -301,7 +323,9 @@ public class AuthService : IAuthService
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
 
-            SystemRole = request.Role,
+            // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+            //SystemRole = request.Role, <- BỎ, THAY BẰNG CÁI DƯỚI
+            SystemRole = RoleConstants.Inactive,
             IsDeleted = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -356,5 +380,94 @@ public class AuthService : IAuthService
             }
         }
         return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
+    }
+
+    // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+    public async Task AssignEventRoleAsync(int eventId, AssignEventRoleRequest request, Guid coordinatorId)
+    {
+        if (eventId <= 0)
+            throw new BadRequestException("EventId không hợp lệ.");
+
+        if (request.AccountId == Guid.Empty)
+            throw new BadRequestException("AccountId không hợp lệ.");
+
+        var allowedRoles = new[] { RoleConstants.Mentor, RoleConstants.Judge };
+        if (!allowedRoles.Contains(request.EventRole))
+            throw new BadRequestException("EventRole không hợp lệ. Chỉ hỗ trợ Mentor hoặc Judge.");
+
+        if (request.EventRole == RoleConstants.Judge && string.IsNullOrWhiteSpace(request.JudgeType))
+            throw new BadRequestException("JudgeType không được để trống khi phân quyền Judge.");
+
+        if (request.EventRole == RoleConstants.Mentor && !string.IsNullOrWhiteSpace(request.JudgeType))
+            throw new BadRequestException("Mentor không được có JudgeType.");
+
+        var eventExists = await _uow.GetRepository<Event>()
+            .GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
+
+        if (eventExists is null)
+            throw new NotFoundException("Event", eventId);
+
+        var account = await _uow.GetRepository<Account>()
+            .GetFirstOrDefaultAsync(a => a.Id == request.AccountId && !a.IsDeleted);
+
+        if (account is null)
+            throw new NotFoundException("Account", request.AccountId);
+
+        if (account.SystemRole == RoleConstants.Pending)
+            throw new BadRequestException("Tài khoản này chưa xác thực email.");
+
+        if (account.SystemRole == RoleConstants.Coordinator)
+            throw new BadRequestException("Không phân quyền Mentor/Judge cho Coordinator.");
+
+        var eventAccountRepo = _uow.GetRepository<EventAccount>();
+
+        var existing = await eventAccountRepo.GetFirstOrDefaultTrackingAsync(ea =>
+            ea.EventId == eventId &&
+            ea.AccountId == request.AccountId);
+
+        if (existing is not null)
+        {
+            existing.EventRole = request.EventRole;
+            existing.JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null;
+            existing.Status = "Approved";
+            existing.AssignedBy = coordinatorId;
+            existing.AssignedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            var eventAccount = new EventAccount
+            {
+                EventId = eventId,
+                AccountId = request.AccountId,
+                EventRole = request.EventRole,
+                JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null,
+                Status = "Approved",
+                AssignedBy = coordinatorId,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            await eventAccountRepo.AddAsync(eventAccount);
+        }
+
+        await _uow.SaveChangesAsync();
+    }
+
+    private async Task<List<string>> GetCurrentRolesAsync(Account account)
+    {
+        var roles = new List<string> { account.SystemRole };
+
+        var activeEventRoles = await _uow.GetRepository<EventAccount>()
+            .GetAllAsync(ea =>
+                ea.AccountId == account.Id &&
+                ea.Status == "Approved" &&
+                !ea.Event.IsDeleted &&
+                ea.Event.Status == "Active");
+
+        foreach (var eventRole in activeEventRoles.Select(ea => ea.EventRole).Distinct())
+        {
+            roles.Add(eventRole);
+        }
+
+        return roles.Distinct().ToList();
     }
 }

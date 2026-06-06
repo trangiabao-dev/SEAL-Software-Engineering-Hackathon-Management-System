@@ -12,7 +12,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<TeamMemberDto> AddMemberAsync(Guid teamId, AddMemberRequest request, Guid leaderId);
         Task<TeamMemberDto> UpdateMemberAsync(Guid teamId, int memberId, UpdateMemberRequest request, Guid leaderId);
         Task DeleteMemberAsync(Guid teamId, int memberId, Guid leaderId);
-        Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId, int trackId);
+        Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId);
 
         // Coordinator
         Task<PaginatedResponse<TeamDetailDto>> GetAllTeamsAsync(int pageNumber, int pageSize, string? status, int? trackId);
