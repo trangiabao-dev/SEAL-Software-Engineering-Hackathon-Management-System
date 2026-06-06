@@ -271,36 +271,45 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teamRepo = _uow.GetRepository<Team>();
 
-            // Tìm team
             var team = await teamRepo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
-            if (team is null) // Không cho thao tác trên team đã bị xóa mềm hoặc không tồn tại.
+            if (team is null)
                 throw new NotFoundException("Team", teamId);
 
-            // Kiểm tra Mentor có tồn tại và đúng role không
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", team.TrackId);
+
             var mentor = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == request.MentorId && !a.IsDeleted);
+
             if (mentor is null)
                 throw new NotFoundException("Mentor", request.MentorId);
-            if (mentor.SystemRole != RoleConstants.Mentor)
-                throw new BadRequestException("Tài khoản được chọn không phải Mentor.");
 
+            var mentorEventRole = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == request.MentorId
+                                           && ea.EventRole == RoleConstants.Mentor
+                                           && ea.Status == "Approved");
 
-            // Kiểm tra Mentor có được assign vào Track của team không
+            if (mentorEventRole is null)
+                throw new BadRequestException("Tài khoản được chọn chưa được phân quyền Mentor trong Event này.");
+
             var mentorAssign = await _uow.GetRepository<MentorAssign>()
                 .GetFirstOrDefaultAsync(ma => ma.MentorId == request.MentorId
                                            && ma.TrackId == team.TrackId);
+
             if (mentorAssign is null)
                 throw new BadRequestException("Mentor này chưa được phân công vào Track của đội thi.");
 
-            // Kiểm tra Mentor không được phụ trách quá 3 team
             var currentTeamCount = await teamRepo.CountAsync(t => t.MentorId == request.MentorId
-                  && t.TrackId == team.TrackId
-                  && !t.IsDeleted);
+                                                               && t.TrackId == team.TrackId
+                                                               && !t.IsDeleted);
 
             if (currentTeamCount >= TeamConstants.Rules.MaxTeamsPerMentor)
                 throw new BadRequestException($"Mentor này đã hướng dẫn tối đa {TeamConstants.Rules.MaxTeamsPerMentor} đội. Vui lòng chọn Mentor khác.");
 
-            // Assign
             team.MentorId = request.MentorId;
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = coordinatorId;

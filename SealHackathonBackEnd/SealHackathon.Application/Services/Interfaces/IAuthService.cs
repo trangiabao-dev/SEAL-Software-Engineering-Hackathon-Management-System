@@ -15,5 +15,8 @@ namespace SealHackathon.Application.Services.Interfaces
         Task LogoutAsync(string token);
 
         Task CreateAccountByCoordinatorAsync(CreateAccountRequest request, Guid coordinatorId);
+
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+        Task AssignEventRoleAsync(int eventId, AssignEventRoleRequest request, Guid coordinatorId);
     }
 }

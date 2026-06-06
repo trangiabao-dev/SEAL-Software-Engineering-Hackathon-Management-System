@@ -1,6 +1,7 @@
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Track;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
@@ -114,17 +115,49 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<TrackResponse>.SuccessResult(response, "Cập nhật Track thành công.");
         }
 
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
         // Hàm phân công Ban Giám Khảo (Mentor/Giám khảo hỗ trợ) vào một Bảng đấu
         public async Task<ApiResponse<bool>> AssignMentorAsync(int trackId, AssignMentorRequest request, Guid assignedBy)
         {
+            if (trackId <= 0)
+                throw new BadRequestException("TrackId không hợp lệ.");
+
+            if (request.MentorId == Guid.Empty)
+                throw new BadRequestException("MentorId không hợp lệ.");
+
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", trackId);
+
+            var mentor = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == request.MentorId && !a.IsDeleted);
+
+            if (mentor is null)
+                throw new NotFoundException("Mentor", request.MentorId);
+
+            var mentorEventRole = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == request.MentorId
+                                           && ea.EventRole == RoleConstants.Mentor
+                                           && ea.Status == "Approved");
+
+            if (mentorEventRole is null)
+                throw new BadRequestException("Tài khoản này chưa được phân quyền Mentor trong Event của Track này.");
+
+            var existingAssign = await _uow.GetRepository<MentorAssign>()
+                .GetFirstOrDefaultAsync(ma => ma.MentorId == request.MentorId
+                                           && ma.TrackId == trackId);
+
             // Bước 1: Kiểm tra Bảng đấu có tồn tại không
-            var trackExists = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(x => x.Id == trackId && !x.IsDeleted);
-            if (trackExists == null) throw new NotFoundException($"Không tìm thấy Track với ID {trackId}");
+            if (existingAssign is not null)
+                throw new ConflictException("Mentor này đã được phân công vào Track này.");
 
             // Bước 2: Tạo bản ghi gán quyền (MentorAssign) kết nối giữa Track và Tài khoản Mentor
             var mentorAssign = new MentorAssign
             {
-                TrackId = trackId, // Bảng đấu nào
+                TrackId = trackId,// Bảng đấu nào
                 MentorId = request.MentorId, // Ai làm Mentor
                 AssignedAt = DateTime.UtcNow, // Phân công lúc mấy giờ
                 AssignedBy = assignedBy // Ai là người đứng ra phân công (Coordinator ID)
@@ -134,8 +167,9 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.GetRepository<MentorAssign>().AddAsync(mentorAssign);
             await _uow.SaveChangesAsync();
 
-            return ApiResponse<bool>.SuccessResult(true, "Phân công Mentor vào Bảng đấu thành công.");
+            return ApiResponse<bool>.SuccessResult(true, "Phân công Mentor vào Track thành công.");
         }
+
         public async Task<ApiResponse<List<TrackRoundsResponse>>> GetAllTracksWithRoundsAsync()
         {
             var trackRepo = _uow.GetRepository<Track>();

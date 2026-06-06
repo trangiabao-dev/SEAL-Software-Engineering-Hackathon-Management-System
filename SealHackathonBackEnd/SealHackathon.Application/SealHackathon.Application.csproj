@@ -5,6 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="DTOs\EventAccount\" />
     <Folder Include="DTOs\Event\" />
     <Folder Include="DTOs\Round\" />
   </ItemGroup>

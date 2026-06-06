@@ -1,6 +1,7 @@
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Round;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
@@ -176,17 +177,54 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<RoundResponse>.SuccessResult(response, "Cập nhật trạng thái Round thành công.");
         }
 
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
         // Hàm gán GIÁM KHẢO (Judge) vào Vòng thi để họ vào chấm điểm
         public async Task<ApiResponse<bool>> AssignJudgeAsync(int roundId, AssignJudgeRequest request, Guid assignedBy)
         {
-            var roundExists = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == roundId);
-            if (roundExists == null) throw new NotFoundException($"Không tìm thấy Round với ID {roundId}");
+            if (roundId <= 0)
+                throw new BadRequestException("RoundId không hợp lệ.");
 
-            // Tạo bản ghi gán quyền Judge vào Round
+            if (request.JudgeId == Guid.Empty)
+                throw new BadRequestException("JudgeId không hợp lệ.");
+
+            var round = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == roundId);
+
+            if (round is null)
+                throw new NotFoundException("Round", roundId);
+
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", round.TrackId);
+
+            var judge = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == request.JudgeId && !a.IsDeleted);
+
+            if (judge is null)
+                throw new NotFoundException("Judge", request.JudgeId);
+
+            var judgeEventRole = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == request.JudgeId
+                                           && ea.EventRole == RoleConstants.Judge
+                                           && ea.Status == "Approved");
+
+            if (judgeEventRole is null)
+                throw new BadRequestException("Tài khoản này chưa được phân quyền Judge trong Event của Round này.");
+
+            var existingAssign = await _uow.GetRepository<JudgeAssign>()
+                .GetFirstOrDefaultAsync(ja => ja.JudgeId == request.JudgeId
+                                           && ja.RoundId == roundId);
+
+            if (existingAssign is not null)
+                throw new ConflictException("Judge này đã được phân công vào Round này.");
+
             var judgeAssign = new JudgeAssign
             {
-                RoundId = roundId,
                 JudgeId = request.JudgeId,
+                RoundId = roundId,
                 AssignedAt = DateTime.UtcNow,
                 AssignedBy = assignedBy
             };
@@ -194,7 +232,7 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.GetRepository<JudgeAssign>().AddAsync(judgeAssign);
             await _uow.SaveChangesAsync();
 
-            return ApiResponse<bool>.SuccessResult(true, "Phân công Giám khảo vào Vòng thi thành công.");
+            return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
         }
     }
 }

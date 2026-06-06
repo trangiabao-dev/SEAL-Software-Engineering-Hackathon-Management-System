@@ -56,20 +56,34 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đăng xuất thành công."));
         }
 
-
-        // POST api/auth/create-staff — Coordinator tạo tài khoản cho Giám khảo / Mentor
-        [HttpPost("create-staff")]
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge - XÓA CreateStaffAccount
+        // POST api/events/{eventId}/accounts/assign-role
+        [HttpPost("/api/events/{eventId:int}/accounts/assign-role")]
         [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> CreateStaffAccount([FromBody] CreateAccountRequest request)
+        public async Task<IActionResult> AssignEventRole(int eventId, [FromBody] AssignEventRoleRequest request)
         {
-            // Lấy ID của Coordinator đang đăng nhập từ Token
+            var coordinatorId = GetCurrentAccountId();
+
+            await _authService.AssignEventRoleAsync(eventId, request, coordinatorId);
+
+            return Ok(ApiResponse<object>.SuccessResult(
+                null!,
+                $"Đã phân quyền {request.EventRole} cho tài khoản trong sự kiện."
+            ));
+        }
+
+        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
+        [HttpPost("create-guest-account")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> CreateGuestAccount([FromBody] CreateAccountRequest request)
+        {
             var coordinatorId = GetCurrentAccountId();
 
             await _authService.CreateAccountByCoordinatorAsync(request, coordinatorId);
 
             return Ok(ApiResponse<object>.SuccessResult(
                 null!,
-                $"Tạo tài khoản {request.Role} thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
+                $"Tạo tài khoản khách mời {request.Role} thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
             ));
         }
     }
