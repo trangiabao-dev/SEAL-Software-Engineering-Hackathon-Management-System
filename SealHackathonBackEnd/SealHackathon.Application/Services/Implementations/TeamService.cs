@@ -110,12 +110,18 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(team, members);
         }
 
-        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId, int eventId)
+        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId, int trackId)
         {
-            if (eventId <= 0)
-                throw new BadRequestException("EventId không hợp lệ. EventId phải lớn hơn 0.");
+            if (trackId <= 0)
+                throw new BadRequestException("TrackId không hợp lệ. TrackId phải lớn hơn 0.");
 
-            var team = await GetLeaderTeamInEventAsync(leaderId, eventId);
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", trackId);
+
+            var team = await GetLeaderTeamInEventAsync(leaderId, track.EventId);
 
             if (team is null)
                 return null;
