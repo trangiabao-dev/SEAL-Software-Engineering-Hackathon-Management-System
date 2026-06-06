@@ -9,6 +9,6 @@ namespace SealHackathon.Application.DTOs.Event
         public string? Description { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-        public string Status { get; set; } = null!; // Draft, Open, Ongoing, Closed
+        public string Status { get; set; } = null!; // Draft, Active, Closed
     }
 }

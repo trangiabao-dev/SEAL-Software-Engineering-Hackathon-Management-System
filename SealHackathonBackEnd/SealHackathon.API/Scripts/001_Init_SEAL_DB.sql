@@ -41,7 +41,7 @@ CREATE TABLE EventAccount (
     RejectedReason NVARCHAR(500)     NULL,
     AssignedBy     UNIQUEIDENTIFIER  NULL REFERENCES Account(Id),
     AssignedAt     DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT UQ_EventAccount UNIQUE (EventId, AccountId)
+    CONSTRAINT UQ_EventAccount UNIQUE (EventId, AccountId, EventRole)
 );
 CREATE NONCLUSTERED INDEX IX_EventAccount_AccountId ON EventAccount(AccountId);
 CREATE NONCLUSTERED INDEX IX_EventAccount_EventId   ON EventAccount(EventId);

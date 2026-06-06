@@ -293,61 +293,173 @@ public class AuthService : IAuthService
     // ==========================================
     // 7. TẠO TÀI KHOẢN JUDGE/MENTOR (Dành cho Coordinator)
     // ==========================================
-    public async Task CreateAccountByCoordinatorAsync(CreateAccountRequest request, Guid coordinatorId)
+
+    // Bảo mới thêm vào đây
+    public async Task<EventStaffResponse> CreateEventStaffAsync(int eventId, CreateEventStaffRequest request, Guid coordinatorId)
     {
-        var repo = _uow.GetRepository<Account>();
+        if (eventId <= 0)
+            throw new BadRequestException("EventId không hợp lệ.");
 
-        // 2. Kiểm tra Email đã tồn tại chưa
-        var existingEmail = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
-        if (existingEmail is not null)
-            throw new ConflictException("Email này đã được sử dụng trong hệ thống.");
+        var allowedRoles = new[] { RoleConstants.Mentor, RoleConstants.Judge };
+        if (!allowedRoles.Contains(request.EventRole))
+            throw new BadRequestException("EventRole không hợp lệ. Chỉ hỗ trợ Mentor hoặc Judge.");
 
-        // 3. Xử lý Username (Dùng request.Username thay vì FullName)
-        var normalizedName = RemoveVietnameseTone(request.Username).Replace(" ", "");
-        var randomSuffix = Guid.NewGuid().ToString("N")[..4];
-        var generatedUsername = $"{normalizedName}_{randomSuffix}";
+        if (request.EventRole == RoleConstants.Judge && string.IsNullOrWhiteSpace(request.JudgeType))
+            throw new BadRequestException("JudgeType không được để trống khi tạo Judge.");
 
-        // 4. Sinh Mật khẩu ngẫu nhiên (Ví dụ: 8 ký tự alphanumeric)
-        var tempPassword = Guid.NewGuid().ToString("N")[..8];
+        if (request.EventRole == RoleConstants.Mentor && !string.IsNullOrWhiteSpace(request.JudgeType))
+            throw new BadRequestException("Mentor không được có JudgeType.");
 
-        // 5. Tạo đối tượng Account
-        var account = new Account
+        var eventEntity = await _uow.GetRepository<Event>()
+            .GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
+
+        if (eventEntity is null)
+            throw new NotFoundException("Event", eventId);
+
+        var accountRepo = _uow.GetRepository<Account>();
+
+        var account = await accountRepo
+            .GetFirstOrDefaultTrackingAsync(a => a.Email == request.Email);
+
+        var isNewAccount = false;
+        var tempPassword = string.Empty;
+
+        if (account is null)
         {
-            Id = Guid.NewGuid(),
-            Username = generatedUsername,
-            Email = request.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
+            isNewAccount = true;
+            tempPassword = Guid.NewGuid().ToString("N")[..8];
 
-            // Bảo thêm cho Thức sửa lại rule Mentor và Judge
-            //SystemRole = request.Role, <- BỎ, THAY BẰNG CÁI DƯỚI
-            SystemRole = RoleConstants.Inactive,
-            IsDeleted = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            var normalizedName = RemoveVietnameseTone(request.Username).Replace(" ", "");
+            var randomSuffix = Guid.NewGuid().ToString("N")[..4];
 
-        await repo.AddAsync(account);
+            account = new Account
+            {
+                Id = Guid.NewGuid(),
+                Username = $"{normalizedName}_{randomSuffix}",
+                Email = request.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
+                SystemRole = RoleConstants.Inactive,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await accountRepo.AddAsync(account);
+        }
+        else
+        {
+            if (account.SystemRole != RoleConstants.Inactive)
+                throw new BadRequestException("Email này đã thuộc tài khoản không phải staff. Không thể gán làm Mentor/Judge.");
+
+            if (account.IsDeleted)
+            {
+                account.IsDeleted = false;
+                account.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        var eventAccountRepo = _uow.GetRepository<EventAccount>();
+
+        var eventAccount = await eventAccountRepo.GetFirstOrDefaultTrackingAsync(ea =>
+            ea.EventId == eventId &&
+            ea.AccountId == account.Id &&
+            ea.EventRole == request.EventRole);
+
+        if (eventAccount is null)
+        {
+            eventAccount = new EventAccount
+            {
+                EventId = eventId,
+                AccountId = account.Id,
+                EventRole = request.EventRole,
+                JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null,
+                Status = "Approved",
+                AssignedBy = coordinatorId,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            await eventAccountRepo.AddAsync(eventAccount);
+        }
+        else
+        {
+            eventAccount.JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null;
+            eventAccount.Status = "Approved";
+            eventAccount.AssignedBy = coordinatorId;
+            eventAccount.AssignedAt = DateTime.UtcNow;
+        }
+
         await _uow.SaveChangesAsync();
 
-        // 6. Gửi Email thông báo Mật khẩu tạm thời cho họ
         var loginLink = GetFrontendBaseUrl().TrimEnd('/') + "/login";
-        var emailSubject = "Thư mời tham gia hệ thống Seal Hackathon 2026";
 
-        // Đổi lời chào thành request.Username
-        var emailBody = $@"
-        <h3>Kính gửi {request.Username},</h3>
-        <p>Ban tổ chức Seal Hackathon trân trọng kính mời bạn tham gia hệ thống với vai trò khách mời.</p>
-        <p>Tài khoản của bạn đã được khởi tạo thành công. Dưới đây là thông tin đăng nhập của bạn:</p>
-        <ul>
-            <li><strong>Tên đăng nhập / Email:</strong> {request.Email}</li>
-            <li><strong>Mật khẩu tạm thời:</strong> <span style='color: red; font-weight: bold;'>{tempPassword}</span></li>
-        </ul>
-        <p>Vui lòng đăng nhập vào hệ thống và tiến hành <strong>đổi mật khẩu ngay lần đăng nhập đầu tiên</strong> để đảm bảo tính bảo mật.</p>
-        <p><a href='{loginLink}' style='padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;'>Đăng nhập hệ thống</a></p>
-        <p>Trân trọng,<br/>Ban Tổ Chức Seal Hackathon</p>";
+        if (isNewAccount)
+        {
+            var emailSubject = $"Thư mời tham gia SEAL Hackathon với vai trò {request.EventRole}";
 
-        await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
+            var emailBody = $@"
+            <h3>Kính gửi {request.Username},</h3>
+            <p>Bạn được mời tham gia sự kiện <strong>{eventEntity.Name}</strong> với vai trò <strong>{request.EventRole}</strong>.</p>
+            <ul>
+                <li><strong>Email đăng nhập:</strong> {request.Email}</li>
+                <li><strong>Mật khẩu tạm thời:</strong> <span style='color:red;font-weight:bold;'>{tempPassword}</span></li>
+            </ul>
+            <p><a href='{loginLink}'>Đăng nhập hệ thống</a></p>";
+
+            await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
+        }
+        else
+        {
+            var emailSubject = $"Bạn được phân công vai trò {request.EventRole} trong SEAL Hackathon";
+
+            var emailBody = $@"
+            <h3>Kính gửi {request.Username},</h3>
+            <p>Tài khoản của bạn đã được phân công vai trò <strong>{request.EventRole}</strong> trong sự kiện <strong>{eventEntity.Name}</strong>.</p>
+            <p>Vui lòng dùng tài khoản hiện có để đăng nhập.</p>
+            <p><a href='{loginLink}'>Đăng nhập hệ thống</a></p>";
+
+            await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
+        }
+
+        return new EventStaffResponse
+        {
+            AccountId = account.Id,
+            EventId = eventId,
+            Email = account.Email,
+            EventRole = eventAccount.EventRole,
+            Status = eventAccount.Status,
+            JudgeType = eventAccount.JudgeType
+        };
     }
+
+    // Bảo mới thêm vào đây
+    public async Task DeactivateEventStaffAsync(int eventId, Guid accountId, string eventRole, Guid coordinatorId)
+    {
+        if (eventId <= 0)
+            throw new BadRequestException("EventId không hợp lệ.");
+
+        if (accountId == Guid.Empty)
+            throw new BadRequestException("AccountId không hợp lệ.");
+
+        var allowedRoles = new[] { RoleConstants.Mentor, RoleConstants.Judge };
+        if (!allowedRoles.Contains(eventRole))
+            throw new BadRequestException("EventRole không hợp lệ. Chỉ hỗ trợ Mentor hoặc Judge.");
+
+        var eventAccount = await _uow.GetRepository<EventAccount>()
+            .GetFirstOrDefaultTrackingAsync(ea =>
+                ea.EventId == eventId &&
+                ea.AccountId == accountId &&
+                ea.EventRole == eventRole);
+
+        if (eventAccount is null)
+            throw new NotFoundException("EventAccount", $"{eventId}-{accountId}");
+
+        eventAccount.Status = "Inactive";
+        eventAccount.AssignedBy = coordinatorId;
+        eventAccount.AssignedAt = DateTime.UtcNow;
+
+        await _uow.SaveChangesAsync();
+    }
+
     private string BuildEmailVerificationLink(string confirmToken)
     {
         // Link mở trang FE — FE đọc token từ URL rồi gọi GET {ApiBaseUrl}/api/auth/verify-email?token=...
@@ -375,76 +487,6 @@ public class AuthService : IAuthService
             }
         }
         return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
-    }
-
-    // Bảo thêm cho Thức sửa lại rule Mentor và Judge
-    public async Task AssignEventRoleAsync(int eventId, AssignEventRoleRequest request, Guid coordinatorId)
-    {
-        if (eventId <= 0)
-            throw new BadRequestException("EventId không hợp lệ.");
-
-        if (request.AccountId == Guid.Empty)
-            throw new BadRequestException("AccountId không hợp lệ.");
-
-        var allowedRoles = new[] { RoleConstants.Mentor, RoleConstants.Judge };
-        if (!allowedRoles.Contains(request.EventRole))
-            throw new BadRequestException("EventRole không hợp lệ. Chỉ hỗ trợ Mentor hoặc Judge.");
-
-        if (request.EventRole == RoleConstants.Judge && string.IsNullOrWhiteSpace(request.JudgeType))
-            throw new BadRequestException("JudgeType không được để trống khi phân quyền Judge.");
-
-        if (request.EventRole == RoleConstants.Mentor && !string.IsNullOrWhiteSpace(request.JudgeType))
-            throw new BadRequestException("Mentor không được có JudgeType.");
-
-        var eventExists = await _uow.GetRepository<Event>()
-            .GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
-
-        if (eventExists is null)
-            throw new NotFoundException("Event", eventId);
-
-        var account = await _uow.GetRepository<Account>()
-            .GetFirstOrDefaultAsync(a => a.Id == request.AccountId && !a.IsDeleted);
-
-        if (account is null)
-            throw new NotFoundException("Account", request.AccountId);
-
-        if (account.SystemRole == RoleConstants.Pending)
-            throw new BadRequestException("Tài khoản này chưa xác thực email.");
-
-        if (account.SystemRole == RoleConstants.Coordinator)
-            throw new BadRequestException("Không phân quyền Mentor/Judge cho Coordinator.");
-
-        var eventAccountRepo = _uow.GetRepository<EventAccount>();
-
-        var existing = await eventAccountRepo.GetFirstOrDefaultTrackingAsync(ea =>
-            ea.EventId == eventId &&
-            ea.AccountId == request.AccountId);
-
-        if (existing is not null)
-        {
-            existing.EventRole = request.EventRole;
-            existing.JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null;
-            existing.Status = "Approved";
-            existing.AssignedBy = coordinatorId;
-            existing.AssignedAt = DateTime.UtcNow;
-        }
-        else
-        {
-            var eventAccount = new EventAccount
-            {
-                EventId = eventId,
-                AccountId = request.AccountId,
-                EventRole = request.EventRole,
-                JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null,
-                Status = "Approved",
-                AssignedBy = coordinatorId,
-                AssignedAt = DateTime.UtcNow
-            };
-
-            await eventAccountRepo.AddAsync(eventAccount);
-        }
-
-        await _uow.SaveChangesAsync();
     }
 
     private async Task<List<string>> GetCurrentRolesAsync(Account account)

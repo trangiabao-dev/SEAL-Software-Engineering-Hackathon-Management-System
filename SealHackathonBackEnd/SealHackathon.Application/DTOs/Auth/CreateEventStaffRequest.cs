@@ -1,8 +1,9 @@
 ﻿namespace SealHackathon.Application.DTOs.Auth
 {
-    public class AssignEventRoleRequest
+    public class CreateEventStaffRequest
     {
-        public Guid AccountId { get; set; }
+        public string Username { get; set; } = null!;
+        public string Email { get; set; } = null!;
         public string EventRole { get; set; } = null!;
         public string? JudgeType { get; set; }
     }
