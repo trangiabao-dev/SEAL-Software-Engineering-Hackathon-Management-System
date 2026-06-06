@@ -83,7 +83,7 @@ namespace SealHackathon.API.Controllers
 
             return Ok(ApiResponse<object>.SuccessResult(
                 null!,
-                $"Tạo tài khoản khách mời {request.Role} thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
+                $"Tạo tài khoản khách mời thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
             ));
         }
     }
