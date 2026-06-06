@@ -9,7 +9,7 @@ CREATE TABLE Account (
     Username     VARCHAR(255)     NOT NULL UNIQUE,
     PasswordHash VARCHAR(500)     NOT NULL,
     Email        VARCHAR(255)     NOT NULL UNIQUE,
-    SystemRole   VARCHAR(50)      NOT NULL DEFAULT 'Participant',
+    SystemRole   VARCHAR(50)      NOT NULL DEFAULT 'Leader',
     IsDeleted    BIT              NOT NULL DEFAULT 0,
     CreatedAt    DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt    DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME()

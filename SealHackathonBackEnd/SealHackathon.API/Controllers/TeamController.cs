@@ -84,10 +84,10 @@ namespace SealHackathon.API.Controllers
         // Leader chỉ được có một team trong mỗi Event, nên dùng eventId để tìm team bất kể team thuộc Track nào.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
-        public async Task<IActionResult> GetMyTeam([FromQuery] int eventId)
+        public async Task<IActionResult> GetMyTeam([FromQuery] int trackId)
         {
             var leaderId = GetCurrentAccountId();
-            var result = await _teamService.GetMyTeamAsync(leaderId, eventId);
+            var result = await _teamService.GetMyTeamAsync(leaderId, trackId);
 
             return Ok(ApiResponse<TeamDetailDto?>.SuccessResult(result));
         }

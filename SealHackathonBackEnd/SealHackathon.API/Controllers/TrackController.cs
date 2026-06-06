@@ -12,7 +12,7 @@ namespace SealHackathon.API.Controllers
     // POST /api/tracks (Tạo Track mới)
     // PUT /api/tracks/:id (Cập nhật Track)
     
-    [Authorize(Roles = RoleConstants.Coordinator)]
+    [Authorize]
     public class TrackController : BaseController
     {
         private readonly ITrackService _trackService;
@@ -30,6 +30,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPost("api/tracks")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CreateTrack([FromBody] CreateTrackRequest request)
         {
             var result = await _trackService.CreateTrackAsync(request);
@@ -37,6 +38,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPut("api/tracks/{id}")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> UpdateTrack(int id, [FromBody] UpdateTrackRequest request)
         {
             var result = await _trackService.UpdateTrackAsync(id, request);
@@ -44,12 +46,14 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPost("api/tracks/{id}/mentors")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> AssignMentor(int id, [FromBody] AssignMentorRequest request)
         {
             var assignedBy = GetCurrentAccountId();
             var result = await _trackService.AssignMentorAsync(id, request, assignedBy);
             return Ok(result);
         }
+
         [HttpGet("api/tracks/rounds")]
         [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> GetTracksRounds()
