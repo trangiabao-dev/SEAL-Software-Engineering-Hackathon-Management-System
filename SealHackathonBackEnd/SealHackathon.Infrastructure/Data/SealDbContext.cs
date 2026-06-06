@@ -191,7 +191,7 @@ public partial class SealDbContext : DbContext
 
             entity.HasIndex(e => e.EventId, "IX_EventAccount_EventId");
 
-            entity.HasIndex(e => new { e.EventId, e.AccountId }, "UQ_EventAccount").IsUnique();
+            entity.HasIndex(e => new { e.EventId, e.AccountId, e.EventRole }, "UQ_EventAccount").IsUnique();
 
             entity.Property(e => e.AssignedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.EventRole)

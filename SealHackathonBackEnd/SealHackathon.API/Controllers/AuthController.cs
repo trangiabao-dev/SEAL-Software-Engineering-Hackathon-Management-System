@@ -56,34 +56,33 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đăng xuất thành công."));
         }
 
-        // Bảo thêm cho Thức sửa lại rule Mentor và Judge - XÓA CreateStaffAccount
-        // POST api/events/{eventId}/accounts/assign-role
-        [HttpPost("/api/events/{eventId:int}/accounts/assign-role")]
+        // Bảo mới thêm vào đây
+        [HttpPost("/api/events/{eventId:int}/staff")]
         [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> AssignEventRole(int eventId, [FromBody] AssignEventRoleRequest request)
+        public async Task<IActionResult> CreateEventStaff(int eventId, [FromBody] CreateEventStaffRequest request)
         {
             var coordinatorId = GetCurrentAccountId();
 
-            await _authService.AssignEventRoleAsync(eventId, request, coordinatorId);
+            var result = await _authService.CreateEventStaffAsync(eventId, request, coordinatorId);
 
-            return Ok(ApiResponse<object>.SuccessResult(
-                null!,
-                $"Đã phân quyền {request.EventRole} cho tài khoản trong sự kiện."
+            return Ok(ApiResponse<EventStaffResponse>.SuccessResult(
+                result,
+                $"Đã thêm {request.EventRole} vào sự kiện."
             ));
         }
 
-        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
-        [HttpPost("create-guest-account")]
+        // Bảo mới thêm vào đây
+        [HttpPut("/api/events/{eventId:int}/staff/{accountId:guid}/deactivate")]
         [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> CreateGuestAccount([FromBody] CreateAccountRequest request)
+        public async Task<IActionResult> DeactivateEventStaff(int eventId, Guid accountId, [FromQuery] string eventRole)
         {
             var coordinatorId = GetCurrentAccountId();
 
-            await _authService.CreateAccountByCoordinatorAsync(request, coordinatorId);
+            await _authService.DeactivateEventStaffAsync(eventId, accountId, eventRole, coordinatorId);
 
             return Ok(ApiResponse<object>.SuccessResult(
                 null!,
-                $"Tạo tài khoản khách mời thành công. Mật khẩu tạm thời đã được gửi đến email {request.Email}."
+                "Đã ẩn staff khỏi sự kiện."
             ));
         }
     }

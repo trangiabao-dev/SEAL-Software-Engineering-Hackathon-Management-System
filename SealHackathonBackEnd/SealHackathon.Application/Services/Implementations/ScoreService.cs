@@ -1,5 +1,6 @@
 ﻿using SealHackathon.Application.DTOs.Score;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
@@ -43,6 +44,55 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (criterion == null)
                 throw new NotFoundException("Criterion", request.CriterionId);
+
+            if (submission.IsDisqualified)
+                throw new BadRequestException("Submission này đã bị loại, không thể chấm điểm.");
+
+            if (criterion.RoundId != submission.RoundId)
+                throw new BadRequestException("Criterion không thuộc Round của Submission này.");
+
+            var round = await _unitOfWork
+                .GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
+
+            if (round is null)
+                throw new NotFoundException("Round", submission.RoundId);
+
+            var track = await _unitOfWork
+                .GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", round.TrackId);
+
+            var activeJudgeInEvent = await _unitOfWork
+                .GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == judgeId
+                                           && ea.EventRole == RoleConstants.Judge
+                                           && ea.Status == "Approved"
+                                           && !ea.Event.IsDeleted
+                                           && ea.Event.Status == "Active");
+
+            if (activeJudgeInEvent is null)
+                throw new ForbiddenException("Tài khoản Judge này không còn hoạt động trong Event của vòng thi.");
+
+            var judgeAssign = await _unitOfWork
+                .GetRepository<JudgeAssign>()
+                .GetFirstOrDefaultAsync(ja => ja.JudgeId == judgeId
+                                           && ja.RoundId == submission.RoundId);
+
+            if (judgeAssign is null)
+                throw new ForbiddenException("Bạn không được phân công chấm vòng thi này.");
+
+            var existingScore = await _unitOfWork
+                .GetRepository<ScoreRecord>()
+                .GetFirstOrDefaultAsync(sr => sr.SubmissionId == submissionId
+                                           && sr.JudgeId == judgeId
+                                           && sr.CriterionId == request.CriterionId);
+
+            if (existingScore is not null)
+                throw new ConflictException("Bạn đã chấm tiêu chí này cho bài nộp này rồi.");
 
             // Bước 3: Kiểm tra điểm có hợp lệ không
             // Lý do: Mỗi tiêu chí có MaxScore riêng — ví dụ tiêu chí "Trình bày"
