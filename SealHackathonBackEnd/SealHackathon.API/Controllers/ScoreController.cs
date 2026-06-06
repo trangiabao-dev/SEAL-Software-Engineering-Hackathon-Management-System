@@ -10,7 +10,7 @@ namespace SealHackathon.API.Controllers
 {
     [ApiController]
     [Route("api/scores")]
-    [Authorize] // Ph?i login m?i du?c d˘ng ó m?i API trong Controller n‡y
+    [Authorize] // Ph·∫£i login m·ªõi ƒë∆∞·ª£c d√πng ƒë·∫øn m·ªçi API trong Controller n√†y
     public class ScoreController : BaseController
     {
         private readonly IScoreService _scoreService;
@@ -19,10 +19,10 @@ namespace SealHackathon.API.Controllers
         {
             _scoreService = scoreService;
         }
-        
+
 
         // POST api/scores/submissions/{submissionId}
-        // Ch? Judge m?i du?c ch?m di?m
+        // Ch·ªâ Judge m·ªõi ƒë∆∞·ª£c ch·∫•m ƒëi·ªÉm
         [HttpPost("submissions/{submissionId}")]
         [Authorize(Roles = RoleConstants.Judge)]
         public async Task<IActionResult> SubmitScore(
@@ -31,24 +31,17 @@ namespace SealHackathon.API.Controllers
         {
             var judgeId = GetCurrentAccountId();
             var result = await _scoreService.SubmitScoreAsync(submissionId, judgeId, request);
-            return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Ch?m di?m th‡nh cÙng."));
+            return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Ch·∫•m ƒëi·ªÉm th√†nh c√¥ng."));
         }
 
         // GET api/scores/submissions/{submissionId}
-        // Judge v‡ Coordinator d?u xem du?c
+        // Judge v√† Coordinator ƒë·ªÅu xem ƒë∆∞·ª£c
         [HttpGet("submissions/{submissionId}")]
         [Authorize(Roles = RoleConstants.Judge + "," + RoleConstants.Coordinator)]
         public async Task<IActionResult> GetScoresBySubmission(Guid submissionId)
         {
             var result = await _scoreService.GetScoresBySubmissionAsync(submissionId);
-            return Ok(ApiResponse<List<ScoreRecordResponse>>.SuccessResult(result, "L?y danh s·ch di?m th‡nh cÙng."));
+            return Ok(ApiResponse<List<ScoreRecordResponse>>.SuccessResult(result, "L·∫•y danh s√°ch ƒëi·ªÉm th√†nh c√¥ng."));
         }
     }
-    /*
-    [Authorize] ? class ó ·p d?ng cho to‡n b? Controller. M?i API trong n‡y d?u c?n login.
-    [Authorize(Roles = RoleConstants.Judge)] ? method ó ghi dË rule ? class, ch? Judge m?i ch?m du?c.
-    User.FindFirstValue(ClaimTypes.NameIdentifier) ó d?c JudgeId t? JWT token. User l‡ object built-in c?a ControllerBase, ch?a thÙng tin ngu?i dang login.
-    [FromBody] ó b·o .NET d?c d? li?u t? request body (JSON), khÙng ph?i t? URL.
-    {submissionId} trong route ó d‚y l‡ route parameter, .NET t? map v‡o tham s? Guid submissionId c?a h‡m.
-    */
 }
