@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.DTOs.Event;
 using SealHackathon.Application.Services.Interfaces;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 namespace SealHackathon.API.Controllers
 {
     [Route("api/events")]
-    [Authorize(Roles = "Coordinator")] // Yêu cầu role Coordinator
+    [Authorize(Roles = RoleConstants.Coordinator)] // Yêu cầu role Coordinator
     public class EventController : BaseController
     {
         private readonly IEventService _eventService;

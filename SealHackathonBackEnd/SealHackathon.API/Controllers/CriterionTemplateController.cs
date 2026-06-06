@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.DTOs.CriterionTemplate;
 using SealHackathon.Application.Services.Interfaces;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ namespace SealHackathon.API.Controllers
 {
     [ApiController]
     [Route("api/criterion-templates")]
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Roles = RoleConstants.Coordinator)]
     public class CriterionTemplateController : BaseController
     {
         private readonly ICriterionTemplateService _templateService;

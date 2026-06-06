@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.Services.Interfaces;
 using System.Threading.Tasks;
 
@@ -17,7 +18,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpGet("coordinator")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> GetCoordinatorDashboard()
         {
             var result = await _dashboardService.GetCoordinatorDashboardAsync();
