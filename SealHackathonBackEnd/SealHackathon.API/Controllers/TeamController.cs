@@ -87,7 +87,7 @@ namespace SealHackathon.API.Controllers
         public async Task<IActionResult> GetMyTeam([FromQuery] int trackId)
         {
             var leaderId = GetCurrentAccountId();
-            var result = await _teamService.GetMyTeamAsync(leaderId, trackId);
+            var result = await _teamService.GetMyTeamAsync(leaderId);
 
             return Ok(ApiResponse<TeamDetailDto?>.SuccessResult(result));
         }
