@@ -11,7 +11,7 @@ namespace SealHackathon.API.Controllers
     // GET /api/events/:id/tracks (Lấy danh sách Tracks trong Event)
     // POST /api/tracks (Tạo Track mới)
     // PUT /api/tracks/:id (Cập nhật Track)
-    
+
     [Authorize]
     public class TrackController : BaseController
     {
@@ -23,6 +23,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpGet("api/events/{eventId}/tracks")]
+        [Authorize(Roles = $"{RoleConstants.Leader},{RoleConstants.Coordinator}")]
         public async Task<IActionResult> GetTracksByEventId(int eventId)
         {
             var result = await _trackService.GetTracksByEventIdAsync(eventId);
