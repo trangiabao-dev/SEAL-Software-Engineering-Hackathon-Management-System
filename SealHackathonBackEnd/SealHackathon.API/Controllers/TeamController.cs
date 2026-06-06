@@ -81,7 +81,7 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Xóa thành viên thành công."));
         }
 
-        // Leader chỉ được có một team trong mỗi Event, nên dùng eventId để tìm team bất kể team thuộc Track nào.
+        // FE truyền trackId đang chọn. BE dùng Track.EventId để kiểm tra Leader đã có team trong Event đó chưa.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> GetMyTeam([FromQuery] int trackId)
