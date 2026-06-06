@@ -297,11 +297,6 @@ public class AuthService : IAuthService
     {
         var repo = _uow.GetRepository<Account>();
 
-        // 1. Kiểm tra Role hợp lệ (Chỉ cho phép tạo Judge hoặc Mentor)
-        var allowedRoles = new[] { "Judge", "Mentor" };
-        if (!allowedRoles.Contains(request.Role))
-            throw new BadRequestException("Role không hợp lệ. Chỉ hỗ trợ tạo tài khoản Judge hoặc Mentor.");
-
         // 2. Kiểm tra Email đã tồn tại chưa
         var existingEmail = await repo.GetFirstOrDefaultAsync(a => a.Email == request.Email);
         if (existingEmail is not null)
@@ -336,12 +331,12 @@ public class AuthService : IAuthService
 
         // 6. Gửi Email thông báo Mật khẩu tạm thời cho họ
         var loginLink = GetFrontendBaseUrl().TrimEnd('/') + "/login";
-        var emailSubject = $"Thư mời tham gia giải đấu Seal Hackathon 2026 - Vai trò {request.Role}";
+        var emailSubject = "Thư mời tham gia hệ thống Seal Hackathon 2026";
 
         // Đổi lời chào thành request.Username
         var emailBody = $@"
         <h3>Kính gửi {request.Username},</h3>
-        <p>Ban tổ chức Seal Hackathon trân trọng kính mời bạn tham gia hệ thống với vai trò <strong>{request.Role}</strong>.</p>
+        <p>Ban tổ chức Seal Hackathon trân trọng kính mời bạn tham gia hệ thống với vai trò khách mời.</p>
         <p>Tài khoản của bạn đã được khởi tạo thành công. Dưới đây là thông tin đăng nhập của bạn:</p>
         <ul>
             <li><strong>Tên đăng nhập / Email:</strong> {request.Email}</li>
