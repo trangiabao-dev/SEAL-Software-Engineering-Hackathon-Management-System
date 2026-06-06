@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Domain.Exceptions;
 using System.Text.Json;

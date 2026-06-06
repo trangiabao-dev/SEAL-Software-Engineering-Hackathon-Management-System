@@ -136,5 +136,65 @@ namespace SealHackathon.Application.Services.Implementations
 
             return ApiResponse<bool>.SuccessResult(true, "Phân công Mentor vào Bảng đấu thành công.");
         }
+        public async Task<ApiResponse<List<TrackRoundsResponse>>> GetAllTracksWithRoundsAsync()
+        {
+            var trackRepo = _uow.GetRepository<Track>();
+            var roundRepo = _uow.GetRepository<Round>();
+            var eventRepo = _uow.GetRepository<Event>();
+
+            var tracks = await trackRepo.GetAllAsync(t => !t.IsDeleted);
+            var trackIds = tracks.Select(t => t.Id).ToList();
+            
+            var events = await eventRepo.GetAllAsync(e => !e.IsDeleted);
+
+            // Bị lỗi SQL Server cũ không hỗ trợ hàm Contains của EF Core 8 (lỗi từ khóa WITH)
+            // Khắc phục: Kéo toàn bộ Round lên RAM (do số lượng ít) rồi lọc bằng code C#
+            var allRounds = await roundRepo.GetAllAsync(r => true);
+            var rounds = allRounds.Where(r => trackIds.Contains(r.TrackId)).ToList();
+
+            var responseList = new List<TrackRoundsResponse>();
+
+            foreach (var track in tracks)
+            {
+                var ev = events.FirstOrDefault(e => e.Id == track.EventId);
+                
+                var trackRounds = rounds.Where(r => r.TrackId == track.Id)
+                    .OrderBy(r => r.StartTime)
+                    .Select(r => new RoundTimelineDto
+                    {
+                        RoundId = r.Id,
+                        Name = r.Name,
+                        StartTime = r.StartTime,
+                        EndTime = r.EndTime,
+                        Status = r.Status,
+                        AdvancingSlots = r.AdvancingSlots,
+                        ProgressPercentage = CalculateProgress(r.StartTime, r.EndTime)
+                    }).ToList();
+
+                responseList.Add(new TrackRoundsResponse
+                {
+                    TrackId = track.Id,
+                    TrackName = track.Name,
+                    EventName = ev?.Name ?? "Unknown Event",
+                    Rounds = trackRounds
+                });
+            }
+
+            return ApiResponse<List<TrackRoundsResponse>>.SuccessResult(responseList);
+        }
+
+        private int CalculateProgress(DateTime startTime, DateTime endTime)
+        {
+            var now = DateTime.UtcNow;
+            if (now < startTime) return 0;
+            if (now > endTime) return 100;
+            
+            var totalDuration = (endTime - startTime).TotalMinutes;
+            var elapsedDuration = (now - startTime).TotalMinutes;
+            
+            if (totalDuration <= 0) return 100;
+            
+            return (int)((elapsedDuration / totalDuration) * 100);
+        }
     }
 }

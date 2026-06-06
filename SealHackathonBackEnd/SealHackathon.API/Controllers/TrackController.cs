@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.DTOs.Track;
 using SealHackathon.Application.Services.Interfaces;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace SealHackathon.API.Controllers
     // POST /api/tracks (Tạo Track mới)
     // PUT /api/tracks/:id (Cập nhật Track)
     
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Roles = RoleConstants.Coordinator)]
     public class TrackController : BaseController
     {
         private readonly ITrackService _trackService;
@@ -47,6 +48,13 @@ namespace SealHackathon.API.Controllers
         {
             var assignedBy = GetCurrentAccountId();
             var result = await _trackService.AssignMentorAsync(id, request, assignedBy);
+            return Ok(result);
+        }
+        [HttpGet("api/tracks/rounds")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetTracksRounds()
+        {
+            var result = await _trackService.GetAllTracksWithRoundsAsync();
             return Ok(result);
         }
     }

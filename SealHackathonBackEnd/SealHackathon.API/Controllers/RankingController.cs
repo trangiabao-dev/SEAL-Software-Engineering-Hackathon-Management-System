@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.Ranking;
 using SealHackathon.Application.Services.Interfaces;
@@ -25,7 +26,7 @@ namespace SealHackathon.API.Controllers
         /// Xóa ranking cũ → tính lại từ ScoreRecord → lưu DB.
         /// </summary>
         [HttpPost("rounds/{roundId}/calculate")]
-        [Authorize(Roles = "Coordinator")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CalculateRanking(int roundId)
         {
             var result = await _rankingService.CalculateRankingAsync(roundId);
@@ -39,7 +40,7 @@ namespace SealHackathon.API.Controllers
         /// Lấy bảng xếp hạng đã tính của 1 vòng thi.
         /// </summary>
         [HttpGet("rounds/{roundId}")]
-        [Authorize(Roles = "Coordinator,Judge")]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
         public async Task<IActionResult> GetLeaderboard(int roundId)
         {
             var result = await _rankingService.GetLeaderboardByRoundAsync(roundId);
@@ -53,7 +54,7 @@ namespace SealHackathon.API.Controllers
         /// Lấy ranking của 1 team trong 1 vòng thi.
         /// </summary>
         [HttpGet("rounds/{roundId}/teams/{teamId}")]
-        [Authorize(Roles = "Coordinator,Judge")]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
         public async Task<IActionResult> GetTeamRanking(int roundId, Guid teamId)
         {
             var result = await _rankingService.GetTeamRankingAsync(roundId, teamId);

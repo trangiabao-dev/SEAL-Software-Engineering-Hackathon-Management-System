@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Application.DTOs.Round;
 using SealHackathon.Application.Services.Interfaces;
 using System.Threading.Tasks;
 
 namespace SealHackathon.API.Controllers
 {
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Roles = RoleConstants.Coordinator)]
     public class RoundController : BaseController
     {
         private readonly IRoundService _roundService;
