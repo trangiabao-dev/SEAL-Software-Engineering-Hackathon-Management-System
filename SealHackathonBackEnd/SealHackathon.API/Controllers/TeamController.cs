@@ -81,10 +81,11 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Xóa thành viên thành công."));
         }
 
-        // FE truyền trackId đang chọn. BE dùng Track.EventId để kiểm tra Leader đã có team trong Event đó chưa.
+        // GET api/teams/my-team — Leader lấy team hiện tại của mình.
+        // FE dùng API này để quyết định hiển thị form tạo team hay màn hình quản lý team.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
-        public async Task<IActionResult> GetMyTeam([FromQuery] int trackId)
+        public async Task<IActionResult> GetMyTeam()
         {
             var leaderId = GetCurrentAccountId();
             var result = await _teamService.GetMyTeamAsync(leaderId);
