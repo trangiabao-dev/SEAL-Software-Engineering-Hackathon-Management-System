@@ -16,7 +16,8 @@ namespace SealHackathon.Application.Services.Implementations
             _uow = uow;
         }
 
-        public async Task<SubmissionDto> CreateSubmissionAsync(int roundId, CreateSubmissionRequest request, Guid leaderId)
+        public async Task<SubmissionDto> CreateSubmissionAsync(int roundId, 
+            CreateSubmissionRequest request, Guid leaderId)
         {
             if (roundId <= 0)
                 throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
@@ -67,9 +68,10 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid leaderId)
+        public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, 
+            UpdateSubmissionRequest request, Guid leaderId)
         {
-            if(submissionId == Guid.Empty)
+            if (submissionId == Guid.Empty)
                 throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
 
             if (string.IsNullOrWhiteSpace(request.DemoUrl)
@@ -88,7 +90,7 @@ namespace SealHackathon.Application.Services.Implementations
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.Id == submission.TeamId && !t.IsDeleted);
 
-            if(team is null)
+            if (team is null)
                 throw new NotFoundException(ErrorMessages.Submission.TeamNotFound);
 
             if (team.LeaderId != leaderId)
@@ -111,7 +113,8 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId, Guid currentAccountId, bool isCoordinator, bool isJudge)
+        public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId, 
+            Guid currentAccountId, bool isCoordinator, bool isJudge)
         {
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -124,7 +127,8 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId, Guid currentAccountId, bool isCoordinator)
+        public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId, 
+            Guid currentAccountId, bool isCoordinator)
         {
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
@@ -141,7 +145,8 @@ namespace SealHackathon.Application.Services.Implementations
             return submissions.Select(MapToDto).ToList();
         }
 
-        public async Task<List<SubmissionDto>> GetSubmissionsByRoundAsync(int roundId, Guid currentAccountId, bool isCoordinator, bool isJudge)
+        public async Task<List<SubmissionDto>> GetSubmissionsByRoundAsync(int roundId,
+            Guid currentAccountId, bool isCoordinator, bool isJudge)
         {
             if (roundId <= 0)
                 throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
@@ -171,7 +176,8 @@ namespace SealHackathon.Application.Services.Implementations
             return submissions.Select(MapToDto).ToList();
         }
 
-        public async Task DisqualifySubmissionAsync(Guid submissionId, DisqualifySubmissionRequest request, Guid coordinatorId)
+        public async Task DisqualifySubmissionAsync(Guid submissionId, 
+            DisqualifySubmissionRequest request, Guid coordinatorId)
         {
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultTrackingAsync(s => s.Id == submissionId);
@@ -190,11 +196,8 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
         }
 
-        private async Task EnsureCanViewSubmissionAsync(
-            Submission submission,
-            Guid currentAccountId,
-            bool isCoordinator,
-            bool isJudge)
+        private async Task EnsureCanViewSubmissionAsync(Submission submission, Guid currentAccountId,
+            bool isCoordinator, bool isJudge)
         {
             if (isCoordinator)
                 return;
