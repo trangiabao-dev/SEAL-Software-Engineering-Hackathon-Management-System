@@ -9,7 +9,11 @@ namespace SealHackathon.Domain.Interfaces.Repositories
 {
     public interface IGenericRepository<T> where T : class
     {
-        // Lấy ra bản ghi đầu tiên thỏa mãn điều kiện, nếu không có trả về null
+        /// <summary>
+        /// GetFirstOrDefaultAsync dùng khi chỉ đọc. Vì có AsNoTracking nên EF Core không theo dõi entity đó. 
+        /// Nếu sửa object lấy từ hàm này rồi gọi SaveChangesAsync thì thường không lưu thay đổi.
+        /// Nó không tự ghi đè database, trừ khi mình gọi Update(entity) hoặc attach lại entity vào DbContext.
+        /// </summary>
         Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
 
         /// <summary>
@@ -33,10 +37,13 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         // Bảo thêm 1
         void Delete(T entity);
 
-        // Bảo thêm 2
+        /// <summary>
+        /// GetFirstOrDefaultTrackingAsync dùng khi lấy entity ra để sửa. 
+        /// EF Core theo dõi entity đó, biết property nào thay đổi và SaveChangesAsync sẽ update xuống database.
+        /// </summary>
         Task<T?> GetFirstOrDefaultTrackingAsync(Expression<Func<T, bool>> predicate);
 
         // Bảo thêm 3
-        Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate,int skip,int take);
+        Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate, int skip, int take);
     }
 }
