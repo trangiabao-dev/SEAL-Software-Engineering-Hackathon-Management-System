@@ -112,8 +112,22 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
         {
+            var leaderAccount = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
+
+            if (leaderAccount is null)
+                throw new ForbiddenException("Tài khoản của bạn không tồn tại hoặc đã bị vô hiệu hóa.");
+
+            var leaderMember = await _uow.GetRepository<TeamMember>()
+                .GetFirstOrDefaultAsync(m => m.Email == leaderAccount.Email && m.IsLeader);
+
+            if (leaderMember is null)
+                return null;
+
             var team = await _uow.GetRepository<Team>()
-                .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId && !t.IsDeleted);
+                .GetFirstOrDefaultAsync(t => t.Id == leaderMember.TeamId
+                                          && t.LeaderId == leaderId
+                                          && !t.IsDeleted);
 
             if (team is null)
                 return null;
