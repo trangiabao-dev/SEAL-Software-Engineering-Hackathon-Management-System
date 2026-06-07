@@ -1,0 +1,45 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\SWP\\SEAL-Software-Engineering-Hackathon-Management-System-main\\SealHackathonBackEnd\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|e:\\swp\\seal-software-engineering-hackathon-management-system-main\\sealhackathonbackend\\sealhackathon.application\\dtos\\track\\updatetrackrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|solutionrelative:sealhackathon.application\\dtos\\track\\updatetrackrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "UpdateTrackRequest.cs",
+              "DocumentMoniker": "E:\\SWP\\SEAL-Software-Engineering-Hackathon-Management-System-main\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "RelativeDocumentMoniker": "SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "ToolTip": "E:\\SWP\\SEAL-Software-Engineering-Hackathon-Management-System-main\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "RelativeToolTip": "SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-07T04:50:45.685Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
