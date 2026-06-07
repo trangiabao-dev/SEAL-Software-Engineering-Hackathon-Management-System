@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace SealHackathon.Domain.Exceptions
 {
-    // Dùng khi dữ liệu đầu vào không hợp lệ — HTTP 400
-    // Ví dụ: Login sai password, nhập thiếu field bắt buộc
     public class BadRequestException : AppException
     {
+        /// <summary>
+        /// Request sai dữ liệu, sai rule nhập vào — HTTP 400. Ví dụ: Login sai password, nhập thiếu field bắt buộc
+        /// </summary>
         public BadRequestException(string message)
             : base(message, 400)
         {

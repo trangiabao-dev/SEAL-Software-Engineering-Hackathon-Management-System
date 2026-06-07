@@ -182,7 +182,7 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<ApiResponse<bool>> AssignJudgeAsync(int roundId, AssignJudgeRequest request, Guid assignedBy)
         {
             if (roundId <= 0)
-                throw new BadRequestException("RoundId không hợp lệ.");
+                throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
 
             if (request.JudgeId == Guid.Empty)
                 throw new BadRequestException("JudgeId không hợp lệ.");

@@ -128,6 +128,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IScoreService, ScoreService>();
 builder.Services.AddScoped<IRankingService, RankingService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
 builder.Services.AddScoped<IRoundService, RoundService>();

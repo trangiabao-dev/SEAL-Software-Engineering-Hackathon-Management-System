@@ -9,8 +9,10 @@ namespace SealHackathon.Domain.Exceptions
 {
     public class NotFoundException : AppException
     {
-        // Dùng khi không tìm thấy resource — HTTP 404
-        // Ví dụ: Tìm Account theo Id nhưng không có trong DB
+        /// <summary>
+        /// Không tìm thấy dữ liệu cần thao tác — HTTP 404. Ví dụ: Tìm Account theo Id nhưng không có trong DB
+        /// throw new NotFoundException("Round", roundId);
+        /// </summary>
         public NotFoundException(string resourceName, object key)
             : base($"{resourceName} with id '{key}' not exist.", 404)
         {

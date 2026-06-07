@@ -123,7 +123,7 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException("TrackId không hợp lệ.");
 
             if (request.MentorId == Guid.Empty)
-                throw new BadRequestException("MentorId không hợp lệ.");
+                throw new BadRequestException(ErrorMessages.Common.InvalidMentorId);
 
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
@@ -135,7 +135,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(a => a.Id == request.MentorId && !a.IsDeleted);
 
             if (mentor is null)
-                throw new NotFoundException("Mentor", request.MentorId);
+                throw new NotFoundException(ErrorMessages.Common.MentorNotFound);
 
             var mentorEventRole = await _uow.GetRepository<EventAccount>()
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
