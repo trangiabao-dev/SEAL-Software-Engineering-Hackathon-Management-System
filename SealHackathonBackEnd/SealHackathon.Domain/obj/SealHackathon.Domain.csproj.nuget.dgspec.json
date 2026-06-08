@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {}
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {}
   },
   "projects": {
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
+        "projectUniqueName": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
         "projectName": "SealHackathon.Domain",
-        "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\obj\\",
+        "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
+        "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
+        "outputPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ACER\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],

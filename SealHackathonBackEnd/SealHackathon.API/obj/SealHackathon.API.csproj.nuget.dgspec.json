@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj": {}
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj": {}
   },
   "projects": {
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj": {
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj",
+        "projectUniqueName": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj",
         "projectName": "SealHackathon.API",
-        "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\obj\\",
+        "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.csproj",
+        "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
+        "outputPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ACER\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -33,11 +33,11 @@
             "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {
-              "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
-                "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj"
+              "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
+                "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj"
               },
-              "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj": {
-                "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj"
+              "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj": {
+                "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj"
               }
             }
           }
@@ -101,20 +101,20 @@
         }
       }
     },
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj",
+        "projectUniqueName": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj",
         "projectName": "SealHackathon.Application",
-        "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\obj\\",
+        "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj",
+        "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
+        "outputPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ACER\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -130,8 +130,8 @@
             "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {
-              "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
-                "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj"
+              "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
+                "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj"
               }
             }
           }
@@ -172,20 +172,20 @@
         }
       }
     },
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
+        "projectUniqueName": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
         "projectName": "SealHackathon.Domain",
-        "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\obj\\",
+        "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj",
+        "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
+        "outputPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ACER\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -239,20 +239,20 @@
         }
       }
     },
-    "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj": {
+    "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj",
+        "projectUniqueName": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj",
         "projectName": "SealHackathon.Infrastructure",
-        "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\obj\\",
+        "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\SealHackathon.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
+        "outputPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ACER\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -268,11 +268,11 @@
             "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {
-              "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
-                "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj"
+              "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj": {
+                "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\SealHackathon.Application.csproj"
               },
-              "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
-                "projectPath": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj"
+              "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj": {
+                "projectPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Domain\\SealHackathon.Domain.csproj"
               }
             }
           }

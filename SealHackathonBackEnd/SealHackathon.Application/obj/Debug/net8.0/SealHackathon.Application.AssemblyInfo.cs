@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SealHackathon.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29397d6f50ad230da1d3aa26c223b1ade1b65be6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+04b1f53631870d313858d0b236a99fbba8959a7b")]
 [assembly: System.Reflection.AssemblyProductAttribute("SealHackathon.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SealHackathon.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

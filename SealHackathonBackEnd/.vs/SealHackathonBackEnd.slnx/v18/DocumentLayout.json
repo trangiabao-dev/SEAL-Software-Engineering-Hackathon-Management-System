@@ -1,49 +1,49 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "E:\\SWP\\SealHackathonBackEnd\\",
+  "WorkspaceRootPath": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.application\\common\\requests\\paginationrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|solutionrelative:sealhackathon.application\\common\\requests\\paginationrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\backgroundservices\\unverifiedaccountcleanupservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\backgroundservices\\unverifiedaccountcleanupservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\sealhackathon.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
-      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\sealhackathon.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\scripts\\001_init_seal_db.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}",
-      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\scripts\\001_init_seal_db.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.application\\common\\requests\\paginationrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|solutionrelative:sealhackathon.application\\common\\requests\\paginationrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\backgroundservices\\unverifiedaccountcleanupservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\backgroundservices\\unverifiedaccountcleanupservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\sealhackathon.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
+      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\sealhackathon.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\scripts\\001_init_seal_db.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}",
+      "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\scripts\\001_init_seal_db.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\controllers\\criterioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\controllers\\criterioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\controllers\\criterioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\controllers\\basecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\controllers\\basecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\controllers\\basecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.api\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.api\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C0124F6E-954F-9AF2-DBE9-1F91B8183F36}|SealHackathon.API\\SealHackathon.API.csproj|solutionrelative:sealhackathon.api\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|e:\\swp\\sealhackathonbackend\\sealhackathon.application\\dtos\\track\\updatetrackrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|d:\\github desktop\\github\\seal-software-engineering-hackathon-management-system\\sealhackathonbackend\\sealhackathon.application\\dtos\\track\\updatetrackrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{CD9390CB-BE1E-42E6-960C-358105BFF8E5}|SealHackathon.Application\\SealHackathon.Application.csproj|solutionrelative:sealhackathon.application\\dtos\\track\\updatetrackrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
@@ -54,7 +54,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -66,47 +66,48 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "PaginationRequest.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
               "RelativeDocumentMoniker": "SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
               "RelativeToolTip": "SealHackathon.Application\\Common\\Requests\\PaginationRequest.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-06-07T07:05:48.592Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "001_Init_SEAL_DB.sql",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
               "RelativeDocumentMoniker": "SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
               "RelativeToolTip": "SealHackathon.API\\Scripts\\001_Init_SEAL_DB.sql",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
               "WhenOpened": "2026-06-07T05:17:33.461Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 1,
               "Title": "appsettings.Development.json",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.Development.json",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.Development.json",
               "RelativeDocumentMoniker": "SealHackathon.API\\appsettings.Development.json",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.Development.json",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.Development.json",
               "RelativeToolTip": "SealHackathon.API\\appsettings.Development.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-06-07T05:13:29.895Z"
+              "WhenOpened": "2026-06-07T05:13:29.895Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "SealHackathon.API.http",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.http",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.http",
               "RelativeDocumentMoniker": "SealHackathon.API\\SealHackathon.API.http",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.http",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\SealHackathon.API.http",
               "RelativeToolTip": "SealHackathon.API\\SealHackathon.API.http",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003502|",
@@ -114,23 +115,24 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 0,
               "Title": "appsettings.json",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.json",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.json",
               "RelativeDocumentMoniker": "SealHackathon.API\\appsettings.json",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.json",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\appsettings.json",
               "RelativeToolTip": "SealHackathon.API\\appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-06-07T05:05:07.915Z"
+              "WhenOpened": "2026-06-07T05:05:07.915Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 7,
               "Title": "CriterionController.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\CriterionController.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\CriterionController.cs",
               "RelativeDocumentMoniker": "SealHackathon.API\\Controllers\\CriterionController.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\CriterionController.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\CriterionController.cs",
               "RelativeToolTip": "SealHackathon.API\\Controllers\\CriterionController.cs",
               "ViewState": "AgIAABUAAAAAAAAAAAAowCsAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -140,9 +142,9 @@
               "$type": "Document",
               "DocumentIndex": 8,
               "Title": "BaseController.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\BaseController.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\BaseController.cs",
               "RelativeDocumentMoniker": "SealHackathon.API\\Controllers\\BaseController.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\BaseController.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\BaseController.cs",
               "RelativeToolTip": "SealHackathon.API\\Controllers\\BaseController.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -152,9 +154,9 @@
               "$type": "Document",
               "DocumentIndex": 9,
               "Title": "AuthController.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\AuthController.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "SealHackathon.API\\Controllers\\AuthController.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\AuthController.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Controllers\\AuthController.cs",
               "RelativeToolTip": "SealHackathon.API\\Controllers\\AuthController.cs",
               "ViewState": "AgIAADQAAAAAAAAAAAAcwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -162,11 +164,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "UnverifiedAccountCleanupService.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
               "RelativeDocumentMoniker": "SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
               "RelativeToolTip": "SealHackathon.API\\BackgroundServices\\UnverifiedAccountCleanupService.cs",
               "ViewState": "AgIAABMAAAAAAAAAAAAgwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -176,9 +178,9 @@
               "$type": "Document",
               "DocumentIndex": 6,
               "Title": "launchSettings.json",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Properties\\launchSettings.json",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Properties\\launchSettings.json",
               "RelativeDocumentMoniker": "SealHackathon.API\\Properties\\launchSettings.json",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.API\\Properties\\launchSettings.json",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.API\\Properties\\launchSettings.json",
               "RelativeToolTip": "SealHackathon.API\\Properties\\launchSettings.json",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
@@ -188,9 +190,9 @@
               "$type": "Document",
               "DocumentIndex": 10,
               "Title": "UpdateTrackRequest.cs",
-              "DocumentMoniker": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "DocumentMoniker": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
               "RelativeDocumentMoniker": "SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
-              "ToolTip": "E:\\SWP\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
+              "ToolTip": "D:\\GitHub Desktop\\GitHub\\SEAL-Software-Engineering-Hackathon-Management-System\\SealHackathonBackEnd\\SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
               "RelativeToolTip": "SealHackathon.Application\\DTOs\\Track\\UpdateTrackRequest.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
