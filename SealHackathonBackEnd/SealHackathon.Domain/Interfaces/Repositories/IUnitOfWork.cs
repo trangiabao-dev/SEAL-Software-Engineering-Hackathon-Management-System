@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace SealHackathon.Domain.Interfaces.Repositories
 {
+    /// <summary>
+    /// IUnitOfWork dùng để gom các thao tác database lại và lưu chung một lần.
+    /// </summary>
     public interface IUnitOfWork : IDisposable
     {
         // Lấy ra Repository tương ứng của một Entity

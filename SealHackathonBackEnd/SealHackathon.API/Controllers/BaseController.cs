@@ -6,15 +6,14 @@ namespace SealHackathon.API.Controllers
     [ApiController]
     public class BaseController : ControllerBase
     {
-        /// <summary>
-        /// Đọc AccountId của người đang login từ JWT claim.
-        /// Dev 2 gọi GetCurrentAccountId() trong bất kỳ Controller nào kế thừa BaseController.
-        /// </summary> 
-
-        //Method này đọc ID người dùng từ JWT token một cách an toàn 
         //kiểm tra đủ 2 định dạng claim khác nhau, validate format GUID,
         //và throw lỗi rõ ràng nếu có gì sai — đảm bảo mọi code phía sau chỉ nhận được một Guid hợp lệ,
         //không bao giờ null hay sai format
+
+        /// <summary>
+        /// Khi FE gọi API, FE gửi token lên. Backend kiểm tra token đó có hợp lệ và đúng do hệ thống cấp ra không. 
+        /// Nếu hợp lệ, backend đọc thông tin trong token và lấy được AccountId của người đang đăng nhập.
+        /// </summary> 
         protected Guid GetCurrentAccountId()
         {
             // 1. Kiểm tra cả hai claim tiêu chuẩn NameIdentifier và "sub" phòng trường hợp cấu hình JWT khác nhau
