@@ -15,6 +15,8 @@ public partial class TeamMember
 
     public string Email { get; set; } = null!;
 
+    public string University { get; set; } = null!;
+
     public string? Phone { get; set; }
 
     public bool IsLeader { get; set; }

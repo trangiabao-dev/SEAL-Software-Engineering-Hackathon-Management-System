@@ -80,6 +80,7 @@ namespace SealHackathon.Application.Services.Implementations
                 FullName = request.FullName,
                 StudentCode = request.StudentCode,
                 Email = request.Email,
+                University = request.University,
                 Phone = request.Phone,
                 IsLeader = true,
                 IsFptstudent = request.IsFPTStudent,
@@ -368,6 +369,7 @@ namespace SealHackathon.Application.Services.Implementations
                 FullName = request.FullName,
                 StudentCode = request.StudentCode,
                 Email = request.Email,
+                University = request.University,
                 Phone = request.Phone,
                 IsLeader = false,
                 IsFptstudent = request.IsFPTStudent,
@@ -406,6 +408,7 @@ namespace SealHackathon.Application.Services.Implementations
             // Chỉ cho sửa thông tin cá nhân
             member.FullName = request.FullName;
             member.Email = request.Email;
+            member.University = request.University;
             member.Phone = request.Phone;
             member.IsFptstudent = request.IsFPTStudent;
             member.UpdatedAt = DateTime.UtcNow;
@@ -526,6 +529,7 @@ namespace SealHackathon.Application.Services.Implementations
                 FullName = member.FullName,
                 StudentCode = member.StudentCode,
                 Email = member.Email,
+                University = member.University,
                 Phone = member.Phone,
                 IsLeader = member.IsLeader,
                 IsFPTStudent = member.IsFptstudent

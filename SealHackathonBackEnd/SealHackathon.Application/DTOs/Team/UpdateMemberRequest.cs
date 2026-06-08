@@ -13,6 +13,10 @@ namespace SealHackathon.Application.DTOs.Team
         [StringLength(256, ErrorMessage = "Email tối đa 256 ký tự.")]
         public string Email { get; set; } = null!;
 
+        [Required(ErrorMessage = "Tên trường không được để trống.")]
+        [StringLength(200, ErrorMessage = "Tên trường tối đa 200 ký tự.")]
+        public string University { get; set; } = null!;
+
         [Required(ErrorMessage = "Số điện thoại không được để trống.")]
         [Phone(ErrorMessage = "Số điện thoại không đúng định dạng.")]
         [StringLength(15, ErrorMessage = "Số điện thoại tối đa 15 ký tự.")]

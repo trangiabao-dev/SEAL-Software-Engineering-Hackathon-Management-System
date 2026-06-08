@@ -486,6 +486,7 @@ public partial class SealDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false);
             entity.Property(e => e.FullName).HasMaxLength(255);
+            entity.Property(e => e.University).HasMaxLength(255);
             entity.Property(e => e.IsFptstudent)
                 .HasDefaultValue(true)
                 .HasColumnName("IsFPTStudent");

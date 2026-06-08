@@ -154,6 +154,7 @@ CREATE TABLE TeamMember (
     FullName    NVARCHAR(255)     NOT NULL,
     StudentCode VARCHAR(50)       NOT NULL,
     Email       VARCHAR(255)      NOT NULL,
+    University  NVARCHAR(255)     NOT NULL,
     Phone       VARCHAR(20)       NOT NULL,
     IsLeader    BIT               NOT NULL DEFAULT 0,
     IsFPTStudent BIT              NOT NULL DEFAULT 1,
