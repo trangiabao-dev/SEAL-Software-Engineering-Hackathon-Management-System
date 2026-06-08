@@ -433,3 +433,17 @@ SealHackathonBackEnd/.vs/
 SealHackathonBackEnd/**/bin/
 SealHackathonBackEnd/**/obj/
 SealHackathonBackEnd/**/appsettings.Development.json
+
+# Frontend local/build files
+SealHackathonFrontEnd/node_modules/
+SealHackathonFrontEnd/dist/
+SealHackathonFrontEnd/.vite/
+SealHackathonFrontEnd/coverage/
+SealHackathonFrontEnd/.env
+SealHackathonFrontEnd/.env.*
+SealHackathonFrontEnd/*.local
+
+# Frontend logs
+SealHackathonFrontEnd/npm-debug.log*
+SealHackathonFrontEnd/yarn-debug.log*
+SealHackathonFrontEnd/pnpm-debug.log*
