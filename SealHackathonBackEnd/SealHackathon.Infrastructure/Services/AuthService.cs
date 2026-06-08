@@ -460,6 +460,69 @@ public class AuthService : IAuthService
         await _uow.SaveChangesAsync();
     }
 
+    public async Task ActivateEventRoleAsync(int eventId, Guid accountId, string eventRole, Guid coordinatorId)
+    {
+        if (eventId <= 0)
+            throw new BadRequestException("EventId không hợp lệ.");
+
+        if (accountId == Guid.Empty)
+            throw new BadRequestException("AccountId không hợp lệ.");
+
+        var allowedRoles = new[] { RoleConstants.Mentor, RoleConstants.Judge };
+        if (!allowedRoles.Contains(eventRole))
+            throw new BadRequestException("EventRole không hợp lệ. Chỉ hỗ trợ Mentor hoặc Judge.");
+
+        var eventAccount = await _uow.GetRepository<EventAccount>()
+            .GetFirstOrDefaultTrackingAsync(ea =>
+                ea.EventId == eventId &&
+                ea.AccountId == accountId &&
+                ea.EventRole == eventRole);
+
+        if (eventAccount is null)
+            throw new NotFoundException("EventAccount", $"{eventId}-{accountId}");
+
+        eventAccount.Status = "Approved";
+        eventAccount.AssignedBy = coordinatorId;
+        eventAccount.AssignedAt = DateTime.UtcNow;
+
+        await _uow.SaveChangesAsync();
+    }
+
+    public async Task<List<EventStaffResponse>> GetEventStaffAsync(int eventId)
+    {
+        if (eventId <= 0)
+            throw new BadRequestException("EventId không hợp lệ.");
+
+        var eventAccounts = await _uow.GetRepository<EventAccount>()
+            .GetAllAsync(ea => ea.EventId == eventId);
+
+        // Fetch Accounts to get Email and Username
+        var accountIds = eventAccounts.Select(ea => ea.AccountId).Distinct().ToList();
+        var accounts = await _uow.GetRepository<Account>()
+            .GetAllAsync(a => accountIds.Contains(a.Id) && !a.IsDeleted);
+        var accountDict = accounts.ToDictionary(a => a.Id);
+
+        var result = new List<EventStaffResponse>();
+        foreach (var ea in eventAccounts)
+        {
+            if (accountDict.TryGetValue(ea.AccountId, out var acc))
+            {
+                result.Add(new EventStaffResponse
+                {
+                    AccountId = ea.AccountId,
+                    EventId = ea.EventId,
+                    Email = acc.Email,
+                    Username = acc.Username,
+                    EventRole = ea.EventRole,
+                    Status = ea.Status,
+                    JudgeType = ea.JudgeType
+                });
+            }
+        }
+
+        return result;
+    }
+
     private string BuildEmailVerificationLink(string confirmToken)
     {
         // Link mở trang FE — FE đọc token từ URL rồi gọi GET {ApiBaseUrl}/api/auth/verify-email?token=...
