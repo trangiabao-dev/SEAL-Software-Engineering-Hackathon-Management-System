@@ -1,0 +1,761 @@
+[
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "GetAllTeams",
+    "RelativePath": "api/admin/teams",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "pageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "trackId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "ApproveAccount",
+    "RelativePath": "api/auth/{id}/approve",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "RejectAccount",
+    "RelativePath": "api/auth/{id}/reject",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Auth.RejectRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "CreateStaffAccount",
+    "RelativePath": "api/auth/create-staff",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Auth.CreateAccountRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "Login",
+    "RelativePath": "api/auth/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Auth.LoginRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "Logout",
+    "RelativePath": "api/auth/logout",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "GetPendingAccounts",
+    "RelativePath": "api/auth/pending",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "Register",
+    "RelativePath": "api/auth/register",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Auth.RegisterRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.AuthController",
+    "Method": "VerifyEmail",
+    "RelativePath": "api/auth/verify-email",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "token",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.EventController",
+    "Method": "GetAllEvents",
+    "RelativePath": "api/events",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.EventController",
+    "Method": "CreateEvent",
+    "RelativePath": "api/events",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Event.CreateEventRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TrackController",
+    "Method": "GetTracksByEventId",
+    "RelativePath": "api/events/{eventId}/tracks",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "eventId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.EventController",
+    "Method": "GetEventById",
+    "RelativePath": "api/events/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.EventController",
+    "Method": "UpdateEvent",
+    "RelativePath": "api/events/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Event.UpdateEventRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.EventController",
+    "Method": "DeleteEvent",
+    "RelativePath": "api/events/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RankingController",
+    "Method": "GetLeaderboard",
+    "RelativePath": "api/rankings/rounds/{roundId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RankingController",
+    "Method": "CalculateRanking",
+    "RelativePath": "api/rankings/rounds/{roundId}/calculate",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RankingController",
+    "Method": "GetTeamRanking",
+    "RelativePath": "api/rankings/rounds/{roundId}/teams/{teamId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "teamId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RoundController",
+    "Method": "CreateRound",
+    "RelativePath": "api/rounds",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Round.CreateRoundRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RoundController",
+    "Method": "UpdateRound",
+    "RelativePath": "api/rounds/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Round.UpdateRoundRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RoundController",
+    "Method": "AssignJudge",
+    "RelativePath": "api/rounds/{id}/judges",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Round.AssignJudgeRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RoundController",
+    "Method": "UpdateRoundStatus",
+    "RelativePath": "api/rounds/{id}/status",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Round.UpdateRoundStatusRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.CriterionController",
+    "Method": "GetCriteriaByRoundId",
+    "RelativePath": "api/rounds/{roundId}/criteria",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.CriterionController",
+    "Method": "CreateCriterion",
+    "RelativePath": "api/rounds/{roundId}/criteria",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Criterion.CreateCriterionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.CriterionController",
+    "Method": "ImportCriterion",
+    "RelativePath": "api/rounds/{roundId}/criteria/import",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Criterion.ImportCriterionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TopicController",
+    "Method": "GetTopicsByRoundId",
+    "RelativePath": "api/rounds/{roundId}/topics",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TopicController",
+    "Method": "CreateTopic",
+    "RelativePath": "api/rounds/{roundId}/topics",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roundId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Topic.CreateTopicRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.ScoreController",
+    "Method": "SubmitScore",
+    "RelativePath": "api/scores/submissions/{submissionId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "submissionId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Score.SubmitScoreRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.ScoreController",
+    "Method": "GetScoresBySubmission",
+    "RelativePath": "api/scores/submissions/{submissionId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "submissionId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "CreateTeam",
+    "RelativePath": "api/teams",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Team.CreateTeamRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "GetByIdTeam",
+    "RelativePath": "api/teams/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "UpdateTeam",
+    "RelativePath": "api/teams/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Team.UpdateTeamRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "ApproveTeam",
+    "RelativePath": "api/teams/{id}/approve",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "DisqualifyTeam",
+    "RelativePath": "api/teams/{id}/disqualify",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "AddMember",
+    "RelativePath": "api/teams/{id}/members",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Team.AddMemberRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "UpdateMember",
+    "RelativePath": "api/teams/{id}/members/{memberId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "memberId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Team.UpdateMemberRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "DeleteMember",
+    "RelativePath": "api/teams/{id}/members/{memberId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "memberId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TeamController",
+    "Method": "AssignMentor",
+    "RelativePath": "api/teams/{id}/mentor",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Team.AssignMentorRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TrackController",
+    "Method": "CreateTrack",
+    "RelativePath": "api/tracks",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Track.CreateTrackRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TrackController",
+    "Method": "UpdateTrack",
+    "RelativePath": "api/tracks/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Track.UpdateTrackRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.TrackController",
+    "Method": "AssignMentor",
+    "RelativePath": "api/tracks/{id}/mentors",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "SealHackathon.Application.DTOs.Track.AssignMentorRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SealHackathon.API.Controllers.RoundController",
+    "Method": "GetRoundsByTrackId",
+    "RelativePath": "api/tracks/{trackId}/rounds",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "trackId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

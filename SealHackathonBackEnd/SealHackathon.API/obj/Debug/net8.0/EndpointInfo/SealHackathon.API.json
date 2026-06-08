@@ -1,0 +1,1829 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SealHackathon.API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RegisterRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RegisterRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/verify-email": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.LoginRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.LoginRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/pending": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/{id}/approve": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/{id}/reject": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RejectRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RejectRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.RejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/create-staff": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.CreateAccountRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.CreateAccountRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Auth.CreateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{roundId}/criteria": {
+      "get": {
+        "tags": [
+          "Criterion"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Criterion"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.CreateCriterionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.CreateCriterionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.CreateCriterionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{roundId}/criteria/import": {
+      "post": {
+        "tags": [
+          "Criterion"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.ImportCriterionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.ImportCriterionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Criterion.ImportCriterionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "Event"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Event"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.CreateEventRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.CreateEventRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.CreateEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "tags": [
+          "Event"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Event"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.UpdateEventRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.UpdateEventRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Event.UpdateEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Event"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rankings/rounds/{roundId}/calculate": {
+      "post": {
+        "tags": [
+          "Ranking"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rankings/rounds/{roundId}": {
+      "get": {
+        "tags": [
+          "Ranking"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rankings/rounds/{roundId}/teams/{teamId}": {
+      "get": {
+        "tags": [
+          "Ranking"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/tracks/{trackId}/rounds": {
+      "get": {
+        "tags": [
+          "Round"
+        ],
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds": {
+      "post": {
+        "tags": [
+          "Round"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.CreateRoundRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.CreateRoundRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.CreateRoundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{id}": {
+      "put": {
+        "tags": [
+          "Round"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{id}/status": {
+      "put": {
+        "tags": [
+          "Round"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.UpdateRoundStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{id}/judges": {
+      "post": {
+        "tags": [
+          "Round"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.AssignJudgeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.AssignJudgeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Round.AssignJudgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/scores/submissions/{submissionId}": {
+      "post": {
+        "tags": [
+          "Score"
+        ],
+        "parameters": [
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Score.SubmitScoreRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Score.SubmitScoreRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Score.SubmitScoreRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Score"
+        ],
+        "parameters": [
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.CreateTeamRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.CreateTeamRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.CreateTeamRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}": {
+      "get": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateTeamRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateTeamRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateTeamRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}/members": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AddMemberRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AddMemberRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AddMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}/members/{memberId}": {
+      "put": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateMemberRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateMemberRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.UpdateMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/admin/teams": {
+      "get": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trackId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}/approve": {
+      "put": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}/disqualify": {
+      "put": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/teams/{id}/mentor": {
+      "put": {
+        "tags": [
+          "Team"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AssignMentorRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AssignMentorRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Team.AssignMentorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/rounds/{roundId}/topics": {
+      "get": {
+        "tags": [
+          "Topic"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Topic"
+        ],
+        "parameters": [
+          {
+            "name": "roundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Topic.CreateTopicRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Topic.CreateTopicRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Topic.CreateTopicRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/events/{eventId}/tracks": {
+      "get": {
+        "tags": [
+          "Track"
+        ],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/tracks": {
+      "post": {
+        "tags": [
+          "Track"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.CreateTrackRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.CreateTrackRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.CreateTrackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/tracks/{id}": {
+      "put": {
+        "tags": [
+          "Track"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.UpdateTrackRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.UpdateTrackRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.UpdateTrackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/tracks/{id}/mentors": {
+      "post": {
+        "tags": [
+          "Track"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.AssignMentorRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.AssignMentorRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealHackathon.Application.DTOs.Track.AssignMentorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SealHackathon.Application.DTOs.Auth.CreateAccountRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Auth.LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Auth.RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Auth.RejectRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Criterion.CreateCriterionRequest": {
+        "type": "object",
+        "properties": {
+          "roundId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "maxScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Criterion.ImportCriterionRequest": {
+        "type": "object",
+        "properties": {
+          "roundId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "templateId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Event.CreateEventRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Event.UpdateEventRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Round.AssignJudgeRequest": {
+        "type": "object",
+        "properties": {
+          "judgeId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Round.CreateRoundRequest": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "advancingSlots": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Round.UpdateRoundRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "advancingSlots": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Round.UpdateRoundStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Score.SubmitScoreRequest": {
+        "type": "object",
+        "properties": {
+          "criterionId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "isCalibration": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Team.AddMemberRequest": {
+        "required": [
+          "email",
+          "fullName",
+          "studentCode"
+        ],
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          },
+          "studentCode": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z]{2}\\d{6}$",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 256,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "maxLength": 15,
+            "minLength": 0,
+            "type": "string",
+            "format": "tel",
+            "nullable": true
+          },
+          "isFPTStudent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Team.AssignMentorRequest": {
+        "type": "object",
+        "properties": {
+          "mentorId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Team.CreateTeamRequest": {
+        "required": [
+          "email",
+          "fullName",
+          "studentCode",
+          "teamName",
+          "university"
+        ],
+        "type": "object",
+        "properties": {
+          "teamName": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          },
+          "university": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "trackId": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "githubRepoLink": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "fullName": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          },
+          "studentCode": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z]{2}\\d{6}$",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 256,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "maxLength": 15,
+            "minLength": 0,
+            "type": "string",
+            "format": "tel",
+            "nullable": true
+          },
+          "isFPTStudent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Team.UpdateMemberRequest": {
+        "required": [
+          "email",
+          "fullName"
+        ],
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 256,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "maxLength": 15,
+            "minLength": 0,
+            "type": "string",
+            "format": "tel",
+            "nullable": true
+          },
+          "isFPTStudent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Team.UpdateTeamRequest": {
+        "required": [
+          "teamName",
+          "university"
+        ],
+        "type": "object",
+        "properties": {
+          "teamName": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          },
+          "university": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "githubRepoLink": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Topic.CreateTopicRequest": {
+        "type": "object",
+        "properties": {
+          "roundId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "requirements": {
+            "type": "string",
+            "nullable": true
+          },
+          "attachmentUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Track.AssignMentorRequest": {
+        "type": "object",
+        "properties": {
+          "mentorId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Track.CreateTrackRequest": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "maxTeams": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SealHackathon.Application.DTOs.Track.UpdateTrackRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "maxTeams": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Nhập JWT token. Ví dụ: Bearer {token}",
+        "scheme": "Bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ]
+}
