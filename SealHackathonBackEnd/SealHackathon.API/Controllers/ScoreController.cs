@@ -8,9 +8,12 @@ using System.Security.Claims;
 
 namespace SealHackathon.API.Controllers
 {
+    /// <summary>
+    /// Controller quản lý chấm điểm — yêu cầu login (JWT token)
+    /// </summary>
     [ApiController]
     [Route("api/scores")]
-    [Authorize] // Phải login mới được dùng đến mọi API trong Controller này
+    [Authorize]
     public class ScoreController : BaseController
     {
         private readonly IScoreService _scoreService;
@@ -20,9 +23,9 @@ namespace SealHackathon.API.Controllers
             _scoreService = scoreService;
         }
 
-
-        // POST api/scores/submissions/{submissionId}
-        // Chỉ Judge mới được chấm điểm
+        /// <summary>
+        /// Judge chấm điểm cho một Submission — POST api/scores/submissions/{submissionId}
+        /// </summary>
         [HttpPost("submissions/{submissionId}")]
         [Authorize(Roles = RoleConstants.Judge)]
         public async Task<IActionResult> SubmitScore(
@@ -34,8 +37,9 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Chấm điểm thành công."));
         }
 
-        // GET api/scores/submissions/{submissionId}
-        // Judge và Coordinator đều xem được
+        /// <summary>
+        /// Lấy danh sách điểm đã chấm của một Submission — GET api/scores/submissions/{submissionId}
+        /// </summary>
         [HttpGet("submissions/{submissionId}")]
         [Authorize(Roles = RoleConstants.Judge + "," + RoleConstants.Coordinator)]
         public async Task<IActionResult> GetScoresBySubmission(Guid submissionId)

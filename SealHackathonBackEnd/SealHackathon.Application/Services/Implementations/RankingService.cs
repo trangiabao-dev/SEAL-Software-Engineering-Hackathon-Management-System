@@ -6,6 +6,9 @@ using SealHackathon.Domain.Interfaces.Repositories;
 
 namespace SealHackathon.Application.Services.Implementations
 {
+    /// <summary>
+    /// Xử lý logic xếp hạng — tính TotalScore (weighted average), gán RankPosition, xác định IsAdvancing
+    /// </summary>
     public class RankingService : IRankingService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -15,11 +18,12 @@ namespace SealHackathon.Application.Services.Implementations
             _unitOfWork = unitOfWork;
         }
 
+        /// <summary>
+        /// Tính toán ranking cho 1 round — xóa ranking cũ, tính lại từ ScoreRecord, lưu kết quả mới vào DB
+        /// </summary>
         public async Task<RankingLeaderboardResponse> CalculateRankingAsync(int roundId)
         {
-            // ====================================================
             // Bước 1: Validate Round tồn tại
-            // ====================================================
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
@@ -27,10 +31,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (round == null)
                 throw new NotFoundException("Round", roundId);
 
-            // ====================================================
             // Bước 2: Lấy tất cả Criteria của round (để có Weight)
-            // ====================================================
-            // Mỗi Criterion có Weight riêng — cần để tính weighted average
             var criteria = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetAllAsync(c => c.RoundId == roundId);
@@ -39,12 +40,9 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(
                     "Round này chưa có tiêu chí chấm điểm nào. Vui lòng tạo Criteria trước.");
 
-            // Tạo dictionary để lookup weight nhanh O(1)
             var criterionWeightDict = criteria.ToDictionary(c => c.Id, c => c.Weight);
 
-            // ====================================================
             // Bước 3: Lấy tất cả Submissions của round (không bị disqualify)
-            // ====================================================
             var submissions = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetAllAsync(s => s.RoundId == roundId && !s.IsDisqualified);
@@ -53,35 +51,24 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(
                     "Round này chưa có bài nộp nào (hoặc tất cả đã bị disqualify).");
 
-            // Map SubmissionId → TeamId để biết submission nào thuộc team nào
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
 
-            // ====================================================
             // Bước 4: Lấy tất cả ScoreRecords (bỏ IsCalibration)
-            // ====================================================
-            // Chỉ lấy điểm chấm thật, bỏ qua điểm chấm thử (calibration)
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(sr => submissionIds.Contains(sr.SubmissionId)
                                    && !sr.IsCalibration);
 
-            // ====================================================
             // Bước 5: Tính TotalScore cho mỗi Team
-            // ====================================================
             // Công thức: TotalScore = Σ (AVG(Score theo Judge) × Weight) cho mỗi Criterion
-            //
-            // Group flow:
-            //   ScoreRecords → group by TeamId → group by CriterionId
-            //   → Average score per criterion → × Weight → Sum = TotalScore
-
             var teamScores = allScoreRecords
-                .GroupBy(sr => submissionTeamDict[sr.SubmissionId]) // Group by TeamId
+                .GroupBy(sr => submissionTeamDict[sr.SubmissionId])
                 .Select(teamGroup => new
                 {
                     TeamId = teamGroup.Key,
                     TotalScore = teamGroup
-                        .GroupBy(sr => sr.CriterionId) // Group by CriterionId
+                        .GroupBy(sr => sr.CriterionId)
                         .Sum(criterionGroup =>
                         {
                             var avgScore = criterionGroup.Average(sr => sr.Score);
@@ -89,13 +76,10 @@ namespace SealHackathon.Application.Services.Implementations
                             return avgScore * weight;
                         })
                 })
-                .OrderByDescending(ts => ts.TotalScore) // Sắp xếp giảm dần
+                .OrderByDescending(ts => ts.TotalScore)
                 .ToList();
 
-            // ====================================================
-            // Bước 5b: Thêm các team có Submission nhưng chưa có điểm
-            // ====================================================
-            // Team nộp bài nhưng chưa Judge nào chấm → TotalScore = 0
+            // Bước 5b: Thêm các team có Submission nhưng chưa có điểm (TotalScore = 0)
             var teamIdsWithScores = teamScores.Select(ts => ts.TeamId).ToHashSet();
             var teamIdsWithoutScores = submissions
                 .Select(s => s.TeamId)
@@ -103,15 +87,12 @@ namespace SealHackathon.Application.Services.Implementations
                 .Where(tid => !teamIdsWithScores.Contains(tid))
                 .ToList();
 
-            // Thêm vào cuối danh sách với TotalScore = 0
             var allTeamScores = teamScores
                 .Select(ts => (ts.TeamId, ts.TotalScore))
                 .Concat(teamIdsWithoutScores.Select(tid => (TeamId: tid, TotalScore: 0.0)))
                 .ToList();
 
-            // ====================================================
-            // Bước 6: Gán RankPosition (xử lý tie — cùng điểm cùng hạng)
-            // ====================================================
+            // Bước 6: Gán RankPosition (cùng điểm → cùng hạng)
             // Ví dụ: Score = [9.5, 8.0, 8.0, 7.0] → Rank = [1, 2, 2, 4]
             var rankedTeams = new List<(Guid TeamId, double TotalScore, int Rank)>();
             for (int i = 0; i < allTeamScores.Count; i++)
@@ -123,40 +104,30 @@ namespace SealHackathon.Application.Services.Implementations
                 }
                 else if (Math.Abs(allTeamScores[i].TotalScore - allTeamScores[i - 1].TotalScore) < 0.0001)
                 {
-                    // Cùng điểm → cùng hạng
                     rank = rankedTeams[i - 1].Rank;
                 }
                 else
                 {
-                    // Hạng = vị trí hiện tại + 1 (1-indexed)
                     rank = i + 1;
                 }
                 rankedTeams.Add((allTeamScores[i].TeamId, allTeamScores[i].TotalScore, rank));
             }
 
-            // ====================================================
             // Bước 7: Xác định IsAdvancing
-            // ====================================================
-            // Nếu Round có AdvancingSlots = N → top N team được vào vòng tiếp
-            // Nếu AdvancingSlots = null (vòng chung kết) → không ai advance
             var advancingSlots = round.AdvancingSlots;
 
             var now = DateTime.UtcNow;
 
-            // ====================================================
             // Bước 8: Xóa ranking cũ → Insert ranking mới
-            // ====================================================
             var existingRankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
                 .GetAllAsync(r => r.RoundId == roundId);
 
-            // Xóa từng record cũ
             foreach (var old in existingRankings)
             {
                 _unitOfWork.GetRepository<Domain.Entities.Ranking>().Delete(old);
             }
 
-            // Tạo ranking mới
             var newRankings = new List<Domain.Entities.Ranking>();
             foreach (var team in rankedTeams)
             {
@@ -167,7 +138,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Id = Guid.NewGuid(),
                     TeamId = team.TeamId,
                     RoundId = roundId,
-                    TotalScore = Math.Round(team.TotalScore, 4), // Làm tròn 4 chữ số
+                    TotalScore = Math.Round(team.TotalScore, 4),
                     RankPosition = team.Rank,
                     IsAdvancing = isAdvancing,
                     CalculatedAt = now
@@ -179,10 +150,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _unitOfWork.SaveChangesAsync();
 
-            // ====================================================
             // Bước 9: Map sang Response DTO
-            // ====================================================
-            // Lấy tên Team để trả về cho FE
             var teamIds = rankedTeams.Select(r => r.TeamId).ToList();
             var teams = await _unitOfWork
                 .GetRepository<Team>()
@@ -216,6 +184,9 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
 
+        /// <summary>
+        /// Lấy bảng xếp hạng đã tính của 1 round — đọc từ DB, không tính lại
+        /// </summary>
         public async Task<RankingLeaderboardResponse> GetLeaderboardByRoundAsync(int roundId)
         {
             // Bước 1: Validate Round tồn tại
@@ -233,7 +204,6 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (!rankings.Any())
             {
-                // Chưa tính ranking → trả về response rỗng
                 return new RankingLeaderboardResponse
                 {
                     RoundId = round.Id,
@@ -280,6 +250,9 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
 
+        /// <summary>
+        /// Lấy ranking của 1 team cụ thể trong 1 round — trả lỗi 404 nếu chưa tính ranking
+        /// </summary>
         public async Task<RankingResponse> GetTeamRankingAsync(int roundId, Guid teamId)
         {
             // Bước 1: Validate Round tồn tại

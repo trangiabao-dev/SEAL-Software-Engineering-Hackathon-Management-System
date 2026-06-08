@@ -1,4 +1,4 @@
-﻿using SealHackathon.Application.DTOs.Score;
+using SealHackathon.Application.DTOs.Score;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
@@ -7,6 +7,9 @@ using SealHackathon.Domain.Interfaces.Repositories;
 
 namespace SealHackathon.Application.Services.Implementations
 {
+    /// <summary>
+    /// Xử lý logic chấm điểm — tạo ScoreRecord mới và lấy danh sách điểm theo Submission
+    /// </summary>
     public class ScoreService : IScoreService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -16,16 +19,15 @@ namespace SealHackathon.Application.Services.Implementations
             _unitOfWork = unitOfWork;
         }
 
+        /// <summary>
+        /// Judge chấm điểm cho một Submission — validate dữ liệu, kiểm tra quyền, tạo ScoreRecord mới trong DB
+        /// </summary>
         public async Task<ScoreRecordResponse> SubmitScoreAsync(
             Guid submissionId,
             Guid judgeId,
             SubmitScoreRequest request)
         {
             // Bước 1: Kiểm tra Submission có tồn tại không
-            // Lý do: Client gửi lên submissionId từ URL — nhưng không đảm bảo
-            // ID đó thật sự tồn tại trong DB. Nếu không kiểm tra, server sẽ
-            // cố lưu ScoreRecord với SubmissionId không hợp lệ → lỗi FK constraint
-            // ở tầng DB, rất khó debug. Kiểm tra sớm → throw lỗi rõ ràng hơn.
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -34,10 +36,6 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException("Submission", submissionId);
 
             // Bước 2: Kiểm tra Criterion có tồn tại không
-            // Lý do: Tương tự Submission — CriterionId do client gửi lên,
-            // cần xác nhận tiêu chí đó thật sự thuộc về Round đang diễn ra.
-            // Ngoài ra cần lấy object Criterion để dùng MaxScore ở Bước 3
-            // và CriterionName ở Bước 5 — không thể bỏ qua bước này.
             var criterion = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetFirstOrDefaultAsync(c => c.Id == request.CriterionId);
@@ -95,22 +93,11 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new ConflictException("Bạn đã chấm tiêu chí này cho bài nộp này rồi.");
 
             // Bước 3: Kiểm tra điểm có hợp lệ không
-            // Lý do: Mỗi tiêu chí có MaxScore riêng — ví dụ tiêu chí "Trình bày"
-            // chỉ được chấm tối đa 10 điểm. Nếu Judge nhập 15 hoặc số âm,
-            // dữ liệu sẽ bị sai lệch và ảnh hưởng đến Ranking sau này.
-            // Validate ở Service thay vì chỉ dựa vào DB constraint —
-            // để có thể trả về message lỗi rõ ràng cho Judge.
             if (request.Score < 0 || request.Score > criterion.MaxScore)
                 throw new BadRequestException(
                     $"Điểm phải nằm trong khoảng 0 đến {criterion.MaxScore}.");
 
             // Bước 4: Tạo ScoreRecord mới và lưu vào DB
-            // Lý do: Sau khi validate xong xuôi mới tạo entity —
-            // đảm bảo dữ liệu lưu vào DB luôn hợp lệ, không có
-            // record rác. JudgeId lấy từ JWT token (do Controller truyền xuống)
-            // — không lấy từ request body để tránh giả mạo.
-            // ScoredAt dùng DateTime.UtcNow — server tự tạo, không để
-            // client tự nhập để tránh gian lận thời gian.
             var scoreRecord = new ScoreRecord
             {
                 Id = Guid.NewGuid(),
@@ -127,15 +114,12 @@ namespace SealHackathon.Application.Services.Implementations
             await _unitOfWork.SaveChangesAsync();
 
             // Bước 5: Map entity sang Response DTO và trả về
-            // Lý do: Không trả thẳng entity ra ngoài — entity chứa
-            // navigation properties có thể gây vòng lặp khi serialize JSON.
-            // DTO chỉ chứa đúng thông tin client cần — gọn, an toàn, rõ ràng.
             return new ScoreRecordResponse
             {
                 Id = scoreRecord.Id,
                 SubmissionId = scoreRecord.SubmissionId,
                 JudgeId = scoreRecord.JudgeId,
-                JudgeName = string.Empty, // Bổ sung sau khi có Account query
+                JudgeName = string.Empty,
                 CriterionId = scoreRecord.CriterionId,
                 CriterionName = criterion.Name,
                 Score = scoreRecord.Score,
@@ -145,11 +129,12 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
 
+        /// <summary>
+        /// Lấy danh sách tất cả điểm đã chấm của một Submission — kèm tên Judge và tên Criterion
+        /// </summary>
         public async Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(Guid submissionId)
         {
             // Bước 1: Kiểm tra Submission có tồn tại không
-            // Lý do: Tránh trả về list rỗng khi submissionId không hợp lệ
-            // Client không biết là ID sai hay submission chưa có điểm
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -158,39 +143,26 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException("Submission", submissionId);
 
             // Bước 2: Lấy tất cả ScoreRecord của submission này
-            // Lý do: Lấy hết điểm của mọi Judge, kể cả IsCalibration
             var scoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(sr => sr.SubmissionId == submissionId);
 
-            // Nếu chưa có điểm nào thì trả về list rỗng — đây là trường hợp hợp lệ
-            // Khác với submissionId không tồn tại ở trên
             if (!scoreRecords.Any())
                 return new List<ScoreRecordResponse>();
 
             // Bước 3: Lấy thông tin Judge và Criterion
-            // Lý do: ScoreRecord chỉ lưu JudgeId và CriterionId
-            // Cần query thêm để lấy tên — tránh trả về ID thô cho FE
-
-            // Lấy danh sách JudgeId và CriterionId không trùng lặp
-            // Lý do dùng Distinct(): 1 Judge có thể chấm nhiều tiêu chí
-            // không cần query Account cùng 1 JudgeId nhiều lần
             var judgeIds = scoreRecords.Select(sr => sr.JudgeId).Distinct().ToList();
             var criterionIds = scoreRecords.Select(sr => sr.CriterionId).Distinct().ToList();
 
-            // Query Account cho tất cả JudgeId cùng lúc — 1 round trip duy nhất
             var judges = await _unitOfWork
                 .GetRepository<Account>()
                 .GetAllAsync(a => judgeIds.Contains(a.Id));
 
-            // Query Criterion cho tất cả CriterionId cùng lúc — 1 round trip duy nhất
             var criteria = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetAllAsync(c => criterionIds.Contains(c.Id));
 
             // Bước 4: Convert sang Dictionary để lookup nhanh O(1)
-            // Lý do: Nếu dùng .FirstOrDefault() trong vòng lặp bên dưới
-            // thì mỗi iteration lại duyệt toàn bộ list — O(n²) không cần thiết
             var judgeDict = judges.ToDictionary(a => a.Id, a => a.Username);
             var criterionDict = criteria.ToDictionary(c => c.Id, c => c.Name);
 
@@ -200,8 +172,6 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = sr.Id,
                 SubmissionId = sr.SubmissionId,
                 JudgeId = sr.JudgeId,
-                // GetValueOrDefault: nếu JudgeId không có trong dict
-                // trả về string.Empty thay vì throw exception
                 JudgeName = judgeDict.GetValueOrDefault(sr.JudgeId, string.Empty),
                 CriterionId = sr.CriterionId,
                 CriterionName = criterionDict.GetValueOrDefault(sr.CriterionId, string.Empty),
