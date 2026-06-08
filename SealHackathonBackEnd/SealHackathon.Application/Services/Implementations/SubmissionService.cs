@@ -45,6 +45,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status != TeamConstants.Status.Approved)
                 throw new BadRequestException(ErrorMessages.Submission.TeamNotApproved);
 
+            if (string.IsNullOrWhiteSpace(team.GithubRepoLink))
+                throw new BadRequestException(ErrorMessages.Submission.TeamGithubRepoRequired);
+
             var existingSubmission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == round.Id);
 

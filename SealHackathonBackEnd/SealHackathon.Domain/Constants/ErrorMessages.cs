@@ -45,6 +45,7 @@
             public const string AlreadyDisqualified = "Bài nộp này đã bị loại trước đó.";
             public const string NeedAtLeastOneLink = "Cần cung cấp ít nhất một link bài nộp.";
             public const string JudgeNotAssignedToRound = "Bạn không được phân công chấm Round này.";
+            public const string TeamGithubRepoRequired = "Vui lòng cập nhật link GitHub của đội trước khi nộp bài.";
         }
 
         public static class Common
