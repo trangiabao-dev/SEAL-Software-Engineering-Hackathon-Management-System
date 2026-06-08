@@ -7,9 +7,12 @@ using SealHackathon.Application.Services.Interfaces;
 
 namespace SealHackathon.API.Controllers
 {
+    /// <summary>
+    /// Controller quản lý xếp hạng (Ranking) — yêu cầu login (JWT token)
+    /// </summary>
     [ApiController]
     [Route("api/rankings")]
-    [Authorize] // Phải login mới được dùng
+    [Authorize]
     public class RankingController : BaseController
     {
         private readonly IRankingService _rankingService;
@@ -19,11 +22,8 @@ namespace SealHackathon.API.Controllers
             _rankingService = rankingService;
         }
 
-        // POST api/rankings/rounds/{roundId}/calculate
-        // Chỉ Coordinator mới được trigger tính ranking
         /// <summary>
-        /// Tính toán (hoặc tính lại) bảng xếp hạng cho 1 vòng thi.
-        /// Xóa ranking cũ → tính lại từ ScoreRecord → lưu DB.
+        /// Coordinator tính toán (hoặc tính lại) bảng xếp hạng cho 1 vòng thi — xóa ranking cũ, tính lại từ ScoreRecord, lưu DB
         /// </summary>
         [HttpPost("rounds/{roundId}/calculate")]
         [Authorize(Roles = RoleConstants.Coordinator)]
@@ -34,10 +34,8 @@ namespace SealHackathon.API.Controllers
                 result, "Tính ranking thành công."));
         }
 
-        // GET api/rankings/rounds/{roundId}
-        // Coordinator và Judge đều xem được bảng xếp hạng
         /// <summary>
-        /// Lấy bảng xếp hạng đã tính của 1 vòng thi.
+        /// Lấy bảng xếp hạng đã tính của 1 vòng thi — đọc từ DB, không tính lại
         /// </summary>
         [HttpGet("rounds/{roundId}")]
         [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
@@ -48,10 +46,8 @@ namespace SealHackathon.API.Controllers
                 result, "Lấy bảng xếp hạng thành công."));
         }
 
-        // GET api/rankings/rounds/{roundId}/teams/{teamId}
-        // Coordinator và Judge xem ranking của 1 team cụ thể
         /// <summary>
-        /// Lấy ranking của 1 team trong 1 vòng thi.
+        /// Lấy ranking của 1 team cụ thể trong 1 vòng thi
         /// </summary>
         [HttpGet("rounds/{roundId}/teams/{teamId}")]
         [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]

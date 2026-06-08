@@ -1,8 +1,8 @@
 ﻿namespace SealHackathon.Application.Ranking
 {
     /// <summary>
-    /// DTO chứa thông tin ranking của 1 team trong 1 round.
-    /// </summary>
+    /// Dữ liệu ranking của 1 team trong 1 round — trả về cho client
+    /// </summary> 
     public class RankingResponse
     {
         /// <summary>ID của bản ghi ranking</summary>

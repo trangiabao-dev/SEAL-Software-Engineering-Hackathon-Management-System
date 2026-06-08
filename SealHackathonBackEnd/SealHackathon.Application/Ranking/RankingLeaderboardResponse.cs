@@ -1,27 +1,27 @@
 namespace SealHackathon.Application.Ranking
 {
     /// <summary>
-    /// Wrapper DTO cho toàn bộ bảng xếp hạng của 1 round.
-    /// Bao gồm metadata của round + danh sách ranking các đội.
+    /// Wrapper chứa toàn bộ bảng xếp hạng của 1 round 
+    /// — bao gồm metadata và danh sách ranking các đội
     /// </summary>
     public class RankingLeaderboardResponse
     {
-        /// <summary>ID vòng thi</summary>
+        /// ID vòng thi
         public int RoundId { get; set; }
 
-        /// <summary>Tên vòng thi</summary>
+        /// Tên vòng thi
         public string RoundName { get; set; } = string.Empty;
 
-        /// <summary>Số slot vào vòng tiếp (null = vòng chung kết)</summary>
+        /// Số slot vào vòng tiếp (null = vòng chung kết)
         public int? AdvancingSlots { get; set; }
 
-        /// <summary>Tổng số đội trong bảng xếp hạng</summary>
+        /// Tổng số đội trong bảng xếp hạng
         public int TotalTeams { get; set; }
 
-        /// <summary>Thời điểm ranking được tính gần nhất</summary>
+        /// Thời điểm ranking được tính gần nhất
         public DateTime? CalculatedAt { get; set; }
 
-        /// <summary>Danh sách ranking sắp xếp theo thứ hạng tăng dần</summary>
+        /// Danh sách ranking sắp xếp theo thứ hạng tăng dần
         public List<RankingResponse> Rankings { get; set; } = new();
     }
 }

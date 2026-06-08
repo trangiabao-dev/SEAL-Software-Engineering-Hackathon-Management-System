@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,10 +10,9 @@ namespace SealHackathon.Application.Services.Interfaces
 {
     public interface IScoreService
     {
-        // Judge chấm điểm cho một submission
-        // submissionId: lấy từ URL
-        // judgeId: lấy từ JWT token
-        // request: dữ liệu Judge nhập vào
+        /// <summary>
+        /// Judge chấm điểm cho một Submission — tạo mới ScoreRecord trong DB
+        /// </summary>
         Task<ScoreRecordResponse> SubmitScoreAsync(
             Guid submissionId,
             Guid judgeId,
