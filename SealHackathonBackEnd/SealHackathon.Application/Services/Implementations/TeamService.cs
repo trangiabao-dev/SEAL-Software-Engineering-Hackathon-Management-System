@@ -193,7 +193,7 @@ namespace SealHackathon.Application.Services.Implementations
         //                      COORDINATOR 
         // =======================================================
 
-        public async Task<PaginatedResponse<TeamDetailDto>> GetAllTeamsAsync(
+        public async Task<PaginatedResponse<TeamListDto>> GetAllTeamsAsync(
             int pageNumber, int pageSize, string? status, int? trackId)
         {
             if (pageNumber < 1)
@@ -212,18 +212,27 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
-                && (status == null || t.Status == status)
+                && (status == null || t.Status == status) 
                 && (trackId == null || t.TrackId == trackId);
 
             var totalRecords = await _uow.GetRepository<Team>().CountAsync(predicate);
 
             var skip = (pageNumber - 1) * pageSize;
-            var teams = await _uow.GetRepository<Team>()
-                .GetPagedAsync(predicate, skip, pageSize);
+            var teams = await _uow.GetRepository<Team>().GetPagedAsync(predicate, skip, pageSize);
 
-            var items = teams.Select(team => MapToDto(team)).ToList();
+            var teamIds = teams.Select(t => t.Id).ToList();
 
-            return new PaginatedResponse<TeamDetailDto>(items, totalRecords, pageNumber, pageSize);
+            var members = await _uow.GetRepository<TeamMember>()
+                .GetAllAsync(m => teamIds.Contains(m.TeamId));
+
+            var memberCountByTeamId = members.GroupBy(m => m.TeamId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var items = teams
+                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+                .ToList();
+
+            return new PaginatedResponse<TeamListDto>(items, totalRecords, pageNumber, pageSize);
         }
 
         public async Task ApproveTeamAsync(Guid teamId, Guid coordinatorId)
@@ -232,7 +241,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             var team = await repo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
 
-            if (team is null) 
+            if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
 
             if (team.Status != TeamConstants.Status.Pending)
@@ -509,7 +518,6 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // Hàm MapToMemberDto đổi từ dữ liệu DB ở bảng TeamMember -> sang dữ liệu trả FE là TeamMemberDto
-        // 
         private TeamMemberDto MapToMemberDto(TeamMember member)
         {
             return new TeamMemberDto
@@ -521,6 +529,26 @@ namespace SealHackathon.Application.Services.Implementations
                 Phone = member.Phone,
                 IsLeader = member.IsLeader,
                 IsFPTStudent = member.IsFptstudent
+            };
+        }
+
+        /// <summary>
+        /// Đếm số lượng thành viên của team để map vào TeamListDto trả về cho FE
+        /// </summary>
+        private TeamListDto MapToListDto(Team team, int memberCount)
+        {
+            return new TeamListDto
+            {
+                Id = team.Id,
+                TeamName = team.TeamName,
+                University = team.University,
+                TrackId = team.TrackId,
+                LeaderId = team.LeaderId,
+                MentorId = team.MentorId,
+                TopicId = team.TopicId,
+                GithubRepoLink = team.GithubRepoLink,
+                Status = team.Status,
+                MemberCount = memberCount
             };
         }
     }

@@ -107,7 +107,7 @@ namespace SealHackathon.API.Controllers
             [FromQuery] int? trackId = null)
         {
             var result = await _teamService.GetAllTeamsAsync(pageNumber, pageSize, status, trackId);
-            return Ok(ApiResponse<PaginatedResponse<TeamDetailDto>>.SuccessResult(result));
+            return Ok(ApiResponse<PaginatedResponse<TeamListDto>>.SuccessResult(result));
         }
 
         // PUT api/teams/{id}/approve — Coordinator duyệt team

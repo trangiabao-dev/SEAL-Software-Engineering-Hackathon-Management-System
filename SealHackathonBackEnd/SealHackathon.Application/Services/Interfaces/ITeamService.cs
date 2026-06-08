@@ -15,7 +15,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId);
 
         // Coordinator
-        Task<PaginatedResponse<TeamDetailDto>> GetAllTeamsAsync(int pageNumber, int pageSize, string? status, int? trackId);
+        Task<PaginatedResponse<TeamListDto>> GetAllTeamsAsync(int pageNumber, int pageSize, string? status, int? trackId);
         Task ApproveTeamAsync(Guid teamId, Guid coordinatorId);
         Task DisqualifyTeamAsync(Guid teamId, Guid coordinatorId);
         Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId);
