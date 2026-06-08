@@ -85,5 +85,31 @@ namespace SealHackathon.API.Controllers
                 "Đã ẩn staff khỏi sự kiện."
             ));
         }
+
+        [HttpPut("/api/events/{eventId:int}/staff/{accountId:guid}/activate")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ActivateEventStaff(int eventId, Guid accountId, [FromQuery] string eventRole)
+        {
+            var coordinatorId = GetCurrentAccountId();
+
+            await _authService.ActivateEventRoleAsync(eventId, accountId, eventRole, coordinatorId);
+
+            return Ok(ApiResponse<object>.SuccessResult(
+                null!,
+                "Đã mở lại quyền cho staff trong sự kiện."
+            ));
+        }
+
+        [HttpGet("/api/events/{eventId:int}/staff")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetEventStaff(int eventId)
+        {
+            var result = await _authService.GetEventStaffAsync(eventId);
+
+            return Ok(ApiResponse<List<EventStaffResponse>>.SuccessResult(
+                result,
+                "Lấy danh sách staff thành công."
+            ));
+        }
     }
 }

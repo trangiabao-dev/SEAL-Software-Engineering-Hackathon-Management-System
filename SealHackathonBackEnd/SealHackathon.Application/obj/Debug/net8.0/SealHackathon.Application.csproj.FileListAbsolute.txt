@@ -1,0 +1,16 @@
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\bin\Debug\net8.0\SealHackathon.Application.deps.json
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\bin\Debug\net8.0\SealHackathon.Application.dll
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\bin\Debug\net8.0\SealHackathon.Application.pdb
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\bin\Debug\net8.0\SealHackathon.Domain.dll
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\bin\Debug\net8.0\SealHackathon.Domain.pdb
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.csproj.AssemblyReference.cache
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.GeneratedMSBuildEditorConfig.editorconfig
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.AssemblyInfoInputs.cache
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.AssemblyInfo.cs
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.csproj.CoreCompileInputs.cache
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.sourcelink.json
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHack.3CBE7B1B.Up2Date
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.dll
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\refint\SealHackathon.Application.dll
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\SealHackathon.Application.pdb
+E:\SWP\SealHackathonBackEnd\SealHackathon.Application\obj\Debug\net8.0\ref\SealHackathon.Application.dll

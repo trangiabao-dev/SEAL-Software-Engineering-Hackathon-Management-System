@@ -17,5 +17,7 @@ namespace SealHackathon.Application.Services.Interfaces
         // Bảo Thêm
         Task<EventStaffResponse> CreateEventStaffAsync(int eventId, CreateEventStaffRequest request, Guid coordinatorId);
         Task DeactivateEventStaffAsync(int eventId, Guid accountId, string eventRole, Guid coordinatorId);
+        Task ActivateEventRoleAsync(int eventId, Guid accountId, string eventRole, Guid coordinatorId);
+        Task<List<EventStaffResponse>> GetEventStaffAsync(int eventId);
     }
 }
