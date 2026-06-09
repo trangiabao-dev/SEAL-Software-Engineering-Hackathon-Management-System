@@ -1,4 +1,4 @@
-﻿using SealHackathon.Application.DTOs.Submission;
+using SealHackathon.Application.DTOs.Submission;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;

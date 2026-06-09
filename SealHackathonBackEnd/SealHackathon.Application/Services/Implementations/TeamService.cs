@@ -1,4 +1,4 @@
-﻿using SealHackathon.Application.Common.Requests;
+using SealHackathon.Application.Common.Requests;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Team;
 using SealHackathon.Application.Services.Interfaces;

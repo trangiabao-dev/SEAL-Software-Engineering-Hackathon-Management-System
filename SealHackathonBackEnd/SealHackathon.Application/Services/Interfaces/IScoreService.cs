@@ -29,5 +29,7 @@ namespace SealHackathon.Application.Services.Interfaces
             Guid scoreRecordId,
             Guid judgeId,
             UpdateScoreRequest request);
+
+       
     }
 }
