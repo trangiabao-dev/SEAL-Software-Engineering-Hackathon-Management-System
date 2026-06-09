@@ -21,5 +21,13 @@ namespace SealHackathon.Application.Services.Interfaces
         // Lấy danh sách điểm của một submission
         // Dùng để Judge xem lại điểm đã chấm
         Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(Guid submissionId);
+
+        /// <summary>
+        /// Judge sửa điểm đã chấm — cập nhật ScoreRecord trong DB
+        /// </summary>
+        Task<ScoreRecordResponse> UpdateScoreAsync(
+            Guid scoreRecordId,
+            Guid judgeId,
+            UpdateScoreRequest request);
     }
 }
