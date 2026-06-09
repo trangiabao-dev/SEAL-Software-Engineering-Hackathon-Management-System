@@ -33,6 +33,8 @@ public partial class Team
 
     public Guid? UpdatedBy { get; set; }
 
+    public string? DisqualifyReason { get; set; }
+
     public virtual Account? CreatedByNavigation { get; set; }
 
     public virtual Account Leader { get; set; } = null!;
@@ -47,6 +49,11 @@ public partial class Team
 
     public virtual Topic? Topic { get; set; }
 
+    /// <summary>
+    /// Navigation Property:
+    /// Nhờ vậy trong C# mình viết được t.Track.EventId. 
+    /// EF Core sẽ tự hiểu là phải join Team với Track qua Team.TrackId = Track.Id để kiểm tra Track.EventId.
+    /// </summary>
     public virtual Track Track { get; set; } = null!;
 
     public virtual Account? UpdatedByNavigation { get; set; }

@@ -46,6 +46,8 @@
             public const string NeedAtLeastOneLink = "Cần cung cấp ít nhất một link bài nộp.";
             public const string JudgeNotAssignedToRound = "Bạn không được phân công chấm Round này.";
             public const string TeamGithubRepoRequired = "Vui lòng cập nhật link GitHub của đội trước khi nộp bài.";
+            public const string RoundNotActive = "Vòng thi hiện không ở trạng thái nhận bài.";
+            public const string RoundNotStarted = "Vòng thi chưa bắt đầu.";
         }
 
         public static class Common
@@ -60,6 +62,7 @@
             public const string RoundNotFound = "Không tìm thấy vòng thi.";
             public const string TrackNotFound = "Không tìm thấy hạng mục.";
             public const string MentorNotFound = "Không tìm thấy Mentor.";
+            public const string InvalidEventId = "EventId không hợp lệ.";
         }
     }
 }

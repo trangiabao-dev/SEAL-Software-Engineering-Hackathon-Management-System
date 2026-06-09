@@ -12,5 +12,6 @@
         public string? GithubRepoLink { get; set; }
         public string Status { get; set; } = null!;
         public int MemberCount { get; set; }
+        public string? DisqualifyReason { get; set; }
     }
 }

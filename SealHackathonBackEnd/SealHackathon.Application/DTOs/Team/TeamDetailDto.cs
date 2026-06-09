@@ -15,5 +15,6 @@ namespace SealHackathon.Application.DTOs.Team
         public string? GithubRepoLink { get; set; }
         public string Status { get; set; } = null!;
         public List<TeamMemberDto> Members { get; set; } = new();
+        public string? DisqualifyReason { get; set; }
     }
 }
