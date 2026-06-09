@@ -81,14 +81,13 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Xóa thành viên thành công."));
         }
 
-        // GET api/teams/my-team — Leader lấy team hiện tại của mình.
-        // FE dùng API này để quyết định hiển thị form tạo team hay màn hình quản lý team.
+        // GET api/teams/my-team?eventId={eventId} — Leader lấy team của mình trong Event hiện tại.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
-        public async Task<IActionResult> GetMyTeam()
+        public async Task<IActionResult> GetMyTeam([FromQuery] int eventId)
         {
             var leaderId = GetCurrentAccountId();
-            var result = await _teamService.GetMyTeamAsync(leaderId);
+            var result = await _teamService.GetMyTeamAsync(leaderId, eventId);
 
             return Ok(ApiResponse<TeamDetailDto?>.SuccessResult(result));
         }
@@ -123,10 +122,12 @@ namespace SealHackathon.API.Controllers
         // PUT api/teams/{id}/disqualify — Coordinator loại team
         [HttpPut("{id:guid}/disqualify")]
         [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> DisqualifyTeam(Guid id)
+        public async Task<IActionResult> DisqualifyTeam(Guid id, [FromBody] DisqualifyTeamRequest request)
         {
             var coordinatorId = GetCurrentAccountId();
-            await _teamService.DisqualifyTeamAsync(id, coordinatorId);
+
+            await _teamService.DisqualifyTeamAsync(id, request, coordinatorId);
+
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã loại đội thi."));
         }
 

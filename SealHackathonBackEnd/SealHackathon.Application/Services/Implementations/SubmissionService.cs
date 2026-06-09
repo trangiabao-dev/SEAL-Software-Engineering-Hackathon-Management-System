@@ -16,7 +16,7 @@ namespace SealHackathon.Application.Services.Implementations
             _uow = uow;
         }
 
-        public async Task<SubmissionDto> CreateSubmissionAsync(int roundId, 
+        public async Task<SubmissionDto> CreateSubmissionAsync(int roundId,
             CreateSubmissionRequest request, Guid leaderId)
         {
             if (roundId <= 0)
@@ -30,6 +30,14 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            // Chỉ cho phép nộp/cập nhật bài khi Round đang mở nhận bài.
+            // Active là trạng thái thi chính thức; các trạng thái Upcoming, Scoring, Closed đều không được nhận bài.
+            if (!string.Equals(round.Status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotActive);
+
+            if (DateTime.UtcNow < round.StartTime)
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotStarted);
 
             if (DateTime.UtcNow > round.EndTime)
                 throw new BadRequestException(ErrorMessages.Submission.DeadlinePassed);
@@ -71,7 +79,7 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, 
+        public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId,
             UpdateSubmissionRequest request, Guid leaderId)
         {
             if (submissionId == Guid.Empty)
@@ -105,6 +113,12 @@ namespace SealHackathon.Application.Services.Implementations
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
+            if (!string.Equals(round.Status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotActive);
+
+            if (DateTime.UtcNow < round.StartTime)
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotStarted);
+
             if (DateTime.UtcNow > round.EndTime)
                 throw new BadRequestException(ErrorMessages.Submission.UpdateDeadlinePassed);
 
@@ -116,7 +130,7 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId, 
+        public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId,
             Guid currentAccountId, bool isCoordinator, bool isJudge)
         {
             var submission = await _uow.GetRepository<Submission>()
@@ -130,7 +144,7 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(submission);
         }
 
-        public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId, 
+        public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId,
             Guid currentAccountId, bool isCoordinator)
         {
             var team = await _uow.GetRepository<Team>()
@@ -179,7 +193,7 @@ namespace SealHackathon.Application.Services.Implementations
             return submissions.Select(MapToDto).ToList();
         }
 
-        public async Task DisqualifySubmissionAsync(Guid submissionId, 
+        public async Task DisqualifySubmissionAsync(Guid submissionId,
             DisqualifySubmissionRequest request, Guid coordinatorId)
         {
             var submission = await _uow.GetRepository<Submission>()

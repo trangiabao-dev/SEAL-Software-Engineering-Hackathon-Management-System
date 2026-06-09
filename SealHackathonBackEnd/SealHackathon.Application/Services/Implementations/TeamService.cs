@@ -110,24 +110,22 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(team, members);
         }
 
-        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
+        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId, int eventId)
         {
+            if (eventId <= 0)
+                throw new BadRequestException(ErrorMessages.Common.InvalidEventId);
+
             var leaderAccount = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
 
             if (leaderAccount is null)
                 throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
 
-            var leaderMember = await _uow.GetRepository<TeamMember>()
-                .GetFirstOrDefaultAsync(m => m.Email == leaderAccount.Email && m.IsLeader);
-
-            if (leaderMember is null)
-                return null;
-
             var team = await _uow.GetRepository<Team>()
-                .GetFirstOrDefaultAsync(t => t.Id == leaderMember.TeamId
-                                          && t.LeaderId == leaderId
-                                          && !t.IsDeleted);
+                .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
+                                        && t.Track.EventId == eventId
+                                        && !t.Track.IsDeleted
+                                        && !t.IsDeleted);
 
             if (team is null)
                 return null;
@@ -213,7 +211,7 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
-                && (status == null || t.Status == status) 
+                && (status == null || t.Status == status)
                 && (trackId == null || t.TrackId == trackId);
 
             var totalRecords = await _uow.GetRepository<Team>().CountAsync(predicate);
@@ -262,11 +260,11 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
         }
 
-        public async Task DisqualifyTeamAsync(Guid teamId, Guid coordinatorId)
+        public async Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId)
         {
-            var repo = _uow.GetRepository<Team>();
+            var teamRepo = _uow.GetRepository<Team>();
 
-            var team = await repo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
+            var team = await teamRepo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
 
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
@@ -274,9 +272,28 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
+            var reason = request.Reason.Trim();
+            var now = DateTime.UtcNow;
+
             team.Status = TeamConstants.Status.Disqualified;
-            team.UpdatedAt = DateTime.UtcNow;
+            team.DisqualifyReason = reason;
+            team.UpdatedAt = now;
             team.UpdatedBy = coordinatorId;
+
+            var submissionRepo = _uow.GetRepository<Submission>();
+
+            var submissions = await submissionRepo
+                .GetAllAsync(s => s.TeamId == teamId && !s.IsDisqualified);
+
+            foreach (var submission in submissions)
+            {
+                submission.IsDisqualified = true;
+                submission.DisqualifyReason = reason;
+                submission.DisqualifiedAt = now;
+                submission.DisqualifiedBy = coordinatorId;
+
+                submissionRepo.Update(submission);
+            }
 
             await _uow.SaveChangesAsync();
         }
