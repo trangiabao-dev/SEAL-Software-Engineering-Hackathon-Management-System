@@ -47,5 +47,19 @@ namespace SealHackathon.API.Controllers
             var result = await _scoreService.GetScoresBySubmissionAsync(submissionId);
             return Ok(ApiResponse<List<ScoreRecordResponse>>.SuccessResult(result, "Lấy danh sách điểm thành công."));
         }
+
+        /// <summary>
+        /// Judge sửa điểm đã chấm — PUT api/scores/{UpdateScoreRecordId}
+        /// </summary>
+        [HttpPut("{UpdateScoreRecordId}")]
+        [Authorize(Roles = RoleConstants.Judge)]
+        public async Task<IActionResult> UpdateScore(
+            Guid UpdateScoreRecordId,
+            [FromBody] UpdateScoreRequest request)
+        {
+            var judgeId = GetCurrentAccountId();
+            var result = await _scoreService.UpdateScoreAsync(UpdateScoreRecordId, judgeId, request);
+            return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Cập nhật điểm thành công."));
+        }
     }
 }

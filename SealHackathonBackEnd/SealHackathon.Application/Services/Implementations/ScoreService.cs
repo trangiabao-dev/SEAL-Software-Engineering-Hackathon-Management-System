@@ -183,5 +183,84 @@ namespace SealHackathon.Application.Services.Implementations
 
             return result;
         }
+
+        /// <summary>
+        /// Judge sửa điểm đã chấm — cập nhật DB, giới hạn bởi quyền và thời gian vòng thi
+        /// </summary>
+        public async Task<ScoreRecordResponse> UpdateScoreAsync(
+            Guid scoreRecordId,
+            Guid judgeId,
+            UpdateScoreRequest request)
+        {
+            // Bước 1: Tìm bản ghi điểm cần sửa
+            var scoreRecord = await _unitOfWork
+                .GetRepository<ScoreRecord>()
+                .GetFirstOrDefaultAsync(sr => sr.Id == scoreRecordId);
+
+            if (scoreRecord == null)
+                throw new NotFoundException("ScoreRecord", scoreRecordId);
+
+            // Bước 2: Kiểm tra "Ai làm người nấy chịu"
+            // Judge A chỉ được sửa điểm do Judge A chấm
+            if (scoreRecord.JudgeId != judgeId)
+                throw new ForbiddenException(
+                    "Bạn chỉ được sửa điểm do chính mình chấm.");
+
+            // Bước 3: Kiểm tra Round còn đang diễn ra không
+            var submission = await _unitOfWork
+                .GetRepository<Submission>()
+                .GetFirstOrDefaultAsync(s => s.Id == scoreRecord.SubmissionId);
+
+            if (submission == null)
+                throw new NotFoundException("Submission", scoreRecord.SubmissionId);
+
+            var round = await _unitOfWork
+                .GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
+
+            if (round == null)
+                throw new NotFoundException("Round", submission.RoundId);
+
+            // Chỉ cho sửa khi Round đang "Upcoming" hoặc "Active"
+            if (round.Status == "Completed" || round.Status == "Closed")
+                throw new BadRequestException(
+                    $"Round '{round.Name}' đã kết thúc (Status = {round.Status}). " +
+                    "Không thể sửa điểm sau khi vòng thi đã đóng.");
+
+            // Bước 4: Kiểm tra điểm mới có hợp lệ không
+            var criterion = await _unitOfWork
+                .GetRepository<Criterion>()
+                .GetFirstOrDefaultAsync(c => c.Id == scoreRecord.CriterionId);
+
+            if (criterion == null)
+                throw new NotFoundException("Criterion", scoreRecord.CriterionId);
+
+            if (request.UpdatedScore < 0 || request.UpdatedScore > criterion.MaxScore)
+                throw new BadRequestException(
+                    $"Điểm phải nằm trong khoảng 0 đến {criterion.MaxScore}.");
+
+            // Bước 5: Cập nhật dữ liệu
+            scoreRecord.Score = request.UpdatedScore;
+            scoreRecord.Comment = request.UpdatedComment;
+            scoreRecord.UpdatedAt = DateTime.UtcNow;
+
+            _unitOfWork.GetRepository<ScoreRecord>().Update(scoreRecord);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Bước 6: Trả về kết quả
+            return new ScoreRecordResponse
+            {
+                Id = scoreRecord.Id,
+                SubmissionId = scoreRecord.SubmissionId,
+                JudgeId = scoreRecord.JudgeId,
+                JudgeName = string.Empty, // Lấy Account query nếu cần hiển thị ngay
+                CriterionId = scoreRecord.CriterionId,
+                CriterionName = criterion.Name,
+                Score = scoreRecord.Score,
+                Comment = scoreRecord.Comment,
+                IsCalibration = scoreRecord.IsCalibration,
+                ScoredAt = scoreRecord.ScoredAt
+            };
+        }
     }
 }
