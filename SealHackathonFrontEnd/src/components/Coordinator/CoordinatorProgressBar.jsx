@@ -1,1 +1,0 @@
-export { CoordinatorProgressBar } from "./CoordinatorUI";
