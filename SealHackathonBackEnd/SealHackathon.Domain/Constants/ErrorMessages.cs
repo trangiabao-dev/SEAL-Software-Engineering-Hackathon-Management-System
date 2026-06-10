@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Domain.Constants
+namespace SealHackathon.Domain.Constants
 {
     public static class ErrorMessages
     {
