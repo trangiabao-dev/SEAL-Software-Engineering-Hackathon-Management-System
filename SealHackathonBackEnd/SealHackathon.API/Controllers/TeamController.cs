@@ -84,10 +84,10 @@ namespace SealHackathon.API.Controllers
         // GET api/teams/my-team?eventId={eventId} — Leader lấy team của mình trong Event hiện tại.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
-        public async Task<IActionResult> GetMyTeam([FromQuery] int eventId)
+        public async Task<IActionResult> GetMyTeam()
         {
             var leaderId = GetCurrentAccountId();
-            var result = await _teamService.GetMyTeamAsync(leaderId, eventId);
+            var result = await _teamService.GetMyTeamAsync(leaderId);
 
             return Ok(ApiResponse<TeamDetailDto?>.SuccessResult(result));
         }

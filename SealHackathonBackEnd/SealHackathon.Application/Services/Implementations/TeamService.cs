@@ -110,20 +110,33 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(team, members);
         }
 
-        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId, int eventId)
+        public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
         {
-            if (eventId <= 0)
-                throw new BadRequestException(ErrorMessages.Common.InvalidEventId);
-
             var leaderAccount = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
 
+            // Nếu không tìm thấy account hợp lệ thì chặn request.
+            // Token có id, nhưng id đó không còn account hợp lệ trong DB. Không cho thao tác tiếp.
             if (leaderAccount is null)
                 throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
 
+            var activeEvents = await _uow.GetRepository<Event>()
+                .GetAllAsync(e => !e.IsDeleted
+                                        && string.Equals(e.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase));
+
+            // Sau khi chắc chắn chỉ có đúng 1 event active, lấy event đó ra dùng.
+            if (!activeEvents.Any())
+                return null;
+
+            if(activeEvents.Count > 1)
+                throw new ConflictException("Hệ thống đang có nhiều hơn một Event Active.");
+
+            var activeEvent = activeEvents.First();
+
+            // Tìm team của Leader trong Event đang Active.
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
-                                        && t.Track.EventId == eventId
+                                        && t.Track.EventId == activeEvent.Id
                                         && !t.Track.IsDeleted
                                         && !t.IsDeleted);
 
