@@ -1,1 +1,0 @@
-export { CoordinatorBadge } from "./CoordinatorUI";
