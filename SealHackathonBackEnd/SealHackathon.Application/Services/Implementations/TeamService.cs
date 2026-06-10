@@ -125,7 +125,6 @@ namespace SealHackathon.Application.Services.Implementations
 
             return MapToDto(team, members, topic);
         }
-
         public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
         {
             var leaderAccount = await _uow.GetRepository<Account>()
