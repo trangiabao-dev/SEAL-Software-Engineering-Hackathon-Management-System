@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SealHackathon.Application.DTOs.Topic;
 
 namespace SealHackathon.Application.DTOs.Team
 {
@@ -12,6 +13,7 @@ namespace SealHackathon.Application.DTOs.Team
         public Guid LeaderId { get; set; }
         public Guid? MentorId { get; set; }
         public int? TopicId { get; set; }
+        public TopicResponse? Topic { get; set; }
         public string? GithubRepoLink { get; set; }
         public string Status { get; set; } = null!;
         public List<TeamMemberDto> Members { get; set; } = new();

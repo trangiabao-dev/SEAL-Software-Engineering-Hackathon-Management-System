@@ -142,19 +142,31 @@ namespace SealHackathon.Application.Services.Implementations
                     throw new BadRequestException("Không có Topic nào trong Round này để gán cho các nhóm!");
                 }
 
-                // Random 1 Topic ngẫu nhiên trong kho Đề tài
-                var random = new Random();
-                var selectedTopic = topics[random.Next(topics.Count)];
+                // Chỉ team đã được duyệt mới được nhận đề thi.
+                var teams = await _uow.GetRepository<Team>().GetAllAsync(x => x.TrackId == existingRound.TrackId
+                                                                           && x.Status == TeamConstants.Status.Approved
+                                                                           && !x.IsDeleted);
 
-                // Tìm tất cả các Đội (Teams) đang tham gia ở Bảng đấu (Track) này
-                var teams = await _uow.GetRepository<Team>().GetAllAsync(x => x.TrackId == existingRound.TrackId && !x.IsDeleted);
-                
-                // Lặp qua từng đội và ép buộc họ phải làm cái Topic vừa random được
-                foreach (var team in teams)
+                var teamsWithoutTopic = teams.Where(x => x.TopicId is null).ToList();
+                var usedTopicIds = teams.Where(x => x.TopicId.HasValue)
+                    .Select(x => x.TopicId!.Value)
+                    .ToHashSet();
+
+                // Mỗi team nhận một Topic khác nhau. Team đã có Topic thì không random lại.
+                var random = new Random();
+                var availableTopics = topics
+                    .Where(x => !usedTopicIds.Contains(x.Id))
+                    .OrderBy(_ => random.Next())
+                    .ToList();
+
+                if (availableTopics.Count < teamsWithoutTopic.Count)
+                    throw new BadRequestException("Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.");
+
+                for (var i = 0; i < teamsWithoutTopic.Count; i++)
                 {
-                    team.TopicId = selectedTopic.Id;
-                    team.UpdatedAt = DateTime.UtcNow;
-                    _uow.GetRepository<Team>().Update(team); // Lưu tạm sự thay đổi của đội vào bộ nhớ đệm
+                    teamsWithoutTopic[i].TopicId = availableTopics[i].Id;
+                    teamsWithoutTopic[i].UpdatedAt = DateTime.UtcNow;
+                    _uow.GetRepository<Team>().Update(teamsWithoutTopic[i]); // Lưu tạm sự thay đổi của đội vào bộ nhớ đệm
                 }
             }
             // ================================================================

@@ -1,6 +1,7 @@
 using SealHackathon.Application.Common.Requests;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Team;
+using SealHackathon.Application.DTOs.Topic;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
@@ -27,7 +28,6 @@ namespace SealHackathon.Application.Services.Implementations
             if (leaderAccount is null)
                 throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
 
-            // Kiểm tra Track tồn tại
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == request.TrackId && !t.IsDeleted);
 
@@ -56,13 +56,18 @@ namespace SealHackathon.Application.Services.Implementations
             // Kiểm tra Leader đã có team trong Event này chưa
             var teamRepo = _uow.GetRepository<Team>();
 
+            var isNameTaken = await teamRepo
+                .GetFirstOrDefaultAsync(t => t.TeamName == request.TeamName && !t.IsDeleted);
+
+            if (isNameTaken is not null)
+                throw new ConflictException(ErrorMessages.Team.NameAlreadyUsed);
+
             var existingTeam = await GetLeaderTeamInEventAsync(leaderId, track.EventId);
             if (existingTeam is not null)
                 throw new ConflictException(ErrorMessages.Team.AlreadyHasTeamInEvent);
 
-            // Hàm này kiểm tra mã sinh viên chưa tồn tại trong bất kỳ team nào thuộc cùng Event.
-            // Event -> Track -> Team -> TeamMember
-            await CheckStudentCodeNotUsedInEventAsync(request.TrackId, request.StudentCode);
+            // Kiểm tra mã sinh viên chưa tồn tại trong bất kỳ team nào thuộc cùng Event.
+            await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
             // Team mới tạo luôn ở trạng thái Pending để Coordinator duyệt trước khi tham gia.
             var newTeam = new Team
@@ -116,7 +121,9 @@ namespace SealHackathon.Application.Services.Implementations
             var members = await _uow.GetRepository<TeamMember>()
                 .GetAllAsync(m => m.TeamId == teamId);
 
-            return MapToDto(team, members);
+            var topic = await GetTopicForTeamAsync(team);
+
+            return MapToDto(team, members, topic);
         }
 
         public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
@@ -131,8 +138,8 @@ namespace SealHackathon.Application.Services.Implementations
             // Active: Event đang thi, Leader vẫn cần xem team của mình.
             var currentEvents = await _uow.GetRepository<Event>()
                 .GetAllAsync(e => !e.IsDeleted
-                               && (string.Equals(e.Status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase)
-                                || string.Equals(e.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase)));
+                               && (e.Status == EventConstants.Status.Registration
+                                || e.Status == EventConstants.Status.Active));
 
             if (!currentEvents.Any())
                 return null;
@@ -154,7 +161,9 @@ namespace SealHackathon.Application.Services.Implementations
             var members = await _uow.GetRepository<TeamMember>()
                 .GetAllAsync(m => m.TeamId == team.Id);
 
-            return MapToDto(team, members);
+            var topic = await GetTopicForTeamAsync(team);
+
+            return MapToDto(team, members, topic);
         }
 
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
@@ -206,7 +215,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             var members = await _uow.GetRepository<TeamMember>().GetAllAsync(m => m.TeamId == team.Id);
 
-            return MapToDto(team, members);
+            var topic = await GetTopicForTeamAsync(team);
+
+            return MapToDto(team, members, topic);
         }
 
         // =======================================================
@@ -389,6 +400,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException(ErrorMessages.Team.NoAddMemberPermission);
 
+            if (team.Status == TeamConstants.Status.Disqualified)
+                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+
             // Bước 2: Kiểm tra không quá 5 người
             var memberCount = await _uow.GetRepository<TeamMember>()
                 .CountAsync(m => m.TeamId == teamId);
@@ -398,7 +412,13 @@ namespace SealHackathon.Application.Services.Implementations
 
             // StudentCode không được trùng trong cùng Event.
             // Quan hệ DB: Event -> Track -> Team -> TeamMember.
-            await CheckStudentCodeNotUsedInEventAsync(team.TrackId, request.StudentCode);
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
             // Tạo member mới
             var newMember = new TeamMember
@@ -433,6 +453,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException(ErrorMessages.Team.NoUpdateMemberPermission);
+
+            if (team.Status == TeamConstants.Status.Disqualified)
+                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
             // Tìm member
             var memberRepo = _uow.GetRepository<TeamMember>();
@@ -469,6 +492,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException(ErrorMessages.Team.NoDeleteMemberPermission);
 
+            if (team.Status == TeamConstants.Status.Disqualified)
+                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+
             // Tìm member
             var memberRepo = _uow.GetRepository<TeamMember>();
 
@@ -495,27 +521,13 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Business helpers ===============
-        private async Task CheckStudentCodeNotUsedInEventAsync(int trackId, string studentCode)
+        private async Task CheckStudentCodeNotUsedInEventAsync(int eventId, string studentCode)
         {
-            var currentTrack = await _uow.GetRepository<Track>()
-                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
-
-            if (currentTrack is null)
-                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
-
-            var tracksInEvent = await _uow.GetRepository<Track>()
-                .GetAllAsync(t => t.EventId == currentTrack.EventId && !t.IsDeleted);
-
-            var trackIdsInEvent = tracksInEvent.Select(t => t.Id).ToList();
-
-            var teamsInEvent = await _uow.GetRepository<Team>()
-                .GetAllAsync(t => trackIdsInEvent.Contains(t.TrackId) && !t.IsDeleted);
-
-            var teamIdsInEvent = teamsInEvent.Select(t => t.Id).ToList();
-
             var duplicateStudent = await _uow.GetRepository<TeamMember>()
-                .GetFirstOrDefaultAsync(m => teamIdsInEvent.Contains(m.TeamId)
-                                          && m.StudentCode == studentCode);
+                .GetFirstOrDefaultAsync(m => m.StudentCode == studentCode
+                                          && !m.Team.IsDeleted
+                                          && !m.Team.Track.IsDeleted
+                                          && m.Team.Track.EventId == eventId);
 
             if (duplicateStudent is not null)
                 throw new ConflictException(ErrorMessages.TeamMember.StudentCodeAlreadyUsedInEvent);
@@ -523,19 +535,24 @@ namespace SealHackathon.Application.Services.Implementations
 
         private async Task<Team?> GetLeaderTeamInEventAsync(Guid leaderId, int eventId)
         {
-            var tracksInEvent = await _uow.GetRepository<Track>()
-                .GetAllAsync(t => t.EventId == eventId && !t.IsDeleted);
-
-            var trackIdsInEvent = tracksInEvent.Select(t => t.Id).ToList();
-
             return await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
-                                          && trackIdsInEvent.Contains(t.TrackId)
+                                          && t.Track.EventId == eventId
+                                          && !t.Track.IsDeleted
                                           && !t.IsDeleted);
         }
 
+        private async Task<Topic?> GetTopicForTeamAsync(Team team)
+        {
+            if (!team.TopicId.HasValue)
+                return null;
+
+            return await _uow.GetRepository<Topic>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TopicId.Value);
+        }
+
         // =============== Mapping helpers ===============
-        private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null)
+        private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null, Topic? topic = null)
         {
             return new TeamDetailDto
             {
@@ -546,8 +563,10 @@ namespace SealHackathon.Application.Services.Implementations
                 LeaderId = team.LeaderId,
                 MentorId = team.MentorId,
                 TopicId = team.TopicId,
+                Topic = MapToTopicDto(topic),
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
+                DisqualifyReason = team.DisqualifyReason,
                 // Nếu có members thì map từng member sang DTO.
                 // Nếu members bị null thì trả về danh sách rỗng, không để FE nhận null.
                 Members = members?.Select(MapToMemberDto).ToList() ?? new List<TeamMemberDto>()
@@ -555,6 +574,22 @@ namespace SealHackathon.Application.Services.Implementations
                 // Select(MapToMemberDto): Nghĩa là biến từng TeamMember entity thành TeamMemberDto.
                 // .ToList(): Biến kết quả thành danh sách List<TeamMemberDto>.
                 // ?? new List<TeamMemberDto>(): Nếu vế trái là null thì trả về list rỗng.
+            };
+        }
+
+        private static TopicResponse? MapToTopicDto(Topic? topic)
+        {
+            if (topic is null)
+                return null;
+
+            return new TopicResponse
+            {
+                Id = topic.Id,
+                RoundId = topic.RoundId,
+                Title = topic.Title,
+                Description = topic.Description,
+                Requirements = topic.Requirements,
+                AttachmentUrl = topic.AttachmentUrl
             };
         }
 
@@ -590,7 +625,8 @@ namespace SealHackathon.Application.Services.Implementations
                 TopicId = team.TopicId,
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
-                MemberCount = memberCount
+                MemberCount = memberCount,
+                DisqualifyReason = team.DisqualifyReason
             };
         }
     }
