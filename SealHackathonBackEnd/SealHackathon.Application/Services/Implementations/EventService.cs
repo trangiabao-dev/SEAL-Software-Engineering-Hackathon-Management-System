@@ -77,15 +77,15 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<EventResponse>.SuccessResult(response);
         }
 
-        // Hàm lấy Event đang Active hiện tại
+        // Hàm lấy Event đang Active hoặc Registration hiện tại
         public async Task<ApiResponse<EventResponse>> GetActiveEventAsync()
         {
             var activeEvent = await _uow.GetRepository<Event>()
-                .GetFirstOrDefaultAsync(x => x.Status == EventConstants.Status.Active && !x.IsDeleted);
+                .GetFirstOrDefaultAsync(x => (x.Status == EventConstants.Status.Active || x.Status == EventConstants.Status.Registration) && !x.IsDeleted);
 
             if (activeEvent == null)
             {
-                throw new NotFoundException("Hiện tại không có Event nào đang Active.");
+                throw new NotFoundException("Hiện tại không có Event nào đang Active hoặc Registration.");
             }
 
             var response = new EventResponse
