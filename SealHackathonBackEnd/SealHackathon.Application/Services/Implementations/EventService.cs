@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using SealHackathon.Domain.Constants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
@@ -73,6 +74,31 @@ namespace SealHackathon.Application.Services.Implementations
             };
 
             // Trả về dữ liệu cho Frontend
+            return ApiResponse<EventResponse>.SuccessResult(response);
+        }
+
+        // Hàm lấy Event đang Active hiện tại
+        public async Task<ApiResponse<EventResponse>> GetActiveEventAsync()
+        {
+            var activeEvent = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(x => x.Status == EventConstants.Status.Active && !x.IsDeleted);
+
+            if (activeEvent == null)
+            {
+                throw new NotFoundException("Hiện tại không có Event nào đang Active.");
+            }
+
+            var response = new EventResponse
+            {
+                Id = activeEvent.Id,
+                Name = activeEvent.Name,
+                Description = activeEvent.Description,
+                StartDate = activeEvent.StartDate,
+                EndDate = activeEvent.EndDate,
+                Status = activeEvent.Status,
+                IsDeleted = activeEvent.IsDeleted
+            };
+
             return ApiResponse<EventResponse>.SuccessResult(response);
         }
 

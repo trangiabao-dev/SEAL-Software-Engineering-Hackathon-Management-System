@@ -25,6 +25,14 @@ namespace SealHackathon.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("active")]
+        [AllowAnonymous] // FE cần gọi API này tự do mà không cần truyền Token để lấy ID
+        public async Task<IActionResult> GetActiveEvent()
+        {
+            var result = await _eventService.GetActiveEventAsync();
+            return Ok(result);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetEventById(int id)
         {

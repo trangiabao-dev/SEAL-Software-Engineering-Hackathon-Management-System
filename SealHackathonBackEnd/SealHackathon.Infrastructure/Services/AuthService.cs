@@ -185,7 +185,7 @@ public class AuthService : IAuthService
                     ea.AccountId == account.Id &&
                     ea.Status == "Approved" &&
                     !ea.Event.IsDeleted &&
-                    ea.Event.Status == "Active");
+                    ea.Event.Status == EventConstants.Status.Active);
 
             if (activeEventAccount is null)
                 throw new ForbiddenException("Tài khoản này hiện không hoạt động trong sự kiện nào.");
@@ -561,7 +561,7 @@ public class AuthService : IAuthService
                 ea.AccountId == account.Id &&
                 ea.Status == "Approved" &&
                 !ea.Event.IsDeleted &&
-                ea.Event.Status == "Active");
+                ea.Event.Status == EventConstants.Status.Active);
 
         foreach (var eventRole in activeEventRoles.Select(ea => ea.EventRole).Distinct())
         {

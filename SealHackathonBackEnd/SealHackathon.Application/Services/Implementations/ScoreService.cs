@@ -70,7 +70,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ea.EventRole == RoleConstants.Judge
                                            && ea.Status == "Approved"
                                            && !ea.Event.IsDeleted
-                                           && ea.Event.Status == "Active");
+                                           && ea.Event.Status == EventConstants.Status.Active);
 
             if (activeJudgeInEvent is null)
                 throw new ForbiddenException("Tài khoản Judge này không còn hoạt động trong Event của vòng thi.");

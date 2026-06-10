@@ -132,7 +132,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             // ===== RULE 7: TỰ ĐỘNG GÁN ĐỀ TÀI (RANDOM TOPIC ASSIGNMENT) =====
             // Khi Ban Tổ Chức ấn nút Bắt đầu vòng thi (Đổi status sang "Active")
-            if (request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            if (request.Status.Equals(RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
             {
                 // Kéo tất cả Đề tài (Topic) của vòng này lên
                 var topics = await _uow.GetRepository<Topic>().GetAllAsync(x => x.RoundId == id);

@@ -5,6 +5,7 @@ using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Interfaces.Repositories;
 using System.Linq;
 using System.Threading.Tasks;
+using SealHackathon.Domain.Constants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
@@ -31,7 +32,7 @@ namespace SealHackathon.Application.Services.Implementations
             // 1. Get Active Events
             var events = await eventRepo.GetAllAsync(e => !e.IsDeleted);
             var activeEvents = events.Where(e => 
-                e.Status.Equals("Active", System.StringComparison.OrdinalIgnoreCase) || 
+                e.Status.Equals(EventConstants.Status.Active, System.StringComparison.OrdinalIgnoreCase) || 
                 e.Status.Equals("Ongoing", System.StringComparison.OrdinalIgnoreCase) || 
                 e.Status.Equals("Upcoming", System.StringComparison.OrdinalIgnoreCase)
             ).ToList();
