@@ -77,6 +77,9 @@ builder.Services.AddControllers()
         // camelCase cho tất cả response JSON — Frontend JS expect format này
         options.JsonSerializerOptions.PropertyNamingPolicy =
             System.Text.Json.JsonNamingPolicy.CamelCase;
+            
+        // Fix lỗi hiển thị tiếng Việt (unicode) trong JSON response
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
     });
 builder.Services.AddEndpointsApiExplorer();
 
