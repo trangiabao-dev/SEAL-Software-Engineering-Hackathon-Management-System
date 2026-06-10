@@ -38,7 +38,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (!criteria.Any())
                 throw new BadRequestException(
-                    "Round này chưa có tiêu chí chấm điểm nào. Vui lòng tạo Criteria trước.");
+                    "This round has no scoring criteria. Please create criteria first.");
 
             var criterionWeightDict = criteria.ToDictionary(c => c.Id, c => c.Weight);
 
@@ -49,7 +49,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (!submissions.Any())
                 throw new BadRequestException(
-                    "Round này chưa có bài nộp nào (hoặc tất cả đã bị disqualify).");
+                    "This round has no submissions (or all have been disqualified).");
 
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);

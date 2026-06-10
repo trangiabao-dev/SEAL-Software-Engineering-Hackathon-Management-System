@@ -44,10 +44,10 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException("Criterion", request.CriterionId);
 
             if (submission.IsDisqualified)
-                throw new BadRequestException("Submission này đã bị loại, không thể chấm điểm.");
+                throw new BadRequestException("This submission has been disqualified and cannot be scored.");
 
             if (criterion.RoundId != submission.RoundId)
-                throw new BadRequestException("Criterion không thuộc Round của Submission này.");
+                throw new BadRequestException("This criterion does not belong to the round of this submission.");
 
             var round = await _unitOfWork
                 .GetRepository<Round>()
@@ -73,7 +73,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ea.Event.Status == EventConstants.Status.Active);
 
             if (activeJudgeInEvent is null)
-                throw new ForbiddenException("Tài khoản Judge này không còn hoạt động trong Event của vòng thi.");
+                throw new ForbiddenException("This Judge account is no longer active in the Event of this round.");
 
             var judgeAssign = await _unitOfWork
                 .GetRepository<JudgeAssign>()
@@ -81,7 +81,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ja.RoundId == submission.RoundId);
 
             if (judgeAssign is null)
-                throw new ForbiddenException("Bạn không được phân công chấm vòng thi này.");
+                throw new ForbiddenException("You are not assigned to score this round.");
 
             var existingScore = await _unitOfWork
                 .GetRepository<ScoreRecord>()
@@ -90,12 +90,12 @@ namespace SealHackathon.Application.Services.Implementations
                                            && sr.CriterionId == request.CriterionId);
 
             if (existingScore is not null)
-                throw new ConflictException("Bạn đã chấm tiêu chí này cho bài nộp này rồi.");
+                throw new ConflictException("You have already scored this criterion for this submission.");
 
             // Bước 3: Kiểm tra điểm có hợp lệ không
             if (request.Score < 0 || request.Score > criterion.MaxScore)
                 throw new BadRequestException(
-                    $"Điểm phải nằm trong khoảng 0 đến {criterion.MaxScore}.");
+                    $"Score must be between 0 and {criterion.MaxScore}.");
 
             // Bước 4: Tạo ScoreRecord mới và lưu vào DB
             var scoreRecord = new ScoreRecord
@@ -204,7 +204,7 @@ namespace SealHackathon.Application.Services.Implementations
             // Judge A chỉ được sửa điểm do Judge A chấm
             if (scoreRecord.JudgeId != judgeId)
                 throw new ForbiddenException(
-                    "Bạn chỉ được sửa điểm do chính mình chấm.");
+                    "You can only edit scores that you have given.");
 
             // Bước 3: Kiểm tra Round còn đang diễn ra không
             var submission = await _unitOfWork
@@ -224,8 +224,8 @@ namespace SealHackathon.Application.Services.Implementations
             // Chỉ cho sửa khi Round đang "Upcoming" hoặc "Active"
             if (round.Status == "Completed" || round.Status == "Closed")
                 throw new BadRequestException(
-                    $"Round '{round.Name}' đã kết thúc (Status = {round.Status}). " +
-                    "Không thể sửa điểm sau khi vòng thi đã đóng.");
+                    $"Round '{round.Name}' has ended (Status = {round.Status}). " +
+                    "Cannot edit scores after the round is closed.");
 
             // Bước 4: Kiểm tra điểm mới có hợp lệ không
             var criterion = await _unitOfWork
@@ -237,7 +237,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (request.UpdatedScore < 0 || request.UpdatedScore > criterion.MaxScore)
                 throw new BadRequestException(
-                    $"Điểm phải nằm trong khoảng 0 đến {criterion.MaxScore}.");
+                    $"Score must be between 0 and {criterion.MaxScore}.");
 
             // Bước 5: Cập nhật dữ liệu
             scoreRecord.Score = request.UpdatedScore;
