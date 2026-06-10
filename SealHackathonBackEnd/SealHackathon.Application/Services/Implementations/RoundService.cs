@@ -152,7 +152,11 @@ namespace SealHackathon.Application.Services.Implementations
                     .Select(x => x.TopicId!.Value)
                     .ToHashSet();
 
+
                 // Mỗi team nhận một Topic khác nhau. Team đã có Topic thì không bị đổi lại
+
+                // Mỗi team nhận một Topic khác nhau. Team đã có Topic thì không random lại.
+
                 var random = new Random();
                 var availableTopics = topics
                     .Where(x => !usedTopicIds.Contains(x.Id))
@@ -160,7 +164,9 @@ namespace SealHackathon.Application.Services.Implementations
                     .ToList();
 
                 if (availableTopics.Count < teamsWithoutTopic.Count)
-                    throw new BadRequestException("Số lượng Topic không đủ để gán cho các đội.");
+
+                    throw new BadRequestException("Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.");
+
 
                 for (var i = 0; i < teamsWithoutTopic.Count; i++)
                 {
