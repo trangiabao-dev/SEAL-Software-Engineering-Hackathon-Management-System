@@ -34,6 +34,15 @@ namespace SealHackathon.Application.Services.Implementations
             if (track is null)
                 throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
+            var eventOfTrack = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == track.EventId && !e.IsDeleted);
+
+            if (eventOfTrack is null)
+                throw new NotFoundException("Không tìm thấy Event của Track.");
+
+            if (!string.Equals(eventOfTrack.Status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException("Chỉ được tạo đội khi Event đang mở đăng ký.");
+
             // Kiểm tra Track còn chỗ
             if (track.MaxTeams is not null)
             {
@@ -115,30 +124,29 @@ namespace SealHackathon.Application.Services.Implementations
             var leaderAccount = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
 
-            // Nếu không tìm thấy account hợp lệ thì chặn request.
-            // Token có id, nhưng id đó không còn account hợp lệ trong DB. Không cho thao tác tiếp.
             if (leaderAccount is null)
                 throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
 
-            var activeEvents = await _uow.GetRepository<Event>()
+            // Registration: Leader đang đăng ký / quản lý team trước khi thi.
+            // Active: Event đang thi, Leader vẫn cần xem team của mình.
+            var currentEvents = await _uow.GetRepository<Event>()
                 .GetAllAsync(e => !e.IsDeleted
-                                        && string.Equals(e.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase));
+                               && (string.Equals(e.Status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(e.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase)));
 
-            // Sau khi chắc chắn chỉ có đúng 1 event active, lấy event đó ra dùng.
-            if (!activeEvents.Any())
+            if (!currentEvents.Any())
                 return null;
 
-            if(activeEvents.Count > 1)
-                throw new ConflictException("Hệ thống đang có nhiều hơn một Event Active.");
+            if (currentEvents.Count > 1)
+                throw new ConflictException("Hệ thống đang có nhiều hơn một Event đang mở hoặc đang diễn ra.");
 
-            var activeEvent = activeEvents.First();
+            var currentEvent = currentEvents.First();
 
-            // Tìm team của Leader trong Event đang Active.
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
-                                        && t.Track.EventId == activeEvent.Id
-                                        && !t.Track.IsDeleted
-                                        && !t.IsDeleted);
+                                          && t.Track.EventId == currentEvent.Id
+                                          && !t.Track.IsDeleted
+                                          && !t.IsDeleted);
 
             if (team is null)
                 return null;

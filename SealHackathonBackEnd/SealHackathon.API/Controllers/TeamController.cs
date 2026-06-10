@@ -81,7 +81,7 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Xóa thành viên thành công."));
         }
 
-        // GET api/teams/my-team?eventId={eventId} — Leader lấy team của mình trong Event hiện tại.
+        // GET api/teams/my-team — Leader lấy team của mình trong Event Registration hoặc Active hiện tại.
         [HttpGet("my-team")]
         [Authorize(Roles = RoleConstants.Leader)]
         public async Task<IActionResult> GetMyTeam()
