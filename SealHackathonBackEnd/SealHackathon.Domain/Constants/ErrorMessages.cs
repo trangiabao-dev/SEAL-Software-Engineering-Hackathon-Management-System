@@ -28,6 +28,7 @@ namespace SealHackathon.Domain.Constants
             public const string MinMembersRequired = "Đội cần đủ số lượng thành viên tối thiểu.";
             public const string ApprovedTeamMinMembersRequired = "Đội đã được duyệt. Cần giữ đủ số lượng thành viên tối thiểu.";
             public const string StudentCodeAlreadyUsedInEvent = "Mã sinh viên đã tồn tại trong một đội khác cùng Event.";
+            public const string EmailAlreadyUsedInEvent = "Email này đã được đăng ký trong một đội khác cùng Event.";
         }
 
         public static class Submission
