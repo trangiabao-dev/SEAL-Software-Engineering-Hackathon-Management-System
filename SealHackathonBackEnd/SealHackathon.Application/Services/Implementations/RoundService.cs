@@ -65,7 +65,7 @@ namespace SealHackathon.Application.Services.Implementations
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
                 AdvancingSlots = request.AdvancingSlots,
-                Status = "Upcoming", // Mới tạo ra thì mặc định là trạng thái "Sắp diễn ra"
+                Status = RoundConstants.Status.Upcoming, // Mới tạo ra thì mặc định là trạng thái "Sắp diễn ra"
                 CreatedAt = DateTime.UtcNow
             };
 
