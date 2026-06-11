@@ -8,7 +8,7 @@ using SealHackathon.Domain.Interfaces.Repositories;
 namespace SealHackathon.Application.Services.Implementations
 {
     /// <summary>
-    /// Xử lý logic chấm điểm — tạo ScoreRecord mới và lấy danh sách điểm theo Submission
+    /// Handles scoring logic — create ScoreRecord and retrieve scores by Submission.
     /// </summary>
     public class ScoreService : IScoreService
     {
@@ -20,14 +20,14 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Judge chấm điểm cho một Submission — validate dữ liệu, kiểm tra quyền, tạo ScoreRecord mới trong DB
+        /// Judge submits a score for a Submission — validates input, checks permissions, creates a new ScoreRecord in DB.
         /// </summary>
         public async Task<ScoreRecordResponse> SubmitScoreAsync(
             Guid submissionId,
             Guid judgeId,
             SubmitScoreRequest request)
         {
-            // Bước 1: Kiểm tra Submission có tồn tại không
+            // Step 1: Verify Submission exists
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -35,7 +35,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission == null)
                 throw new NotFoundException("Submission", submissionId);
 
-            // Bước 2: Kiểm tra Criterion có tồn tại không
+            // Step 2: Verify Criterion exists
             var criterion = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetFirstOrDefaultAsync(c => c.Id == request.CriterionId);
@@ -43,12 +43,15 @@ namespace SealHackathon.Application.Services.Implementations
             if (criterion == null)
                 throw new NotFoundException("Criterion", request.CriterionId);
 
+            // Step 3: Submission must not be disqualified
             if (submission.IsDisqualified)
                 throw new BadRequestException("This submission has been disqualified and cannot be scored.");
 
+            // Step 4: Criterion must belong to the same Round as the Submission
             if (criterion.RoundId != submission.RoundId)
                 throw new BadRequestException("This criterion does not belong to the round of this submission.");
 
+            // Step 5: Verify Round exists
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
@@ -56,6 +59,13 @@ namespace SealHackathon.Application.Services.Implementations
             if (round is null)
                 throw new NotFoundException("Round", submission.RoundId);
 
+            // Step 6: Round must be in 'Scoring' status (Active = submission period, Scoring = judging period)
+            if (round.Status != RoundConstants.Status.Scoring)
+                throw new BadRequestException(
+                    $"Round '{round.Name}' is currently '{round.Status}'. " +
+                    "Scoring is only allowed when the round status is 'Scoring'.");
+
+            // Step 7: Verify Track exists and is not deleted
             var track = await _unitOfWork
                 .GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
@@ -63,6 +73,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (track is null)
                 throw new NotFoundException("Track", round.TrackId);
 
+            // Step 8: Judge must be an active EventAccount (Approved) in an Active Event
             var activeJudgeInEvent = await _unitOfWork
                 .GetRepository<EventAccount>()
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
@@ -73,8 +84,9 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ea.Event.Status == EventConstants.Status.Active);
 
             if (activeJudgeInEvent is null)
-                throw new ForbiddenException("This Judge account is no longer active in the Event of this round.");
+                throw new ForbiddenException("Your Judge account is no longer active in the Event of this round.");
 
+            // Step 9: Judge must be assigned to this Round
             var judgeAssign = await _unitOfWork
                 .GetRepository<JudgeAssign>()
                 .GetFirstOrDefaultAsync(ja => ja.JudgeId == judgeId
@@ -83,6 +95,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (judgeAssign is null)
                 throw new ForbiddenException("You are not assigned to score this round.");
 
+            // Step 10: Prevent duplicate scoring (same judge / criterion / submission)
             var existingScore = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetFirstOrDefaultAsync(sr => sr.SubmissionId == submissionId
@@ -92,12 +105,12 @@ namespace SealHackathon.Application.Services.Implementations
             if (existingScore is not null)
                 throw new ConflictException("You have already scored this criterion for this submission.");
 
-            // Bước 3: Kiểm tra điểm có hợp lệ không
+            // Step 11: Validate score value
             if (request.Score < 0 || request.Score > criterion.MaxScore)
                 throw new BadRequestException(
                     $"Score must be between 0 and {criterion.MaxScore}.");
 
-            // Bước 4: Tạo ScoreRecord mới và lưu vào DB
+            // Step 12: Create and persist ScoreRecord
             var scoreRecord = new ScoreRecord
             {
                 Id = Guid.NewGuid(),
@@ -113,7 +126,7 @@ namespace SealHackathon.Application.Services.Implementations
             await _unitOfWork.GetRepository<ScoreRecord>().AddAsync(scoreRecord);
             await _unitOfWork.SaveChangesAsync();
 
-            // Bước 5: Map entity sang Response DTO và trả về
+            // Step 13: Return response DTO
             return new ScoreRecordResponse
             {
                 Id = scoreRecord.Id,
@@ -130,11 +143,11 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Lấy danh sách tất cả điểm đã chấm của một Submission — kèm tên Judge và tên Criterion
+        /// Retrieves all scores for a Submission — includes Judge name and Criterion name.
         /// </summary>
         public async Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(Guid submissionId)
         {
-            // Bước 1: Kiểm tra Submission có tồn tại không
+            // Step 1: Verify Submission exists
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
@@ -142,7 +155,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission == null)
                 throw new NotFoundException("Submission", submissionId);
 
-            // Bước 2: Lấy tất cả ScoreRecord của submission này
+            // Step 2: Fetch all ScoreRecords for this Submission
             var scoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(sr => sr.SubmissionId == submissionId);
@@ -150,7 +163,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (!scoreRecords.Any())
                 return new List<ScoreRecordResponse>();
 
-            // Bước 3: Lấy thông tin Judge và Criterion
+            // Step 3: Fetch Judge accounts and Criteria for name lookup
             var judgeIds = scoreRecords.Select(sr => sr.JudgeId).Distinct().ToList();
             var criterionIds = scoreRecords.Select(sr => sr.CriterionId).Distinct().ToList();
 
@@ -162,11 +175,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetRepository<Criterion>()
                 .GetAllAsync(c => criterionIds.Contains(c.Id));
 
-            // Bước 4: Convert sang Dictionary để lookup nhanh O(1)
+            // Step 4: Build O(1) lookup dictionaries
             var judgeDict = judges.ToDictionary(a => a.Id, a => a.Username);
             var criterionDict = criteria.ToDictionary(c => c.Id, c => c.Name);
 
-            // Bước 5: Map sang Response DTO
+            // Step 5: Map to response DTOs
             var result = scoreRecords.Select(sr => new ScoreRecordResponse
             {
                 Id = sr.Id,
@@ -185,14 +198,14 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Judge sửa điểm đã chấm — cập nhật DB, giới hạn bởi quyền và thời gian vòng thi
+        /// Judge updates a previously submitted score — re-validates permissions and round/submission state.
         /// </summary>
         public async Task<ScoreRecordResponse> UpdateScoreAsync(
             Guid scoreRecordId,
             Guid judgeId,
             UpdateScoreRequest request)
         {
-            // Bước 1: Tìm bản ghi điểm cần sửa
+            // Step 1: Verify ScoreRecord exists
             var scoreRecord = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetFirstOrDefaultAsync(sr => sr.Id == scoreRecordId);
@@ -200,13 +213,11 @@ namespace SealHackathon.Application.Services.Implementations
             if (scoreRecord == null)
                 throw new NotFoundException("ScoreRecord", scoreRecordId);
 
-            // Bước 2: Kiểm tra "Ai làm người nấy chịu"
-            // Judge A chỉ được sửa điểm do Judge A chấm
+            // Step 2: Judge can only edit their own scores
             if (scoreRecord.JudgeId != judgeId)
-                throw new ForbiddenException(
-                    "You can only edit scores that you have given.");
+                throw new ForbiddenException("You can only edit scores that you have submitted.");
 
-            // Bước 3: Kiểm tra Round còn đang diễn ra không
+            // Step 3: Verify Submission exists
             var submission = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == scoreRecord.SubmissionId);
@@ -214,6 +225,11 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission == null)
                 throw new NotFoundException("Submission", scoreRecord.SubmissionId);
 
+            // Step 4: Submission must not be disqualified
+            if (submission.IsDisqualified)
+                throw new BadRequestException("This submission has been disqualified. Score updates are not allowed.");
+
+            // Step 5: Verify Round exists
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
@@ -221,13 +237,43 @@ namespace SealHackathon.Application.Services.Implementations
             if (round == null)
                 throw new NotFoundException("Round", submission.RoundId);
 
-            // Chỉ cho sửa khi Round đang "Upcoming" hoặc "Active"
-            if (round.Status == "Completed" || round.Status == "Closed")
+            // Step 6: Round must still be in 'Scoring' status
+            if (round.Status != RoundConstants.Status.Scoring)
                 throw new BadRequestException(
-                    $"Round '{round.Name}' has ended (Status = {round.Status}). " +
-                    "Cannot edit scores after the round is closed.");
+                    $"Round '{round.Name}' is currently '{round.Status}'. " +
+                    "Score updates are only allowed when the round status is 'Scoring'.");
 
-            // Bước 4: Kiểm tra điểm mới có hợp lệ không
+            // Step 7: Verify Track exists and is not deleted
+            var track = await _unitOfWork
+                .GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException("Track", round.TrackId);
+
+            // Step 8: Re-check EventAccount — Judge may have been deactivated since last scoring
+            var activeJudgeInEvent = await _unitOfWork
+                .GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == judgeId
+                                           && ea.EventRole == RoleConstants.Judge
+                                           && ea.Status == "Approved"
+                                           && !ea.Event.IsDeleted
+                                           && ea.Event.Status == EventConstants.Status.Active);
+
+            if (activeJudgeInEvent is null)
+                throw new ForbiddenException("Your Judge account is no longer active in the Event of this round.");
+
+            // Step 9: Re-check JudgeAssign — Judge may have been unassigned from this Round
+            var judgeAssign = await _unitOfWork
+                .GetRepository<JudgeAssign>()
+                .GetFirstOrDefaultAsync(ja => ja.JudgeId == judgeId
+                                           && ja.RoundId == submission.RoundId);
+
+            if (judgeAssign is null)
+                throw new ForbiddenException("You are no longer assigned to score this round.");
+
+            // Step 10: Verify Criterion exists and validate new score value
             var criterion = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetFirstOrDefaultAsync(c => c.Id == scoreRecord.CriterionId);
@@ -239,7 +285,7 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(
                     $"Score must be between 0 and {criterion.MaxScore}.");
 
-            // Bước 5: Cập nhật dữ liệu
+            // Step 11: Apply update
             scoreRecord.Score = request.UpdatedScore;
             scoreRecord.Comment = request.UpdatedComment;
             scoreRecord.UpdatedAt = DateTime.UtcNow;
@@ -247,13 +293,13 @@ namespace SealHackathon.Application.Services.Implementations
             _unitOfWork.GetRepository<ScoreRecord>().Update(scoreRecord);
             await _unitOfWork.SaveChangesAsync();
 
-            // Bước 6: Trả về kết quả
+            // Step 12: Return updated response DTO
             return new ScoreRecordResponse
             {
                 Id = scoreRecord.Id,
                 SubmissionId = scoreRecord.SubmissionId,
                 JudgeId = scoreRecord.JudgeId,
-                JudgeName = string.Empty, // Lấy Account query nếu cần hiển thị ngay
+                JudgeName = string.Empty,
                 CriterionId = scoreRecord.CriterionId,
                 CriterionName = criterion.Name,
                 Score = scoreRecord.Score,

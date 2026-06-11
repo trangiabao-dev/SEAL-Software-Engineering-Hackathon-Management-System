@@ -11,6 +11,16 @@ using System.Threading.Tasks;
 
 namespace SealHackathon.Application.Services.Implementations
 {
+    /// <summary>
+    /// Criterion Template service.
+    ///
+    /// Weight convention:
+    ///   - Frontend sends and receives weights on a 0-100 scale (e.g. 30 = 30%).
+    ///   - Backend stores weights on a 0-1 scale (e.g. 0.30) for ranking calculations.
+    ///   - All conversions happen here at the service boundary:
+    ///       incoming: weight / 100.0  (store)
+    ///       outgoing: weight * 100.0  (display)
+    /// </summary>
     public class CriterionTemplateService : ICriterionTemplateService
     {
         private readonly IUnitOfWork _uow;
@@ -40,7 +50,8 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = i.Name,
                     Description = i.Description,
                     MaxScore = i.MaxScore,
-                    Weight = i.Weight
+                    // Backend stores 0..1 → display to frontend as 0..100 (percentage)
+                    Weight = Math.Round(i.Weight * 100.0, 2)
                 }).ToList()
             }).ToList();
 
@@ -55,9 +66,7 @@ namespace SealHackathon.Application.Services.Implementations
             var template = await templateRepo.GetFirstOrDefaultAsync(t => t.Id == id);
 
             if (template == null)
-            {
                 throw new NotFoundException("CriterionTemplate", id);
-            }
 
             var items = await itemRepo.GetAllAsync(i => i.TemplateId == template.Id);
 
@@ -73,7 +82,8 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = i.Name,
                     Description = i.Description,
                     MaxScore = i.MaxScore,
-                    Weight = i.Weight
+                    // Backend stores 0..1 → display to frontend as 0..100 (percentage)
+                    Weight = Math.Round(i.Weight * 100.0, 2)
                 }).ToList()
             };
 
@@ -84,11 +94,13 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var repo = _uow.GetRepository<CriterionTemplate>();
 
-            // Tính tổng weight xem có bằng 100% không (giả sử chuẩn là 100)
+            // Frontend sends weights as 0-100 (percentages).
+            // Validate that the total equals 100 before storing.
             var totalWeight = request.Items.Sum(i => i.Weight);
-            if (totalWeight != 100)
+            if (Math.Abs(totalWeight - 100.0) > 0.01)
             {
-                throw new BadRequestException($"Tổng trọng số (Weight) của biểu mẫu phải bằng 100. Hiện tại đang là {totalWeight}.");
+                throw new BadRequestException(
+                    $"Total weight of all criteria must equal 100. Current total: {totalWeight}.");
             }
 
             var newTemplate = new CriterionTemplate
@@ -96,12 +108,13 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = request.Name,
                 Description = request.Description,
                 CreatedAt = DateTime.UtcNow,
+                // Convert each frontend weight (0-100) to backend scale (0-1) before storing
                 CriterionTemplateItems = request.Items.Select(i => new CriterionTemplateItem
                 {
                     Name = i.Name,
                     Description = i.Description,
                     MaxScore = i.MaxScore,
-                    Weight = i.Weight
+                    Weight = i.Weight / 100.0   // 30 (%) → 0.30
                 }).ToList()
             };
 
@@ -120,28 +133,27 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = i.Name,
                     Description = i.Description,
                     MaxScore = i.MaxScore,
-                    Weight = i.Weight
+                    // Convert back to 0-100 for frontend display
+                    Weight = Math.Round(i.Weight * 100.0, 2)
                 }).ToList()
             };
 
-            return ApiResponse<CriterionTemplateResponse>.SuccessResult(response, "Tạo biểu mẫu tiêu chí thành công.");
+            return ApiResponse<CriterionTemplateResponse>.SuccessResult(response, "Criterion template created successfully.");
         }
 
         public async Task<ApiResponse<bool>> DeleteTemplateAsync(int id)
         {
             var repo = _uow.GetRepository<CriterionTemplate>();
             var itemRepo = _uow.GetRepository<CriterionTemplateItem>();
-            
+
             var template = await repo.GetFirstOrDefaultAsync(t => t.Id == id);
 
             if (template == null)
-            {
                 throw new NotFoundException("CriterionTemplate", id);
-            }
 
-            // Xóa các item con trước
+            // Delete child items first to avoid FK constraint violations
             var items = await itemRepo.GetAllAsync(i => i.TemplateId == id);
-            foreach(var item in items)
+            foreach (var item in items)
             {
                 itemRepo.Delete(item);
             }
@@ -149,7 +161,7 @@ namespace SealHackathon.Application.Services.Implementations
             repo.Delete(template);
             await _uow.SaveChangesAsync();
 
-            return ApiResponse<bool>.SuccessResult(true, "Đã xóa biểu mẫu tiêu chí thành công.");
+            return ApiResponse<bool>.SuccessResult(true, "Criterion template deleted successfully.");
         }
     }
 }

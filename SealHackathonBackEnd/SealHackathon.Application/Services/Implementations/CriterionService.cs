@@ -24,7 +24,8 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<ApiResponse<List<CriterionResponse>>> GetCriteriaByRoundIdAsync(int roundId)
         {
             var roundExists = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == roundId);
-            if (roundExists == null) throw new NotFoundException($"Không tìm thấy Round với ID {roundId}");
+            if (roundExists == null)
+                throw new NotFoundException($"Round with ID {roundId} was not found.");
 
             var criteria = await _uow.GetRepository<Criterion>().GetAllAsync(x => x.RoundId == roundId);
             var response = criteria.Select(c => new CriterionResponse
@@ -43,7 +44,8 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<ApiResponse<CriterionResponse>> CreateCriterionAsync(CreateCriterionRequest request)
         {
             var roundExists = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == request.RoundId);
-            if (roundExists == null) throw new NotFoundException($"Không tìm thấy Round với ID {request.RoundId}");
+            if (roundExists == null)
+                throw new NotFoundException($"Round with ID {request.RoundId} was not found.");
 
             // Thực thi RULE 5: Tổng trọng số (Weight) không được vượt quá 1.0
             var existingCriteria = await _uow.GetRepository<Criterion>().GetAllAsync(x => x.RoundId == request.RoundId);
@@ -53,7 +55,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Kiểm tra xem tổng mới có vượt quá 1.0 không
             if (expectedSum > 1.0)
             {
-                throw new BadRequestException($"Tổng trọng số vượt quá 1.0 (Hiện tại: {currentSum}, Yêu cầu thêm: {request.Weight}). Vui lòng điều chỉnh!");
+                throw new BadRequestException(
+                    $"Total weight exceeds 1.0 (current: {currentSum:F2}, adding: {request.Weight:F2}). " +
+                    "Please adjust the weight value.");
             }
 
             var newCriterion = new Criterion
@@ -79,26 +83,30 @@ namespace SealHackathon.Application.Services.Implementations
                 Weight = newCriterion.Weight
             };
 
-            return ApiResponse<CriterionResponse>.SuccessResult(response, "Tạo Tiêu chí thành công.");
+            return ApiResponse<CriterionResponse>.SuccessResult(response, "Criterion created successfully.");
         }
 
         public async Task<ApiResponse<bool>> ImportFromTemplateAsync(ImportCriterionRequest request)
         {
             var roundExists = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == request.RoundId);
-            if (roundExists == null) throw new NotFoundException($"Không tìm thấy Round với ID {request.RoundId}");
+            if (roundExists == null)
+                throw new NotFoundException($"Round with ID {request.RoundId} was not found.");
 
-            // Lấy các Items từ Template
             var templateItems = await _uow.GetRepository<CriterionTemplateItem>().GetAllAsync(x => x.TemplateId == request.TemplateId);
-            if (!templateItems.Any()) throw new BadRequestException($"Template này không có tiêu chí nào để import.");
+            if (!templateItems.Any())
+                throw new BadRequestException("This template has no criteria to import.");
 
-            // Áp dụng Rule 5 kiểm tra tổng trước khi import
+            // Template stores weight on the same 0..1 scale as Criterion.
+            // No conversion needed — use the stored values directly.
             var existingCriteria = await _uow.GetRepository<Criterion>().GetAllAsync(x => x.RoundId == request.RoundId);
             double currentSum = existingCriteria.Sum(x => x.Weight);
-            double importSum = templateItems.Sum(x => x.Weight);
+            double importSum = templateItems.Sum(i => i.Weight);
 
             if (currentSum + importSum > 1.0)
             {
-                throw new BadRequestException($"Import thất bại! Tổng trọng số sau khi import sẽ vượt quá 1.0 (Hiện tại: {currentSum}, Import thêm: {importSum}).");
+                throw new BadRequestException(
+                    $"Import failed. Total weight after import would exceed 1.0 " +
+                    $"(current: {currentSum:F2}, importing: {importSum:F2}).");
             }
 
             foreach (var item in templateItems)
@@ -109,7 +117,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = item.Name,
                     Description = item.Description,
                     MaxScore = item.MaxScore,
-                    Weight = item.Weight,
+                    Weight = item.Weight,   // Already 0..1, same scale as Criterion
                     CreatedAt = DateTime.UtcNow
                 };
                 await _uow.GetRepository<Criterion>().AddAsync(newCriterion);
@@ -117,7 +125,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.SaveChangesAsync();
 
-            return ApiResponse<bool>.SuccessResult(true, $"Import thành công {templateItems.Count} tiêu chí.");
+            return ApiResponse<bool>.SuccessResult(true,
+                $"Successfully imported {templateItems.Count} criteria from template.");
         }
     }
 }

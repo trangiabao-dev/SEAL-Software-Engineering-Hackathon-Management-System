@@ -1,11 +1,11 @@
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Dashboard;
 using SealHackathon.Application.Services.Interfaces;
+using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Interfaces.Repositories;
 using System.Linq;
 using System.Threading.Tasks;
-using SealHackathon.Domain.Constants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
@@ -29,28 +29,28 @@ namespace SealHackathon.Application.Services.Implementations
             var judgeAssignRepo = _uow.GetRepository<JudgeAssign>();
             var scoreRecordRepo = _uow.GetRepository<ScoreRecord>();
 
-            // 1. Get Active Events
+            // 1. Fetch events in Active or Registration status
+            //    (removed legacy hard-coded "Ongoing" / "Upcoming" statuses — use EventConstants)
             var events = await eventRepo.GetAllAsync(e => !e.IsDeleted);
-            var activeEvents = events.Where(e => 
-                e.Status.Equals(EventConstants.Status.Active, System.StringComparison.OrdinalIgnoreCase) || 
-                e.Status.Equals("Ongoing", System.StringComparison.OrdinalIgnoreCase) || 
-                e.Status.Equals("Upcoming", System.StringComparison.OrdinalIgnoreCase)
+            var activeEvents = events.Where(e =>
+                e.Status.Equals(EventConstants.Status.Active, System.StringComparison.OrdinalIgnoreCase) ||
+                e.Status.Equals(EventConstants.Status.Registration, System.StringComparison.OrdinalIgnoreCase)
             ).ToList();
             var activeEventIds = activeEvents.Select(e => e.Id).ToList();
 
-            // 2. Get Tracks for active events
+            // 2. Fetch tracks belonging to active events
             var tracks = await trackRepo.GetAllAsync(t => !t.IsDeleted);
             var activeTracks = tracks.Where(t => activeEventIds.Contains(t.EventId)).ToList();
             var activeTrackIds = activeTracks.Select(t => t.Id).ToList();
 
-            // 3. Get Teams
+            // 3. Fetch teams in active tracks
             var teams = await teamRepo.GetAllAsync(t => !t.IsDeleted);
             var activeTeams = teams.Where(t => activeTrackIds.Contains(t.TrackId)).ToList();
 
             int totalActiveTeams = activeTeams.Count;
-            int totalPendingTeams = activeTeams.Count(t => t.Status == "Pending"); // Assuming "Pending" is the string
+            int totalPendingTeams = activeTeams.Count(t => t.Status == TeamConstants.Status.Pending);
 
-            // 4. Get Rounds & Statuses
+            // 4. Fetch rounds and build status summary
             var rounds = await roundRepo.GetAllAsync(r => true);
             var activeRounds = rounds.Where(r => activeTrackIds.Contains(r.TrackId)).ToList();
             var activeRoundIds = activeRounds.Select(r => r.Id).ToList();
@@ -68,7 +68,9 @@ namespace SealHackathon.Application.Services.Implementations
                 };
             }).ToList();
 
-            // 5. Incomplete Submissions
+            // 5. Calculate incomplete submissions count
+            //    A submission is "incomplete" if the number of actual scores is less than
+            //    the expected count (criteria count × assigned judge count).
             var submissions = await submissionRepo.GetAllAsync(s => true);
             var activeSubmissions = submissions.Where(s => activeRoundIds.Contains(s.RoundId)).ToList();
 
@@ -100,7 +102,7 @@ namespace SealHackathon.Application.Services.Implementations
                 IncompleteSubmissions = incompleteSubmissionsCount
             };
 
-            return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(response, "Lấy dữ liệu Dashboard thành công.");
+            return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(response, "Dashboard data retrieved successfully.");
         }
     }
 }
