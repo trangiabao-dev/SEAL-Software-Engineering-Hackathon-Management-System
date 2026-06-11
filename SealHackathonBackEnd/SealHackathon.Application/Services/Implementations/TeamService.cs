@@ -69,6 +69,8 @@ namespace SealHackathon.Application.Services.Implementations
             // Kiểm tra mã sinh viên chưa tồn tại trong bất kỳ team nào thuộc cùng Event.
             await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
+            await CheckEmailNotUsedInEventAsync(track.EventId, request.Email);
+
             // Team mới tạo luôn ở trạng thái Pending để Coordinator duyệt trước khi tham gia.
             var newTeam = new Team
             {
@@ -419,6 +421,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
+            await CheckEmailNotUsedInEventAsync(track.EventId, request.Email);
+
             // Tạo member mới
             var newMember = new TeamMember
             {
@@ -459,10 +463,22 @@ namespace SealHackathon.Application.Services.Implementations
             // Tìm member
             var memberRepo = _uow.GetRepository<TeamMember>();
 
-            var member = await memberRepo.GetFirstOrDefaultTrackingAsync(m => m.Id == memberId && m.TeamId == teamId);
+            var member = await memberRepo
+                .GetFirstOrDefaultTrackingAsync(m => m.Id == memberId && m.TeamId == teamId);
 
             if (member is null)
                 throw new NotFoundException(ErrorMessages.TeamMember.NotFound);
+
+            // Lấy Track của Team để biết Team này thuộc Event nào.
+            // Sau đó dùng EventId để kiểm tra email không bị trùng trong cùng Event.
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            // Khi update, bỏ qua chính member hiện tại để không tự báo trùng email của nó.
+            await CheckEmailNotUsedInEventAsync(track.EventId, request.Email, member.Id);
 
             // Không cho sửa StudentCode — đây là định danh cố định
             // Chỉ cho sửa thông tin cá nhân
@@ -530,6 +546,21 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (duplicateStudent is not null)
                 throw new ConflictException(ErrorMessages.TeamMember.StudentCodeAlreadyUsedInEvent);
+        }
+
+        private async Task CheckEmailNotUsedInEventAsync(int eventId, string email, int? ignoreMemberId = null)
+        {
+            var duplicate = await _uow.GetRepository<TeamMember>()
+                .GetFirstOrDefaultAsync(m => m.Email == email
+                                          // HasValue - bool  → hỏi "cái này có chứa gì không?"
+                                          // Value    - int   → hỏi "cái này đang chứa gì vậy?"
+                                          && (!ignoreMemberId.HasValue || m.Id != ignoreMemberId.Value)
+                                          && !m.Team.IsDeleted
+                                          && !m.Team.Track.IsDeleted
+                                          && m.Team.Track.EventId == eventId);
+
+            if (duplicate is not null)
+                throw new ConflictException(ErrorMessages.TeamMember.EmailAlreadyUsedInEvent);
         }
 
         private async Task<Team?> GetLeaderTeamInEventAsync(Guid leaderId, int eventId)
