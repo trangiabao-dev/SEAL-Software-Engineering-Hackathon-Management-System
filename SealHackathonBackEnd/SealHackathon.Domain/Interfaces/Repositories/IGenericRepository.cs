@@ -23,6 +23,12 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         /// <param name="predicate">Điều kiện đếm (Ví dụ: x => x.IsDeleted == false)</param>
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
 
+        // Bảo thêm 4
+        Task<Dictionary<TKey, int>> CountByGroupAsync<TKey>(
+            Expression<Func<T, bool>> predicate,
+            Expression<Func<T, TKey>> groupBy)
+            where TKey : notnull;
+
         // Thêm một bản ghi mới (Dùng cho chức năng Register sau này)
         Task AddAsync(T entity);
 
@@ -45,5 +51,7 @@ namespace SealHackathon.Domain.Interfaces.Repositories
 
         // Bảo thêm 3
         Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate, int skip, int take);
+
+
     }
 }

@@ -234,14 +234,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (pageSize < 1 || pageSize > PaginationRequest.MaxPageSize)
                 throw new BadRequestException($"PageSize phải nằm trong khoảng 1 đến {PaginationRequest.MaxPageSize}.");
 
-            if (status is not null
-                && status != TeamConstants.Status.Pending
-                && status != TeamConstants.Status.Approved
-                && status != TeamConstants.Status.Rejected
-                && status != TeamConstants.Status.Disqualified)
-            {
+            // Nếu FE có gửi status, nhưng status đó không nằm trong danh sách status hợp lệ thì báo lỗi.
+            if (status is not null && !TeamConstants.Status.ValidStatuses.Contains(status))
                 throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
-            }
 
             Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
                 && (status == null || t.Status == status)
@@ -254,11 +249,12 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teamIds = teams.Select(t => t.Id).ToList();
 
-            var members = await _uow.GetRepository<TeamMember>()
-                .GetAllAsync(m => teamIds.Contains(m.TeamId));
-
-            var memberCountByTeamId = members.GroupBy(m => m.TeamId)
-                .ToDictionary(g => g.Key, g => g.Count());
+            // Dictionary là kiểu dữ liệu lưu theo dạng: Key -> Value
+            // Dictionary<Guid, int> : Key có kiểu Guid và Value có kiểu int
+            var memberCountByTeamId = teamIds.Count == 0
+                ? new Dictionary<Guid, int>() // TeamId -> số lượng member
+                : await _uow.GetRepository<TeamMember>()
+                    .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
 
             var items = teams
                 .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))

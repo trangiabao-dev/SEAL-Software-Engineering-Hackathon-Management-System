@@ -41,6 +41,22 @@ namespace SealHackathon.Infrastructure.Repositories
             return await _dbSet.CountAsync(predicate);
         }
 
+        public async Task<Dictionary<TKey, int>> CountByGroupAsync<TKey>(
+            Expression<Func<T, bool>> predicate,
+            Expression<Func<T, TKey>> groupBy)
+            where TKey : notnull
+        {
+            return await _dbSet.AsNoTracking()
+                .Where(predicate)
+                .GroupBy(groupBy)
+                .Select(g => new
+                {
+                    Key = g.Key,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+        }
+
         public void Delete(T entity)
         {
             _dbSet.Remove(entity);
