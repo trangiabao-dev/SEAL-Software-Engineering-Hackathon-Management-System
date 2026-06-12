@@ -27,6 +27,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CreateCriterion(int roundId, [FromBody] CreateCriterionRequest request)
         {
             request.RoundId = roundId;
@@ -35,6 +36,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPost("import")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> ImportCriterion(int roundId, [FromBody] ImportCriterionRequest request)
         {
             request.RoundId = roundId;
@@ -43,6 +45,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpPut("{criterionId:int}")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> UpdateCriterion(
             int roundId, int criterionId, [FromBody] UpdateCriterionRequest request)
         {
@@ -51,6 +54,7 @@ namespace SealHackathon.API.Controllers
         }
 
         [HttpDelete("{criterionId:int}")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> DeleteCriterion(int roundId, int criterionId)
         {
             var result = await _criterionService.DeleteCriterionAsync(roundId, criterionId);

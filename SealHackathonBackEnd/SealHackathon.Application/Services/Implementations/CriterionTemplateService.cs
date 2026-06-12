@@ -94,14 +94,7 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var repo = _uow.GetRepository<CriterionTemplate>();
 
-            // Frontend sends weights as 0-100 (percentages).
-            // Validate that the total equals 100 before storing.
-            var totalWeight = request.Items.Sum(i => i.Weight);
-            if (Math.Abs(totalWeight - 100.0) > 0.01)
-            {
-                throw new BadRequestException(
-                    $"Total weight of all criteria must equal 100. Current total: {totalWeight}.");
-            }
+            ValidateTemplateInput(request.Name, request.Items);
 
             var newTemplate = new CriterionTemplate
             {
@@ -141,6 +134,45 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<CriterionTemplateResponse>.SuccessResult(response, "Criterion template created successfully.");
         }
 
+        public async Task<ApiResponse<CriterionTemplateResponse>> UpdateTemplateAsync(
+            int id, UpdateCriterionTemplateRequest request)
+        {
+            var templateRepo = _uow.GetRepository<CriterionTemplate>();
+            var itemRepo = _uow.GetRepository<CriterionTemplateItem>();
+
+            var template = await templateRepo.GetFirstOrDefaultTrackingAsync(t => t.Id == id);
+
+            if (template is null)
+                throw new NotFoundException("CriterionTemplate", id);
+
+            ValidateTemplateInput(request.Name, request.Items);
+
+            template.Name = request.Name.Trim();
+            template.Description = request.Description;
+
+            var oldItems = await itemRepo.GetAllAsync(i => i.TemplateId == id);
+            foreach (var oldItem in oldItems)
+            {
+                itemRepo.Delete(oldItem);
+            }
+
+            foreach (var item in request.Items)
+            {
+                await itemRepo.AddAsync(new CriterionTemplateItem
+                {
+                    TemplateId = id,
+                    Name = item.Name.Trim(),
+                    Description = item.Description,
+                    MaxScore = item.MaxScore,
+                    Weight = item.Weight / 100.0
+                });
+            }
+
+            await _uow.SaveChangesAsync();
+
+            return await GetTemplateByIdAsync(id);
+        }
+
         public async Task<ApiResponse<bool>> DeleteTemplateAsync(int id)
         {
             var repo = _uow.GetRepository<CriterionTemplate>();
@@ -162,6 +194,38 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
 
             return ApiResponse<bool>.SuccessResult(true, "Criterion template deleted successfully.");
+        }
+
+        private static void ValidateTemplateInput(string name, List<CriterionTemplateItemRequest> items)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new BadRequestException("Tên template không được để trống.");
+
+            if (items is null || items.Count == 0)
+                throw new BadRequestException("Template phải có ít nhất một tiêu chí.");
+
+            foreach (var item in items)
+            {
+                if (string.IsNullOrWhiteSpace(item.Name))
+                    throw new BadRequestException("Tên tiêu chí không được để trống.");
+
+                if (item.MaxScore <= 0)
+                    throw new BadRequestException("Điểm tối đa phải lớn hơn 0.");
+
+                if (item.Weight <= 0 || item.Weight > 100)
+                    throw new BadRequestException("Trọng số phải nằm trong khoảng 1 đến 100.");
+            }
+
+            var duplicatedName = items
+                .GroupBy(i => i.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Any(g => g.Count() > 1);
+
+            if (duplicatedName)
+                throw new ConflictException("Tên tiêu chí trong template không được trùng nhau.");
+
+            var totalWeight = items.Sum(i => i.Weight);
+            if (Math.Abs(totalWeight - 100.0) > 0.01)
+                throw new BadRequestException($"Tổng trọng số phải bằng 100. Hiện tại: {totalWeight}.");
         }
     }
 }

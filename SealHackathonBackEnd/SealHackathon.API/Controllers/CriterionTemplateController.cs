@@ -46,5 +46,13 @@ namespace SealHackathon.API.Controllers
             var result = await _templateService.DeleteTemplateAsync(id);
             return Ok(result);
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTemplate(
+            int id, [FromBody] UpdateCriterionTemplateRequest request)
+        {
+            var result = await _templateService.UpdateTemplateAsync(id, request);
+            return Ok(result);
+        }
     }
 }
