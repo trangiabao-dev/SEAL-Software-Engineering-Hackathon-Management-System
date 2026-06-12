@@ -1,4 +1,4 @@
-namespace SealHackathon.Application.DTOs.Criterion
+namespace SealHackathon.Application.DTOs.Criteria
 {
     // DTO trả về thông tin tiêu chí chấm điểm
     public class CriterionResponse

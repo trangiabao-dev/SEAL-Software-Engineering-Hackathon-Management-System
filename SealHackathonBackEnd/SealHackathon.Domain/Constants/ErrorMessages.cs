@@ -65,5 +65,19 @@ namespace SealHackathon.Domain.Constants
             public const string MentorNotFound = "Không tìm thấy Mentor.";
             public const string InvalidEventId = "EventId không hợp lệ.";
         }
+
+        public static class Criterion
+        {
+            public const string NotFound = "Không tìm thấy tiêu chí chấm điểm.";
+            public const string NameRequired = "Tên tiêu chí không được để trống.";
+            public const string MaxScoreInvalid = "Điểm tối đa phải lớn hơn 0.";
+            public const string WeightInvalid = "Trọng số phải nằm trong khoảng 1 đến 100.";
+            public const string WeightTotalExceeded = "Tổng trọng số của Round không được vượt quá 100.";
+            public const string NameDuplicatedInRound = "Tên tiêu chí đã tồn tại trong Round này.";
+            public const string AlreadyUsedByScore = "Tiêu chí đã được dùng để chấm điểm, không thể chỉnh sửa hoặc xóa.";
+            public const string NotBelongToRound = "Tiêu chí không thuộc Round này.";
+            public const string TemplateHasNoCriteria = "Template này chưa có tiêu chí để import.";
+            public const string TemplateImportDuplicatedName = "Một hoặc nhiều tiêu chí trong template đã tồn tại trong Round này.";
+        }
     }
 }

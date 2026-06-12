@@ -1,4 +1,4 @@
-namespace SealHackathon.Application.DTOs.Criterion
+namespace SealHackathon.Application.DTOs.Criteria
 {
     // DTO dùng để import các tiêu chí từ Template
     public class ImportCriterionRequest

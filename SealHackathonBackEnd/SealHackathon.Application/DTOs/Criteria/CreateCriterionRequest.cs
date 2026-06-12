@@ -1,4 +1,4 @@
-namespace SealHackathon.Application.DTOs.Criterion
+namespace SealHackathon.Application.DTOs.Criteria
 {
     // DTO tạo tiêu chí chấm điểm
     public class CreateCriterionRequest
@@ -6,7 +6,7 @@ namespace SealHackathon.Application.DTOs.Criterion
         public int RoundId { get; set; }
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
-        public double MaxScore { get; set; } // Điểm tối đa
-        public double Weight { get; set; }   // Trọng số (Tổng các weight trong 1 vòng phải = 1.0)
+        public double MaxScore { get; set; }
+        public double Weight { get; set; }   // FE gửi 30 = 30%. DB lưu 0.30.
     }
 }
