@@ -85,5 +85,23 @@ namespace SealHackathon.Domain.Constants
             public const string TemplateHasNoCriteria = "Template này chưa có tiêu chí để import.";
             public const string TemplateImportDuplicatedName = "Một hoặc nhiều tiêu chí trong template đã tồn tại trong Round này.";
         }
+
+        public static class Score
+        {
+            public const string NotFound = "Không tìm thấy điểm chấm.";
+            public const string SubmissionNotFound = "Không tìm thấy bài nộp.";
+            public const string CriterionNotFound = "Không tìm thấy tiêu chí chấm điểm.";
+            public const string RoundNotFound = "Không tìm thấy vòng thi.";
+            public const string TrackNotFound = "Không tìm thấy hạng mục.";
+            public const string SubmissionDisqualified = "Bài nộp đã bị loại, không thể chấm điểm.";
+            public const string SubmissionDisqualifiedCannotUpdate = "Bài nộp đã bị loại, không thể cập nhật điểm.";
+            public const string CriterionNotInSubmissionRound = "Tiêu chí không thuộc vòng thi của bài nộp này.";
+            public const string RoundNotInScoring = "Chỉ được chấm điểm khi vòng thi đang ở trạng thái Scoring.";
+            public const string JudgeNotActiveInEvent = "Tài khoản Judge không còn hoạt động trong Event của vòng thi này.";
+            public const string JudgeNotAssignedToRound = "Bạn không được phân công chấm vòng thi này.";
+            public const string JudgeNoUpdatePermission = "Bạn chỉ được chỉnh sửa điểm do chính bạn đã chấm.";
+            public const string AlreadyScored = "Bạn đã chấm tiêu chí này cho bài nộp này.";
+            public const string InvalidScoreRange = "Điểm chấm không hợp lệ.";
+        }
     }
 }

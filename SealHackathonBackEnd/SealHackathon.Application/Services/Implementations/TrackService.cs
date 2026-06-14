@@ -141,7 +141,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
                                            && ea.AccountId == request.MentorId
                                            && ea.EventRole == RoleConstants.Mentor
-                                           && ea.Status == "Approved");
+                                           && ea.Status == EventAccountConstants.Status.Approved);
 
             if (mentorEventRole is null)
                 throw new BadRequestException("Tài khoản này chưa được phân quyền Mentor trong Event của Track này.");

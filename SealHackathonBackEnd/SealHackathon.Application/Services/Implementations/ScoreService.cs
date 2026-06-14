@@ -23,9 +23,7 @@ namespace SealHackathon.Application.Services.Implementations
         /// Judge submits a score for a Submission — validates input, checks permissions, creates a new ScoreRecord in DB.
         /// </summary>
         public async Task<ScoreRecordResponse> SubmitScoreAsync(
-            Guid submissionId,
-            Guid judgeId,
-            SubmitScoreRequest request)
+            Guid submissionId, Guid judgeId, SubmitScoreRequest request)
         {
             // Step 1: Verify Submission exists
             var submission = await _unitOfWork
@@ -33,7 +31,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
 
             if (submission == null)
-                throw new NotFoundException("Submission", submissionId);
+                throw new NotFoundException(ErrorMessages.Score.SubmissionNotFound);
 
             // Step 2: Verify Criterion exists
             var criterion = await _unitOfWork
@@ -41,15 +39,15 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(c => c.Id == request.CriterionId);
 
             if (criterion == null)
-                throw new NotFoundException("Criterion", request.CriterionId);
+                throw new NotFoundException(ErrorMessages.Score.CriterionNotFound);
 
             // Step 3: Submission must not be disqualified
             if (submission.IsDisqualified)
-                throw new BadRequestException("This submission has been disqualified and cannot be scored.");
+                throw new BadRequestException(ErrorMessages.Score.SubmissionDisqualified);
 
             // Step 4: Criterion must belong to the same Round as the Submission
             if (criterion.RoundId != submission.RoundId)
-                throw new BadRequestException("This criterion does not belong to the round of this submission.");
+                throw new BadRequestException(ErrorMessages.Score.CriterionNotInSubmissionRound);
 
             // Step 5: Verify Round exists
             var round = await _unitOfWork
@@ -57,13 +55,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
 
             if (round is null)
-                throw new NotFoundException("Round", submission.RoundId);
+                throw new NotFoundException(ErrorMessages.Score.RoundNotFound);
 
             // Step 6: Round must be in 'Scoring' status (Active = submission period, Scoring = judging period)
             if (round.Status != RoundConstants.Status.Scoring)
-                throw new BadRequestException(
-                    $"Round '{round.Name}' is currently '{round.Status}'. " +
-                    "Scoring is only allowed when the round status is 'Scoring'.");
+                throw new BadRequestException(ErrorMessages.Score.RoundNotInScoring);
 
             // Step 7: Verify Track exists and is not deleted
             var track = await _unitOfWork
@@ -71,7 +67,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
 
             if (track is null)
-                throw new NotFoundException("Track", round.TrackId);
+                throw new NotFoundException(ErrorMessages.Score.TrackNotFound);
 
             // Step 8: Judge must be an active EventAccount (Approved) in an Active Event
             var activeJudgeInEvent = await _unitOfWork
@@ -79,12 +75,12 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
                                            && ea.AccountId == judgeId
                                            && ea.EventRole == RoleConstants.Judge
-                                           && ea.Status == "Approved"
+                                           && ea.Status == EventAccountConstants.Status.Approved
                                            && !ea.Event.IsDeleted
                                            && ea.Event.Status == EventConstants.Status.Active);
 
             if (activeJudgeInEvent is null)
-                throw new ForbiddenException("Your Judge account is no longer active in the Event of this round.");
+                throw new ForbiddenException(ErrorMessages.Score.JudgeNotActiveInEvent);
 
             // Step 9: Judge must be assigned to this Round
             var judgeAssign = await _unitOfWork
@@ -93,7 +89,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ja.RoundId == submission.RoundId);
 
             if (judgeAssign is null)
-                throw new ForbiddenException("You are not assigned to score this round.");
+                throw new ForbiddenException(ErrorMessages.Score.JudgeNotAssignedToRound);
 
             // Step 10: Prevent duplicate scoring (same judge / criterion / submission)
             var existingScore = await _unitOfWork
@@ -103,12 +99,11 @@ namespace SealHackathon.Application.Services.Implementations
                                            && sr.CriterionId == request.CriterionId);
 
             if (existingScore is not null)
-                throw new ConflictException("You have already scored this criterion for this submission.");
+                throw new ConflictException(ErrorMessages.Score.AlreadyScored);
 
             // Step 11: Validate score value
             if (request.Score < 0 || request.Score > criterion.MaxScore)
-                throw new BadRequestException(
-                    $"Score must be between 0 and {criterion.MaxScore}.");
+                throw new BadRequestException(ErrorMessages.Score.InvalidScoreRange);
 
             // Step 12: Create and persist ScoreRecord
             var scoreRecord = new ScoreRecord
@@ -153,7 +148,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
 
             if (submission == null)
-                throw new NotFoundException("Submission", submissionId);
+                throw new NotFoundException(ErrorMessages.Score.SubmissionNotFound);
 
             // Step 2: Fetch all ScoreRecords for this Submission
             var scoreRecords = await _unitOfWork
@@ -211,11 +206,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(sr => sr.Id == scoreRecordId);
 
             if (scoreRecord == null)
-                throw new NotFoundException("ScoreRecord", scoreRecordId);
+                throw new NotFoundException(ErrorMessages.Score.NotFound);
 
             // Step 2: Judge can only edit their own scores
             if (scoreRecord.JudgeId != judgeId)
-                throw new ForbiddenException("You can only edit scores that you have submitted.");
+                throw new ForbiddenException(ErrorMessages.Score.JudgeNoUpdatePermission);
 
             // Step 3: Verify Submission exists
             var submission = await _unitOfWork
@@ -223,11 +218,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(s => s.Id == scoreRecord.SubmissionId);
 
             if (submission == null)
-                throw new NotFoundException("Submission", scoreRecord.SubmissionId);
+                throw new NotFoundException(ErrorMessages.Score.SubmissionNotFound);
 
             // Step 4: Submission must not be disqualified
             if (submission.IsDisqualified)
-                throw new BadRequestException("This submission has been disqualified. Score updates are not allowed.");
+                throw new BadRequestException(ErrorMessages.Score.SubmissionDisqualifiedCannotUpdate);
 
             // Step 5: Verify Round exists
             var round = await _unitOfWork
@@ -235,13 +230,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
 
             if (round == null)
-                throw new NotFoundException("Round", submission.RoundId);
+                throw new NotFoundException(ErrorMessages.Score.RoundNotFound);
 
             // Step 6: Round must still be in 'Scoring' status
             if (round.Status != RoundConstants.Status.Scoring)
-                throw new BadRequestException(
-                    $"Round '{round.Name}' is currently '{round.Status}'. " +
-                    "Score updates are only allowed when the round status is 'Scoring'.");
+                throw new BadRequestException(ErrorMessages.Score.RoundNotInScoring);
 
             // Step 7: Verify Track exists and is not deleted
             var track = await _unitOfWork
@@ -249,7 +242,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
 
             if (track is null)
-                throw new NotFoundException("Track", round.TrackId);
+                throw new NotFoundException(ErrorMessages.Score.TrackNotFound);
 
             // Step 8: Re-check EventAccount — Judge may have been deactivated since last scoring
             var activeJudgeInEvent = await _unitOfWork
@@ -257,12 +250,12 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
                                            && ea.AccountId == judgeId
                                            && ea.EventRole == RoleConstants.Judge
-                                           && ea.Status == "Approved"
+                                           && ea.Status == EventAccountConstants.Status.Approved
                                            && !ea.Event.IsDeleted
                                            && ea.Event.Status == EventConstants.Status.Active);
 
             if (activeJudgeInEvent is null)
-                throw new ForbiddenException("Your Judge account is no longer active in the Event of this round.");
+                throw new ForbiddenException(ErrorMessages.Score.JudgeNotActiveInEvent);
 
             // Step 9: Re-check JudgeAssign — Judge may have been unassigned from this Round
             var judgeAssign = await _unitOfWork
@@ -271,7 +264,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ja.RoundId == submission.RoundId);
 
             if (judgeAssign is null)
-                throw new ForbiddenException("You are no longer assigned to score this round.");
+                throw new ForbiddenException(ErrorMessages.Score.JudgeNotAssignedToRound);
 
             // Step 10: Verify Criterion exists and validate new score value
             var criterion = await _unitOfWork
@@ -279,11 +272,10 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(c => c.Id == scoreRecord.CriterionId);
 
             if (criterion == null)
-                throw new NotFoundException("Criterion", scoreRecord.CriterionId);
+                throw new NotFoundException(ErrorMessages.Score.CriterionNotFound);
 
             if (request.UpdatedScore < 0 || request.UpdatedScore > criterion.MaxScore)
-                throw new BadRequestException(
-                    $"Score must be between 0 and {criterion.MaxScore}.");
+                throw new BadRequestException(ErrorMessages.Score.InvalidScoreRange);
 
             // Step 11: Apply update
             scoreRecord.Score = request.UpdatedScore;
