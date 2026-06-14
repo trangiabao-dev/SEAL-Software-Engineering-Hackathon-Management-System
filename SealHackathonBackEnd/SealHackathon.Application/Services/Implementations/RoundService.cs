@@ -15,7 +15,7 @@ namespace SealHackathon.Application.Services.Implementations
     // Lớp RoundService điều phối tất cả các hoạt động liên quan đến Vòng Thi (Round)
     public class RoundService : IRoundService
     {
-        // Vẫn là UnitOfWork huyền thoại giúp kết nối tới DB
+        // UnitOfWork dùng để truy cập repository và lưu thay đổi xuống database.
         private readonly IUnitOfWork _uow;
 
         public RoundService(IUnitOfWork uow)
@@ -28,23 +28,13 @@ namespace SealHackathon.Application.Services.Implementations
         {
             // Kiểm tra Track cha có tồn tại không
             var trackExists = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(x => x.Id == trackId && !x.IsDeleted);
-            if (trackExists == null) throw new NotFoundException($"Không tìm thấy Track với ID {trackId}");
+            if (trackExists == null) throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
             // Lấy toàn bộ Vòng thi (Ví dụ: Vòng Sơ loại, Vòng Bán kết...) của Track này
             var rounds = await _uow.GetRepository<Round>().GetAllAsync(x => x.TrackId == trackId);
 
-            // Đóng gói sang định dạng DTO gọn nhẹ để phản hồi về cho Frontend
-            var response = rounds.Select(r => new RoundResponse
-            {
-                Id = r.Id,
-                TrackId = r.TrackId,
-                Name = r.Name,
-                OrderIndex = r.OrderIndex, // Thứ tự của vòng thi (1 = vòng đầu tiên)
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                AdvancingSlots = r.AdvancingSlots, // Số lượng đội được lọt vào vòng tiếp theo
-                Status = r.Status
-            }).ToList();
+            // Đóng gói sang DTO để trả dữ liệu gọn cho FE.
+            var response = rounds.Select(MapToRoundResponse).ToList();
 
             return ApiResponse<List<RoundResponse>>.SuccessResult(response);
         }
@@ -54,7 +44,7 @@ namespace SealHackathon.Application.Services.Implementations
         {
             // Kiểm tra tính hợp lệ của Track cha
             var trackExists = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(x => x.Id == request.TrackId && !x.IsDeleted);
-            if (trackExists == null) throw new NotFoundException($"Không tìm thấy Track với ID {request.TrackId}");
+            if (trackExists == null) throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
             // Khởi tạo Entity Vòng thi
             var newRound = new Round
@@ -74,17 +64,7 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
 
             // Chuyển sang DTO trả về kết quả
-            var response = new RoundResponse
-            {
-                Id = newRound.Id,
-                TrackId = newRound.TrackId,
-                Name = newRound.Name,
-                OrderIndex = newRound.OrderIndex,
-                StartTime = newRound.StartTime,
-                EndTime = newRound.EndTime,
-                AdvancingSlots = newRound.AdvancingSlots,
-                Status = newRound.Status
-            };
+            var response = MapToRoundResponse(newRound);
 
             return ApiResponse<RoundResponse>.SuccessResult(response, "Tạo Round thành công.");
         }
@@ -93,7 +73,7 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<ApiResponse<RoundResponse>> UpdateRoundAsync(int id, UpdateRoundRequest request)
         {
             var existingRound = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == id);
-            if (existingRound == null) throw new NotFoundException($"Không tìm thấy Round với ID {id}");
+            if (existingRound == null) throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
             // Đè thông tin mới
             existingRound.Name = request.Name;
@@ -106,17 +86,7 @@ namespace SealHackathon.Application.Services.Implementations
             _uow.GetRepository<Round>().Update(existingRound);
             await _uow.SaveChangesAsync();
 
-            var response = new RoundResponse
-            {
-                Id = existingRound.Id,
-                TrackId = existingRound.TrackId,
-                Name = existingRound.Name,
-                OrderIndex = existingRound.OrderIndex,
-                StartTime = existingRound.StartTime,
-                EndTime = existingRound.EndTime,
-                AdvancingSlots = existingRound.AdvancingSlots,
-                Status = existingRound.Status
-            };
+            var response = MapToRoundResponse(existingRound);
 
             return ApiResponse<RoundResponse>.SuccessResult(response, "Cập nhật thông tin Round thành công.");
         }
@@ -134,7 +104,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             var existingRound = await roundRepo.GetFirstOrDefaultTrackingAsync(x => x.Id == id);
             if (existingRound is null)
-                throw new NotFoundException($"Không tìm thấy Round với ID {id}");
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
             // Nếu status mới giống status hiện tại thì không xử lý lại.
             // Quan trọng: tránh trường hợp bấm Active nhiều lần làm random topic lại.
@@ -145,7 +115,7 @@ namespace SealHackathon.Application.Services.Implementations
                     "Trạng thái Round không thay đổi.");
             }
 
-            // RULE: Chỉ khi chuyển Round sang Active thì mới gán đề cho team.
+            // Quy tắc: Chỉ khi chuyển Round sang Active thì mới gán đề cho team.
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
             if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
             {
@@ -210,7 +180,7 @@ namespace SealHackathon.Application.Services.Implementations
                                            && ja.RoundId == roundId);
 
             if (existingAssign is not null)
-                throw new ConflictException("Judge này đã được phân công vào Round này.");
+                throw new ConflictException(ErrorMessages.Round.JudgeAlreadyAssigned);
 
             var judgeAssign = new JudgeAssign
             {
@@ -260,26 +230,26 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetAllAsync(x => x.RoundId == round.Id);
 
             if (!topics.Any())
-                throw new BadRequestException("Không có Topic nào trong Round này để gán cho các nhóm.");
+                throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
 
-            // Chỉ team đã được duyệt mới được nhận đề thi.
-            var approvedTeams = await _uow.GetRepository<Team>()
+            // Chỉ lấy các team đã được duyệt và chưa có Topic để gán đề.
+            var teamsWithoutTopic = await _uow.GetRepository<Team>()
                 .GetAllAsync(x => x.TrackId == round.TrackId
                                && x.Status == TeamConstants.Status.Approved
-                               && !x.IsDeleted);
+                               && !x.IsDeleted
+                               && x.TopicId == null);
 
-            // Chỉ gán đề cho team chưa có Topic.
-            // Nếu team đã có Topic thì giữ nguyên để tránh đổi đề giữa chừng.
-            var teamsWithoutTopic = approvedTeams
-                .Where(x => x.TopicId is null)
-                .ToList();
-
-            if (teamsWithoutTopic.Count == 0)
+            if (!teamsWithoutTopic.Any())
                 return;
 
-            // Những Topic đã được team khác dùng sẽ không được gán lại.
-            var usedTopicIds = approvedTeams
-                .Where(x => x.TopicId.HasValue)
+            // Lấy danh sách Topic đã được dùng trong Track để không gán trùng đề.
+            var teamsWithTopic = await _uow.GetRepository<Team>()
+                .GetAllAsync(x => x.TrackId == round.TrackId
+                               && x.Status == TeamConstants.Status.Approved
+                               && !x.IsDeleted
+                               && x.TopicId != null);
+
+            var usedTopicIds = teamsWithTopic
                 .Select(x => x.TopicId!.Value)
                 .ToHashSet();
 
@@ -290,7 +260,7 @@ namespace SealHackathon.Application.Services.Implementations
                 .ToList();
 
             if (availableTopics.Count < teamsWithoutTopic.Count)
-                throw new BadRequestException("Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.");
+                throw new BadRequestException(ErrorMessages.Round.NotEnoughTopics);
 
             var now = DateTime.UtcNow;
             var teamRepo = _uow.GetRepository<Team>();

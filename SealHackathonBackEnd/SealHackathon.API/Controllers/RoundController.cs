@@ -41,7 +41,7 @@ namespace SealHackathon.API.Controllers
         [HttpPut("api/rounds/{id}/status")]
         public async Task<IActionResult> UpdateRoundStatus(int id, [FromBody] UpdateRoundStatusRequest request)
         {
-            // Triggers Rule 7 khi chuyển qua "Active"
+            // Khi chuyển sang Active, service sẽ tự gán Topic cho các team đủ điều kiện.
             var result = await _roundService.UpdateRoundStatusAsync(id, request);
             return Ok(result);
         }

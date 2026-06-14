@@ -72,6 +72,13 @@ namespace SealHackathon.Domain.Constants
             public const string JudgeNotInEvent = "Tài khoản này chưa được phân quyền Judge trong Event của Round này.";
         }
 
+        public static class Round
+        {
+            public const string JudgeAlreadyAssigned = "Judge này đã được phân công vào Round này.";
+            public const string NoTopicToAssign = "Không có Topic nào trong Round này để gán cho các nhóm.";
+            public const string NotEnoughTopics = "Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.";
+        }
+
         public static class Criterion
         {
             public const string NotFound = "Không tìm thấy tiêu chí chấm điểm.";
