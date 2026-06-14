@@ -237,8 +237,18 @@ namespace SealHackathon.Application.Services.Implementations
             var judgeAssigns = await _uow.GetRepository<JudgeAssign>()
                 .GetAllAsync(ja => ja.RoundId == roundId);
 
-            var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).ToList();
-            var judges = await _uow.GetRepository<Account>().GetAllAsync(a => judgeIds.Contains(a.Id));
+            var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).Distinct().ToList();
+            
+            // Khắc phục lỗi "OPENJSON" của EF Core 8 trên SQL Server cũ khi dùng Contains
+            var judges = new List<Account>();
+            foreach (var id in judgeIds)
+            {
+                var acc = await _uow.GetRepository<Account>().GetFirstOrDefaultAsync(a => a.Id == id);
+                if (acc != null)
+                {
+                    judges.Add(acc);
+                }
+            }
 
             var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
             var eventAccounts = await _uow.GetRepository<EventAccount>()
