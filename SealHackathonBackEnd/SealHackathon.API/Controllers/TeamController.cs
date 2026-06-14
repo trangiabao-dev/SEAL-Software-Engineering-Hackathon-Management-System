@@ -103,10 +103,22 @@ namespace SealHackathon.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? status = null,
+            [FromQuery] int? trackId = null,
+            [FromQuery] int? eventId = null)
+        {
+            var result = await _teamService.GetAllTeamsAsync(pageNumber, pageSize, status, trackId, eventId);
+            return Ok(ApiResponse<PaginatedResponse<TeamListDto>>.SuccessResult(result));
+        }
+
+        // GET /api/admin/teams/grouped — Coordinator lấy team theo từng status để FE chia tab
+        [HttpGet("/api/admin/teams/grouped")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetTeamsGroupedByStatus(
+            [FromQuery] int eventId,
             [FromQuery] int? trackId = null)
         {
-            var result = await _teamService.GetAllTeamsAsync(pageNumber, pageSize, status, trackId);
-            return Ok(ApiResponse<PaginatedResponse<TeamListDto>>.SuccessResult(result));
+            var result = await _teamService.GetTeamsGroupedByStatusAsync(eventId, trackId);
+            return Ok(ApiResponse<TeamGroupedByStatusDto>.SuccessResult(result));
         }
 
         // PUT api/teams/{id}/approve — Coordinator duyệt team

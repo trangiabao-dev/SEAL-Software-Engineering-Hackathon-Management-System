@@ -8,16 +8,19 @@ using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
 using System.Linq.Expressions;
+using static SealHackathon.Domain.Constants.AuditActionConstants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _uow;
+        private readonly IAuditLogService _auditLogService;
 
-        public TeamService(IUnitOfWork uow)
+        public TeamService(IUnitOfWork uow, IAuditLogService auditLogService)
         {
             _uow = uow;
+            _auditLogService = auditLogService;
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
@@ -226,7 +229,7 @@ namespace SealHackathon.Application.Services.Implementations
         // =======================================================
 
         public async Task<PaginatedResponse<TeamListDto>> GetAllTeamsAsync(
-            int pageNumber, int pageSize, string? status, int? trackId)
+            int pageNumber, int pageSize, string? status, int? trackId, int? eventId)
         {
             if (pageNumber < 1)
                 throw new BadRequestException(ErrorMessages.Common.InvalidPageNumber);
@@ -240,7 +243,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
                 && (status == null || t.Status == status)
-                && (trackId == null || t.TrackId == trackId);
+                && (trackId == null || t.TrackId == trackId)
+                && (eventId == null || t.Track.EventId == eventId);
 
             var totalRecords = await _uow.GetRepository<Team>().CountAsync(predicate);
 
@@ -261,6 +265,62 @@ namespace SealHackathon.Application.Services.Implementations
                 .ToList();
 
             return new PaginatedResponse<TeamListDto>(items, totalRecords, pageNumber, pageSize);
+        }
+
+        public async Task<TeamGroupedByStatusDto> GetTeamsGroupedByStatusAsync(int eventId, int? trackId)
+        {
+            if (eventId <= 0)
+                throw new BadRequestException(ErrorMessages.Common.InvalidEventId);
+
+            Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
+                && t.Track.EventId == eventId
+                && !t.Track.IsDeleted
+                && (trackId == null || t.TrackId == trackId);
+
+            var teams = await _uow.GetRepository<Team>().GetAllAsync(predicate);
+
+            var teamIds = teams.Select(t => t.Id).ToList();
+
+            var memberCountByTeamId = teamIds.Count == 0
+                ? new Dictionary<Guid, int>()
+                : await _uow.GetRepository<TeamMember>()
+                    .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
+
+            var teamDtos = teams
+                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+                .ToList();
+
+            var pending = teamDtos
+                .Where(t => string.Equals(t.Status, TeamConstants.Status.Pending, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var approved = teamDtos
+                .Where(t => string.Equals(t.Status, TeamConstants.Status.Approved, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var rejected = teamDtos
+                .Where(t => string.Equals(t.Status, TeamConstants.Status.Rejected, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var disqualified = teamDtos
+                .Where(t => string.Equals(t.Status, TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            return new TeamGroupedByStatusDto
+            {
+                Pending = pending,
+                Approved = approved,
+                Rejected = rejected,
+                Disqualified = disqualified,
+                Counts = new TeamStatusCountDto
+                {
+                    Pending = pending.Count,
+                    Approved = approved.Count,
+                    Rejected = rejected.Count,
+                    Disqualified = disqualified.Count,
+                    Total = teamDtos.Count
+                }
+            };
         }
 
         public async Task ApproveTeamAsync(Guid teamId, Guid coordinatorId)
@@ -320,7 +380,6 @@ namespace SealHackathon.Application.Services.Implementations
                 submission.DisqualifyReason = reason;
                 submission.DisqualifiedAt = now;
                 submission.DisqualifiedBy = coordinatorId;
-
                 submissionRepo.Update(submission);
             }
 
