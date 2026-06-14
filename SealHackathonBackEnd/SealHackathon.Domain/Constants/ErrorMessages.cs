@@ -103,5 +103,10 @@ namespace SealHackathon.Domain.Constants
             public const string AlreadyScored = "Bạn đã chấm tiêu chí này cho bài nộp này.";
             public const string InvalidScoreRange = "Điểm chấm không hợp lệ.";
         }
+
+        public static class Ranking
+        {
+            public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
+        }
     }
 }

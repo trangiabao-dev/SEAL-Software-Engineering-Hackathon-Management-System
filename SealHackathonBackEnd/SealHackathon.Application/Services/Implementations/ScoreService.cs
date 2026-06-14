@@ -86,25 +86,14 @@ namespace SealHackathon.Application.Services.Implementations
             await _unitOfWork.SaveChangesAsync();
 
             // Trả kết quả cho FE.
-            return new ScoreRecordResponse
-            {
-                Id = scoreRecord.Id,
-                SubmissionId = scoreRecord.SubmissionId,
-                JudgeId = scoreRecord.JudgeId,
-                JudgeName = string.Empty,
-                CriterionId = scoreRecord.CriterionId,
-                CriterionName = criterion.Name,
-                Score = scoreRecord.Score,
-                Comment = scoreRecord.Comment,
-                IsCalibration = scoreRecord.IsCalibration,
-                ScoredAt = scoreRecord.ScoredAt
-            };
+            return MapToScoreRecordResponse(scoreRecord, criterion.Name);
         }
 
         /// <summary>
         /// Lấy toàn bộ điểm của một bài nộp, kèm tên Judge và tên tiêu chí.
         /// </summary>
-        public async Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(Guid submissionId)
+        public async Task<List<ScoreRecordResponse>> GetScoresBySubmissionAsync(
+            Guid submissionId, Guid currentAccountId, bool isCoordinator)
         {
             // Kiểm tra bài nộp có tồn tại.
             var submission = await _unitOfWork
@@ -113,6 +102,19 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (submission == null)
                 throw new NotFoundException(ErrorMessages.Score.SubmissionNotFound);
+
+            // Nếu người xem không phải Coordinator thì phải là Judge được phân công vào Round của bài nộp.
+            if (!isCoordinator)
+            {
+                var round = await _unitOfWork
+                    .GetRepository<Round>()
+                    .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
+
+                if (round is null)
+                    throw new NotFoundException(ErrorMessages.Score.RoundNotFound);
+
+                await EnsureJudgeCanScoreRoundAsync(currentAccountId, round);
+            }
 
             // Lấy toàn bộ ScoreRecord của bài nộp.
             var scoreRecords = await _unitOfWork
@@ -139,19 +141,11 @@ namespace SealHackathon.Application.Services.Implementations
             var criterionDict = criteria.ToDictionary(c => c.Id, c => c.Name);
 
             // Chuyển dữ liệu sang response DTO.
-            var result = scoreRecords.Select(sr => new ScoreRecordResponse
-            {
-                Id = sr.Id,
-                SubmissionId = sr.SubmissionId,
-                JudgeId = sr.JudgeId,
-                JudgeName = judgeDict.GetValueOrDefault(sr.JudgeId, string.Empty),
-                CriterionId = sr.CriterionId,
-                CriterionName = criterionDict.GetValueOrDefault(sr.CriterionId, string.Empty),
-                Score = sr.Score,
-                Comment = sr.Comment,
-                IsCalibration = sr.IsCalibration,
-                ScoredAt = sr.ScoredAt
-            }).ToList();
+            var result = scoreRecords
+                .Select(sr => MapToScoreRecordResponse(
+                    sr, criterionDict.GetValueOrDefault(sr.CriterionId, string.Empty),
+                    judgeDict.GetValueOrDefault(sr.JudgeId, string.Empty)))
+                .ToList();
 
             return result;
         }
@@ -188,10 +182,10 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission.IsDisqualified)
                 throw new BadRequestException(ErrorMessages.Score.SubmissionDisqualifiedCannotUpdate);
 
-            // Step 5: Round phải tồn tại và đang ở trạng thái Scoring.
+            // Round phải tồn tại và đang ở trạng thái Scoring.
             var round = await GetScoringRoundAsync(submission.RoundId);
 
-            // Step 6: Judge phải còn quyền Judge trong Event và được phân công vào Round này.
+            // Judge phải còn quyền Judge trong Event và được phân công vào Round này.
             await EnsureJudgeCanScoreRoundAsync(judgeId, round);
 
             // Kiểm tra tiêu chí có tồn tại và điểm mới có hợp lệ không.
@@ -214,19 +208,7 @@ namespace SealHackathon.Application.Services.Implementations
             await _unitOfWork.SaveChangesAsync();
 
             // Trả kết quả đã cập nhật cho FE.
-            return new ScoreRecordResponse
-            {
-                Id = scoreRecord.Id,
-                SubmissionId = scoreRecord.SubmissionId,
-                JudgeId = scoreRecord.JudgeId,
-                JudgeName = string.Empty,
-                CriterionId = scoreRecord.CriterionId,
-                CriterionName = criterion.Name,
-                Score = scoreRecord.Score,
-                Comment = scoreRecord.Comment,
-                IsCalibration = scoreRecord.IsCalibration,
-                ScoredAt = scoreRecord.ScoredAt
-            };
+            return MapToScoreRecordResponse(scoreRecord, criterion.Name);
         }
 
         // =============== Private helpers ===============
@@ -275,6 +257,24 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (judgeAssign is null)
                 throw new ForbiddenException(ErrorMessages.Score.JudgeNotAssignedToRound);
+        }
+
+        private static ScoreRecordResponse MapToScoreRecordResponse(
+            ScoreRecord scoreRecord, string criterionName, string judgeName = "")
+        {
+            return new ScoreRecordResponse
+            {
+                Id = scoreRecord.Id,
+                SubmissionId = scoreRecord.SubmissionId,
+                JudgeId = scoreRecord.JudgeId,
+                JudgeName = judgeName,
+                CriterionId = scoreRecord.CriterionId,
+                CriterionName = criterionName,
+                Score = scoreRecord.Score,
+                Comment = scoreRecord.Comment,
+                IsCalibration = scoreRecord.IsCalibration,
+                ScoredAt = scoreRecord.ScoredAt
+            };
         }
     }
 }

@@ -44,7 +44,12 @@ namespace SealHackathon.API.Controllers
         [Authorize(Roles = RoleConstants.Judge + "," + RoleConstants.Coordinator)]
         public async Task<IActionResult> GetScoresBySubmission(Guid submissionId)
         {
-            var result = await _scoreService.GetScoresBySubmissionAsync(submissionId);
+            var currentAccountId = GetCurrentAccountId();
+            var isCoordinator = User.IsInRole(RoleConstants.Coordinator);
+
+            var result = await _scoreService.GetScoresBySubmissionAsync(
+                submissionId, currentAccountId, isCoordinator);
+
             return Ok(ApiResponse<List<ScoreRecordResponse>>.SuccessResult(result, "Lấy danh sách điểm thành công."));
         }
 
