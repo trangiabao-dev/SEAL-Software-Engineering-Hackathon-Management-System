@@ -9,5 +9,19 @@ namespace SealHackathon.Application.DTOs.Auth
         public string EventRole { get; set; } = null!;
         public string Status { get; set; } = null!;
         public string? JudgeType { get; set; }
+        public List<StaffTeamDto> AssignedTeams { get; set; } = new();
+        public List<StaffRoundDto> AssignedRounds { get; set; } = new();
+    }
+
+    public class StaffTeamDto
+    {
+        public Guid Id { get; set; }
+        public string TeamName { get; set; } = null!;
+    }
+
+    public class StaffRoundDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
     }
 }

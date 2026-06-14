@@ -14,10 +14,12 @@ namespace SealHackathon.Application.Services.Implementations
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notificationService;
 
-        public TeamService(IUnitOfWork uow)
+        public TeamService(IUnitOfWork uow, INotificationService notificationService)
         {
             _uow = uow;
+            _notificationService = notificationService;
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
@@ -287,6 +289,17 @@ namespace SealHackathon.Application.Services.Implementations
             team.UpdatedBy = coordinatorId;
 
             await _uow.SaveChangesAsync();
+
+            // [DEV 1 - BẮN THÔNG BÁO DUYỆT ĐỘI THI]
+            // Chức năng: Khi Coordinator bấm duyệt, hệ thống tự động bắn Notification "TEAM_APPROVED" cho Leader.
+            // Send notification to Leader
+            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
+            {
+                AccountId = team.LeaderId,
+                Title = "Đội thi đã được duyệt",
+                Message = $"Đội thi {team.TeamName} của bạn đã được duyệt để tham gia sự kiện.",
+                Type = "TEAM_APPROVED"
+            });
         }
 
         public async Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId)
@@ -325,6 +338,17 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             await _uow.SaveChangesAsync();
+
+            // [DEV 1 - BẮN THÔNG BÁO LOẠI ĐỘI THI]
+            // Chức năng: Khi Coordinator bấm loại, hệ thống tự động bắn Notification "TEAM_DISQUALIFIED" kèm lý do cho Leader.
+            // Send notification to Leader
+            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
+            {
+                AccountId = team.LeaderId,
+                Title = "Đội thi đã bị loại",
+                Message = $"Đội thi {team.TeamName} của bạn đã bị loại. Lý do: {reason}",
+                Type = "TEAM_DISQUALIFIED"
+            });
         }
 
         public async Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId)

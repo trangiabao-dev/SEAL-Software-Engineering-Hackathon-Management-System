@@ -139,6 +139,7 @@ builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<ICriterionService, CriterionService>();
 builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // 👉 Đăng ký Background Service (Ông lao công dọn rác) chạy ngầm
 builder.Services.AddHostedService<SealHackathon.API.BackgroundServices.UnverifiedAccountCleanupService>();

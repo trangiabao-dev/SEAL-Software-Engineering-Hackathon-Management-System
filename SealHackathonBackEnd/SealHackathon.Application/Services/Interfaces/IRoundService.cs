@@ -13,5 +13,6 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<ApiResponse<RoundResponse>> UpdateRoundAsync(int id, UpdateRoundRequest request);
         Task<ApiResponse<RoundResponse>> UpdateRoundStatusAsync(int id, UpdateRoundStatusRequest request); // Sẽ xử lý Rule 7 ở đây
         Task<ApiResponse<bool>> AssignJudgeAsync(int roundId, AssignJudgeRequest request, Guid assignedBy);
+        Task<ApiResponse<List<RoundJudgeResponse>>> GetJudgesByRoundAsync(int roundId);
     }
 }

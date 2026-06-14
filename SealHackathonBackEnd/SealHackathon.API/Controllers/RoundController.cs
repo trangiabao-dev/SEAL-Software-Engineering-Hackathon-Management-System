@@ -53,5 +53,14 @@ namespace SealHackathon.API.Controllers
             var result = await _roundService.AssignJudgeAsync(id, request, assignedBy);
             return Ok(result);
         }
+
+        // [DEV 1 - API LẤY GIÁM KHẢO CỦA VÒNG THI]
+        // Chức năng: Cung cấp endpoint cho FE lấy danh sách giám khảo để hiển thị trong màn hình setup Round.
+        [HttpGet("api/rounds/{id}/judges")]
+        public async Task<IActionResult> GetJudgesByRound(int id)
+        {
+            var result = await _roundService.GetJudgesByRoundAsync(id);
+            return Ok(result);
+        }
     }
 }

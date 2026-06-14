@@ -252,5 +252,38 @@ namespace SealHackathon.Application.Services.Implementations
 
             return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
         }
+
+        // [DEV 1 - LẤY DANH SÁCH GIÁM KHẢO CỦA VÒNG THI]
+        // Chức năng: Trả về danh sách chi tiết các giám khảo (kèm email, username, loại giám khảo) đã được phân công vào vòng thi này.
+        public async Task<ApiResponse<List<RoundJudgeResponse>>> GetJudgesByRoundAsync(int roundId)
+        {
+            var round = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
+            if (round == null) throw new NotFoundException($"Không tìm thấy Round với ID {roundId}");
+
+            var judgeAssigns = await _uow.GetRepository<JudgeAssign>()
+                .GetAllAsync(ja => ja.RoundId == roundId);
+
+            var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).ToList();
+            var judges = await _uow.GetRepository<Account>().GetAllAsync(a => judgeIds.Contains(a.Id));
+
+            var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
+            var eventAccounts = await _uow.GetRepository<EventAccount>()
+                .GetAllAsync(ea => ea.EventId == track!.EventId && ea.EventRole == RoleConstants.Judge);
+
+            var response = judgeAssigns.Select(ja => {
+                var ea = eventAccounts.FirstOrDefault(e => e.AccountId == ja.JudgeId);
+                var judgeAcc = judges.FirstOrDefault(j => j.Id == ja.JudgeId);
+                return new RoundJudgeResponse
+                {
+                    JudgeId = ja.JudgeId,
+                    Email = judgeAcc?.Email ?? "",
+                    Username = judgeAcc?.Username ?? "",
+                    JudgeType = ea?.JudgeType,
+                    AssignedAt = ja.AssignedAt
+                };
+            }).ToList();
+
+            return ApiResponse<List<RoundJudgeResponse>>.SuccessResult(response);
+        }
     }
 }
