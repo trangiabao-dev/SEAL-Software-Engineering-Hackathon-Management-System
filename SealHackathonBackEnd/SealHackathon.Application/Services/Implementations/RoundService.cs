@@ -258,6 +258,7 @@ namespace SealHackathon.Application.Services.Implementations
             }).ToList();
 
             return ApiResponse<List<RoundJudgeResponse>>.SuccessResult(response);
+        }
 
         // =============== Private helpers ===============
         // Kiểm tra và chuẩn hóa status của Round.

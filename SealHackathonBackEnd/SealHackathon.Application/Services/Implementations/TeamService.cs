@@ -17,19 +17,13 @@ namespace SealHackathon.Application.Services.Implementations
         private readonly IUnitOfWork _uow;
 
         private readonly INotificationService _notificationService;
+        private readonly IAuditLogService _auditLogService;
 
-        public TeamService(IUnitOfWork uow, INotificationService notificationService)
+        public TeamService(IUnitOfWork uow, INotificationService notificationService, IAuditLogService auditLogService)
         {
             _uow = uow;
             _notificationService = notificationService;
-
-        private readonly IAuditLogService _auditLogService;
-
-        public TeamService(IUnitOfWork uow, IAuditLogService auditLogService)
-        {
-            _uow = uow;
             _auditLogService = auditLogService;
-
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
