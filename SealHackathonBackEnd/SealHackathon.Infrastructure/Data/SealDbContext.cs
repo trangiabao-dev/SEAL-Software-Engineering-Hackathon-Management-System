@@ -66,6 +66,7 @@ public partial class SealDbContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UpdatedAt);
             entity.Property(e => e.Email)
                 .HasMaxLength(255)
                 .IsUnicode(false);

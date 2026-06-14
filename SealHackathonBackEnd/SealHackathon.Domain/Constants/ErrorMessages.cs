@@ -61,6 +61,7 @@ namespace SealHackathon.Domain.Constants
             public const string InvalidPageSize = "PageSize không hợp lệ.";
             public const string InvalidAccount = "Tài khoản của bạn không tồn tại hoặc đã bị vô hiệu hóa.";
             public const string InvalidRoundId = "RoundId không hợp lệ.";
+            public const string InvalidTeamId = "TeamId không hợp lệ.";
             public const string InvalidSubmissionId = "SubmissionId không hợp lệ.";
             public const string InvalidMentorId = "MentorId không hợp lệ.";
             public const string RoundNotFound = "Không tìm thấy vòng thi.";
