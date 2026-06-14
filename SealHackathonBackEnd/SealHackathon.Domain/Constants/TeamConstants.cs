@@ -2,7 +2,9 @@
 {
     public static class TeamConstants
     {
-        // Nhóm 1: Chuyên quản lý trạng thái
+        /// <summary>
+        /// Constants dùng riêng cho bảng Team.
+        /// </summary>
         public static class Status
         {
             public const string Pending = "Pending";
@@ -23,7 +25,9 @@
                 };
         }
 
-        // Nhóm 2: Chuyên quản lý giới hạn nghiệp vụ
+        /// <summary>
+        /// Chuyên quản lý giới hạn team/member
+        /// </summary>
         public static class Rules
         {
             public const int MinMembersPerTeam = 3;

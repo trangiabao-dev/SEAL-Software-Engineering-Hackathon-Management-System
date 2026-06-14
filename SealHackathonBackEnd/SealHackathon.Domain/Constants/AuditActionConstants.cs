@@ -1,5 +1,8 @@
 ﻿namespace SealHackathon.Domain.Constants;
 
+/// <summary>
+/// AuditLog.Action: Tên hành động lưu audit
+/// </summary>
 public static class AuditActionConstants
 {
     public static class EventAudit

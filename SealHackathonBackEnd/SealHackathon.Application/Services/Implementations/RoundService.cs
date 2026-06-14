@@ -32,7 +32,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Lấy toàn bộ Vòng thi (Ví dụ: Vòng Sơ loại, Vòng Bán kết...) của Track này
             var rounds = await _uow.GetRepository<Round>().GetAllAsync(x => x.TrackId == trackId);
-            
+
             // Đóng gói sang định dạng DTO gọn nhẹ để phản hồi về cho Frontend
             var response = rounds.Select(r => new RoundResponse
             {
@@ -121,117 +121,90 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<RoundResponse>.SuccessResult(response, "Cập nhật thông tin Round thành công.");
         }
 
-        // Hàm ĐỔI TRẠNG THÁI Vòng thi (Đặc biệt quan trọng: Có chứa RULE 7)
+        // Hàm ĐỔI TRẠNG THÁI Vòng thi.
+        // Khi Coordinator chuyển Round sang Active, hệ thống sẽ tự động gán Topic cho các team đã được duyệt.
         public async Task<ApiResponse<RoundResponse>> UpdateRoundStatusAsync(int id, UpdateRoundStatusRequest request)
         {
-            var existingRound = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == id);
-            if (existingRound == null) throw new NotFoundException($"Không tìm thấy Round với ID {id}");
+            // Chuẩn hóa status FE gửi lên.
+            // Ví dụ FE gửi "active" thì BE lưu thống nhất là "Active".
+            // Nếu FE gửi status không nằm trong danh sách hợp lệ thì báo lỗi.
+            var newStatus = NormalizeRoundStatus(request.Status);
 
-            existingRound.Status = request.Status;
+            var roundRepo = _uow.GetRepository<Round>();
+
+            var existingRound = await roundRepo.GetFirstOrDefaultTrackingAsync(x => x.Id == id);
+            if (existingRound is null)
+                throw new NotFoundException($"Không tìm thấy Round với ID {id}");
+
+            // Nếu status mới giống status hiện tại thì không xử lý lại.
+            // Quan trọng: tránh trường hợp bấm Active nhiều lần làm random topic lại.
+            if (string.Equals(existingRound.Status, newStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiResponse<RoundResponse>.SuccessResult(
+                    MapToRoundResponse(existingRound),
+                    "Trạng thái Round không thay đổi.");
+            }
+
+            // RULE: Chỉ khi chuyển Round sang Active thì mới gán đề cho team.
+            // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
+            if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+            {
+                await AssignTopicsForRoundAsync(existingRound);
+            }
+
+            existingRound.Status = newStatus;
             existingRound.UpdatedAt = DateTime.UtcNow;
 
-            // ===== RULE 7: TỰ ĐỘNG GÁN ĐỀ TÀI (RANDOM TOPIC ASSIGNMENT) =====
-            // Khi Ban Tổ Chức ấn nút Bắt đầu vòng thi (Đổi status sang "Active")
-            if (request.Status.Equals(RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
-            {
-                // Kéo tất cả Đề tài (Topic) của vòng này lên
-                var topics = await _uow.GetRepository<Topic>().GetAllAsync(x => x.RoundId == id);
-                if (!topics.Any())
-                {
-                    // Lỗi: Vòng thi làm gì có đề nào mà đòi bắt đầu thi!
-                    throw new BadRequestException("Không có Topic nào trong Round này để gán cho các nhóm!");
-                }
+            await _uow.SaveChangesAsync();
 
-                // Chỉ team đã được duyệt mới được nhận đề thi.
-                var teams = await _uow.GetRepository<Team>().GetAllAsync(x => x.TrackId == existingRound.TrackId
-                                                                           && x.Status == TeamConstants.Status.Approved
-                                                                           && !x.IsDeleted);
-
-                var teamsWithoutTopic = teams.Where(x => x.TopicId is null).ToList();
-                var usedTopicIds = teams.Where(x => x.TopicId.HasValue)
-                    .Select(x => x.TopicId!.Value)
-                    .ToHashSet();
-
-
-                // Mỗi team nhận một Topic khác nhau. Team đã có Topic thì không bị đổi lại
-
-                // Mỗi team nhận một Topic khác nhau. Team đã có Topic thì không random lại.
-
-                var random = new Random();
-                var availableTopics = topics
-                    .Where(x => !usedTopicIds.Contains(x.Id))
-                    .OrderBy(_ => random.Next())
-                    .ToList();
-
-                if (availableTopics.Count < teamsWithoutTopic.Count)
-
-                    throw new BadRequestException("Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.");
-
-
-                for (var i = 0; i < teamsWithoutTopic.Count; i++)
-                {
-                    teamsWithoutTopic[i].TopicId = availableTopics[i].Id;
-                    teamsWithoutTopic[i].UpdatedAt = DateTime.UtcNow;
-                    _uow.GetRepository<Team>().Update(teamsWithoutTopic[i]); // Lưu tạm sự thay đổi của đội vào bộ nhớ đệm
-                }
-            }
-            // ================================================================
-
-            _uow.GetRepository<Round>().Update(existingRound);
-            await _uow.SaveChangesAsync(); // Chạy câu lệnh lưu DB một phát ăn luôn cả Round và Teams
-
-            var response = new RoundResponse
-            {
-                Id = existingRound.Id,
-                TrackId = existingRound.TrackId,
-                Name = existingRound.Name,
-                OrderIndex = existingRound.OrderIndex,
-                StartTime = existingRound.StartTime,
-                EndTime = existingRound.EndTime,
-                AdvancingSlots = existingRound.AdvancingSlots,
-                Status = existingRound.Status
-            };
-
-            return ApiResponse<RoundResponse>.SuccessResult(response, "Cập nhật trạng thái Round thành công.");
+            return ApiResponse<RoundResponse>.SuccessResult(
+                MapToRoundResponse(existingRound),
+                "Cập nhật trạng thái Round thành công.");
         }
 
-        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
-        // Hàm gán GIÁM KHẢO (Judge) vào Vòng thi để họ vào chấm điểm
+        // Hàm gán Judge vào Round.
+        // Chỉ tài khoản đã có EventRole = Judge và Status = Approved trong Event của Round mới được gán.
         public async Task<ApiResponse<bool>> AssignJudgeAsync(int roundId, AssignJudgeRequest request, Guid assignedBy)
         {
             if (roundId <= 0)
                 throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
 
             if (request.JudgeId == Guid.Empty)
-                throw new BadRequestException("JudgeId không hợp lệ.");
+                throw new BadRequestException(ErrorMessages.Common.InvalidJudgeId);
 
+            // Tìm Round cần gán Judge.
             var round = await _uow.GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
 
             if (round is null)
-                throw new NotFoundException("Round", roundId);
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
+            // Lấy Track để biết Round này thuộc Event nào.
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
 
             if (track is null)
-                throw new NotFoundException("Track", round.TrackId);
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
+            // Kiểm tra tài khoản Judge còn tồn tại và chưa bị xóa mềm.
             var judge = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == request.JudgeId && !a.IsDeleted);
 
             if (judge is null)
-                throw new NotFoundException("Judge", request.JudgeId);
+                throw new NotFoundException(ErrorMessages.Common.JudgeNotFound);
 
+            // Judge phải được phân quyền trong đúng Event của Round.
+            // Không chỉ có account là đủ, phải có EventAccount với EventRole = Judge.
             var judgeEventRole = await _uow.GetRepository<EventAccount>()
                 .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
                                            && ea.AccountId == request.JudgeId
                                            && ea.EventRole == RoleConstants.Judge
-                                           && ea.Status == "Approved");
+                                           && ea.Status == EventAccountConstants.Status.Approved);
 
             if (judgeEventRole is null)
-                throw new BadRequestException("Tài khoản này chưa được phân quyền Judge trong Event của Round này.");
+                throw new BadRequestException(ErrorMessages.Common.JudgeNotInEvent);
 
+            // Không cho gán trùng cùng một Judge vào cùng một Round.
             var existingAssign = await _uow.GetRepository<JudgeAssign>()
                 .GetFirstOrDefaultAsync(ja => ja.JudgeId == request.JudgeId
                                            && ja.RoundId == roundId);
@@ -251,6 +224,100 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
 
             return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
+        }
+
+        // =============== Private helpers ===============
+        // Kiểm tra và chuẩn hóa status của Round.
+        // BE chỉ cho phép 4 trạng thái: Upcoming, Active, Scoring, Closed.
+        private static string NormalizeRoundStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+
+            status = status.Trim();
+
+            if (string.Equals(status, RoundConstants.Status.Upcoming, StringComparison.OrdinalIgnoreCase))
+                return RoundConstants.Status.Upcoming;
+
+            if (string.Equals(status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                return RoundConstants.Status.Active;
+
+            if (string.Equals(status, RoundConstants.Status.Scoring, StringComparison.OrdinalIgnoreCase))
+                return RoundConstants.Status.Scoring;
+
+            if (string.Equals(status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase))
+                return RoundConstants.Status.Closed;
+
+            throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+        }
+
+        // Gán Topic cho các team đã được duyệt trong Track của Round.
+        // Team đã có Topic thì giữ nguyên, không random lại.
+        private async Task AssignTopicsForRoundAsync(Round round)
+        {
+            // Lấy tất cả Topic thuộc Round này.
+            var topics = await _uow.GetRepository<Topic>()
+                .GetAllAsync(x => x.RoundId == round.Id);
+
+            if (!topics.Any())
+                throw new BadRequestException("Không có Topic nào trong Round này để gán cho các nhóm.");
+
+            // Chỉ team đã được duyệt mới được nhận đề thi.
+            var approvedTeams = await _uow.GetRepository<Team>()
+                .GetAllAsync(x => x.TrackId == round.TrackId
+                               && x.Status == TeamConstants.Status.Approved
+                               && !x.IsDeleted);
+
+            // Chỉ gán đề cho team chưa có Topic.
+            // Nếu team đã có Topic thì giữ nguyên để tránh đổi đề giữa chừng.
+            var teamsWithoutTopic = approvedTeams
+                .Where(x => x.TopicId is null)
+                .ToList();
+
+            if (teamsWithoutTopic.Count == 0)
+                return;
+
+            // Những Topic đã được team khác dùng sẽ không được gán lại.
+            var usedTopicIds = approvedTeams
+                .Where(x => x.TopicId.HasValue)
+                .Select(x => x.TopicId!.Value)
+                .ToHashSet();
+
+            // Random danh sách Topic còn trống.
+            var availableTopics = topics
+                .Where(x => !usedTopicIds.Contains(x.Id))
+                .OrderBy(_ => Random.Shared.Next())
+                .ToList();
+
+            if (availableTopics.Count < teamsWithoutTopic.Count)
+                throw new BadRequestException("Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.");
+
+            var now = DateTime.UtcNow;
+            var teamRepo = _uow.GetRepository<Team>();
+
+            // Gán mỗi team một Topic khác nhau.
+            for (var i = 0; i < teamsWithoutTopic.Count; i++)
+            {
+                teamsWithoutTopic[i].TopicId = availableTopics[i].Id;
+                teamsWithoutTopic[i].UpdatedAt = now;
+                teamRepo.Update(teamsWithoutTopic[i]);
+            }
+        }
+
+        // Chuyển Round entity sang RoundResponse để trả về cho FE.
+        private static RoundResponse MapToRoundResponse(Round round)
+        {
+            return new RoundResponse
+            {
+                Id = round.Id,
+                TrackId = round.TrackId,
+                Name = round.Name,
+                OrderIndex = round.OrderIndex,
+                StartTime = round.StartTime,
+                EndTime = round.EndTime,
+                AdvancingSlots = round.AdvancingSlots,
+                Status = round.Status
+            };
         }
     }
 }
