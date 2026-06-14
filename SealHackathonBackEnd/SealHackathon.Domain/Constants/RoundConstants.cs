@@ -2,6 +2,9 @@
 {
     public static class RoundConstants
     {
+        /// <summary>
+        /// Round.Status: Trạng thái Round
+        /// </summary>
         public static class Status
         {
             public const string Upcoming = "Upcoming";

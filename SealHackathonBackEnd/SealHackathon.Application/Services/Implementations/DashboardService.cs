@@ -29,69 +29,106 @@ namespace SealHackathon.Application.Services.Implementations
             var judgeAssignRepo = _uow.GetRepository<JudgeAssign>();
             var scoreRecordRepo = _uow.GetRepository<ScoreRecord>();
 
-            // 1. Fetch events in Active or Registration status
-            //    (removed legacy hard-coded "Ongoing" / "Upcoming" statuses — use EventConstants)
-            var events = await eventRepo.GetAllAsync(e => !e.IsDeleted);
-            var activeEvents = events.Where(e =>
-                e.Status.Equals(EventConstants.Status.Active, System.StringComparison.OrdinalIgnoreCase) ||
-                e.Status.Equals(EventConstants.Status.Registration, System.StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-            var activeEventIds = activeEvents.Select(e => e.Id).ToList();
+            var activeEvents = await eventRepo.GetAllAsync
+                (e => !e.IsDeleted &&
+                (e.Status == EventConstants.Status.Active ||
+                e.Status == EventConstants.Status.Registration));
 
-            // 2. Fetch tracks belonging to active events
-            var tracks = await trackRepo.GetAllAsync(t => !t.IsDeleted);
-            var activeTracks = tracks.Where(t => activeEventIds.Contains(t.EventId)).ToList();
-            var activeTrackIds = activeTracks.Select(t => t.Id).ToList();
-
-            // 3. Fetch teams in active tracks
-            var teams = await teamRepo.GetAllAsync(t => !t.IsDeleted);
-            var activeTeams = teams.Where(t => activeTrackIds.Contains(t.TrackId)).ToList();
-
-            int totalActiveTeams = activeTeams.Count;
-            int totalPendingTeams = activeTeams.Count(t => t.Status == TeamConstants.Status.Pending);
-
-            // 4. Fetch rounds and build status summary
-            var rounds = await roundRepo.GetAllAsync(r => true);
-            var activeRounds = rounds.Where(r => activeTrackIds.Contains(r.TrackId)).ToList();
-            var activeRoundIds = activeRounds.Select(r => r.Id).ToList();
-
-            var activeRoundStatuses = activeRounds.Select(r =>
+            if (!activeEvents.Any())
             {
-                var track = activeTracks.FirstOrDefault(t => t.Id == r.TrackId);
-                var ev = activeEvents.FirstOrDefault(e => e.Id == track?.EventId);
+                return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
+                    new CoordinatorDashboardResponse(), "Lấy dữ liệu dashboard thành công.");
+            }
+
+            var activeEventIds = activeEvents.Select(e => e.Id).ToList();
+            var eventById = activeEvents.ToDictionary(e => e.Id);
+
+            var activeTracks = await trackRepo.GetAllAsync(
+                t => !t.IsDeleted && activeEventIds.Contains(t.EventId));
+
+            if (!activeTracks.Any())
+            {
+                return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
+                    new CoordinatorDashboardResponse(), "Lấy dữ liệu dashboard thành công.");
+            }
+
+            var activeTrackIds = activeTracks.Select(t => t.Id).ToList();
+            var trackById = activeTracks.ToDictionary(t => t.Id);
+
+            var totalActiveTeams = await teamRepo.CountAsync(t =>
+                !t.IsDeleted && activeTrackIds.Contains(t.TrackId));
+
+            var totalPendingTeams = await teamRepo.CountAsync(
+                t => !t.IsDeleted && activeTrackIds.Contains(t.TrackId) &&
+                t.Status == TeamConstants.Status.Pending);
+
+            var activeRounds = await roundRepo.GetAllAsync(r => activeTrackIds.Contains(r.TrackId));
+
+            var activeRoundStatuses = activeRounds.Select(round =>
+            {
+                trackById.TryGetValue(round.TrackId, out var track);
+
+                Event? ev = null;
+                if (track is not null)
+                    eventById.TryGetValue(track.EventId, out ev);
+
                 return new RoundStatusDto
                 {
-                    EventName = ev?.Name ?? "Unknown Event",
-                    TrackName = track?.Name ?? "Unknown Track",
-                    RoundName = r.Name,
-                    Status = r.Status
+                    EventName = ev?.Name ?? "Không xác định được sự kiện.",
+                    TrackName = track?.Name ?? "Không xác định được Track.",
+                    RoundName = round.Name,
+                    Status = round.Status
                 };
             }).ToList();
 
-            // 5. Calculate incomplete submissions count
-            //    A submission is "incomplete" if the number of actual scores is less than
-            //    the expected count (criteria count × assigned judge count).
-            var submissions = await submissionRepo.GetAllAsync(s => true);
-            var activeSubmissions = submissions.Where(s => activeRoundIds.Contains(s.RoundId)).ToList();
+            var activeRoundIds = activeRounds.Select(r => r.Id).ToList();
 
-            var criteria = await criterionRepo.GetAllAsync(c => true);
-            var judgeAssigns = await judgeAssignRepo.GetAllAsync(j => true);
-            var scoreRecords = await scoreRecordRepo.GetAllAsync(s => true);
-
-            int incompleteSubmissionsCount = 0;
-
-            foreach (var sub in activeSubmissions)
+            if (!activeRoundIds.Any())
             {
-                var criteriaCount = criteria.Count(c => c.RoundId == sub.RoundId);
-                var judgeCount = judgeAssigns.Count(j => j.RoundId == sub.RoundId);
+                var emptyRoundResponse = new CoordinatorDashboardResponse
+                {
+                    TotalActiveTeams = totalActiveTeams,
+                    TotalPendingTeams = totalPendingTeams,
+                    ActiveRoundStatuses = activeRoundStatuses,
+                    IncompleteSubmissions = 0
+                };
+
+                return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
+                    emptyRoundResponse, "Lấy dữ liệu dashboard thành công.");
+            }
+
+            var activeSubmissions = await submissionRepo.GetAllAsync(s =>
+                activeRoundIds.Contains(s.RoundId) &&
+                !s.IsDisqualified);
+
+            var activeSubmissionIds = activeSubmissions.Select(s => s.Id).ToList();
+
+            var criterionCountByRoundId = await criterionRepo.CountByGroupAsync(
+                c => activeRoundIds.Contains(c.RoundId),
+                c => c.RoundId);
+
+            var judgeCountByRoundId = await judgeAssignRepo.CountByGroupAsync(
+                j => activeRoundIds.Contains(j.RoundId),
+                j => j.RoundId);
+
+            var scoreCountBySubmissionId = activeSubmissionIds.Count == 0
+                ? new Dictionary<Guid, int>()
+                : await scoreRecordRepo.CountByGroupAsync(
+                    s => activeSubmissionIds.Contains(s.SubmissionId),
+                    s => s.SubmissionId);
+
+            var incompleteSubmissionsCount = 0;
+
+            foreach (var submission in activeSubmissions)
+            {
+                criterionCountByRoundId.TryGetValue(submission.RoundId, out var criteriaCount);
+                judgeCountByRoundId.TryGetValue(submission.RoundId, out var judgeCount);
+                scoreCountBySubmissionId.TryGetValue(submission.Id, out var actualScores);
+
                 var expectedScores = criteriaCount * judgeCount;
 
-                var actualScores = scoreRecords.Count(s => s.SubmissionId == sub.Id);
-
                 if (expectedScores > 0 && actualScores < expectedScores)
-                {
                     incompleteSubmissionsCount++;
-                }
             }
 
             var response = new CoordinatorDashboardResponse
@@ -102,7 +139,8 @@ namespace SealHackathon.Application.Services.Implementations
                 IncompleteSubmissions = incompleteSubmissionsCount
             };
 
-            return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(response, "Dashboard data retrieved successfully.");
+            return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
+                response, "Lấy dữ liệu dashboard thành công.");
         }
     }
 }

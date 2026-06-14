@@ -1,5 +1,8 @@
 namespace SealHackathon.Domain.Constants
 {
+    /// <summary>
+    /// Message lỗi dùng chung
+    /// </summary>
     public static class ErrorMessages
     {
         public static class Team
@@ -64,6 +67,9 @@ namespace SealHackathon.Domain.Constants
             public const string TrackNotFound = "Không tìm thấy hạng mục.";
             public const string MentorNotFound = "Không tìm thấy Mentor.";
             public const string InvalidEventId = "EventId không hợp lệ.";
+            public const string InvalidJudgeId = "JudgeId không hợp lệ.";
+            public const string JudgeNotFound = "Không tìm thấy Judge.";
+            public const string JudgeNotInEvent = "Tài khoản này chưa được phân quyền Judge trong Event của Round này.";
         }
 
         public static class Criterion
