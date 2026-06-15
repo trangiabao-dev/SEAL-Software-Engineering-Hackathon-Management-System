@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace SealHackathon.Domain.Constants;
 
 public static class EventConstants
@@ -11,5 +14,14 @@ public static class EventConstants
         public const string Registration = "Registration";
         public const string Active = "Active";
         public const string Completed = "Completed";
+
+        public static readonly HashSet<string> ValidStatuses =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                Draft,
+                Registration,
+                Active,
+                Completed
+            };
     }
 }

@@ -38,6 +38,8 @@ public partial class SealDbContext : DbContext
 
     public virtual DbSet<Round> Rounds { get; set; } = null!;
 
+    public virtual DbSet<RoundTeam> RoundTeams { get; set; } = null!;
+
     public virtual DbSet<SchemaVersion> SchemaVersions { get; set; } = null!;
 
     public virtual DbSet<ScoreRecord> ScoreRecords { get; set; } = null!;
@@ -355,6 +357,38 @@ public partial class SealDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.RoundUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK__Round__UpdatedBy__5441852A");
+        });
+
+        modelBuilder.Entity<RoundTeam>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_RoundTeam");
+
+            entity.ToTable("RoundTeam");
+
+            entity.HasIndex(e => new { e.RoundId, e.TeamId }, "UQ_RoundTeam_Round_Team").IsUnique();
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.AssignedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.AssignedByNavigation).WithMany(p => p.RoundTeamAssignedByNavigations)
+                .HasForeignKey(d => d.AssignedBy)
+                .HasConstraintName("FK_RoundTeam_AssignedBy");
+
+            entity.HasOne(d => d.Round).WithMany(p => p.RoundTeams)
+                .HasForeignKey(d => d.RoundId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RoundTeam_Round");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.RoundTeams)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RoundTeam_Team");
+
+            entity.HasOne(d => d.Topic).WithMany(p => p.RoundTeams)
+                .HasForeignKey(d => d.TopicId)
+                .HasConstraintName("FK_RoundTeam_Topic");
         });
 
         modelBuilder.Entity<SchemaVersion>(entity =>

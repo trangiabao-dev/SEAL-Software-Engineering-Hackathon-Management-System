@@ -80,13 +80,16 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm lấy Event đang Active hoặc Registration hiện tại
         public async Task<ApiResponse<EventResponse>> GetActiveEventAsync()
         {
-            var activeEvent = await _uow.GetRepository<Event>()
-                .GetFirstOrDefaultAsync(x => (x.Status == EventConstants.Status.Active || x.Status == EventConstants.Status.Registration) && !x.IsDeleted);
+            var currentEvents = await _uow.GetRepository<Event>()
+                .GetAllAsync(x => (x.Status == EventConstants.Status.Active || x.Status == EventConstants.Status.Registration) && !x.IsDeleted);
 
-            if (activeEvent == null)
-            {
-                throw new NotFoundException("Hiện tại không có Event nào đang Active hoặc Registration.");
-            }
+            if (!currentEvents.Any())
+                throw new NotFoundException(ErrorMessages.Event.CurrentEventNotFound);
+
+            if (currentEvents.Count > 1)
+                throw new ConflictException(ErrorMessages.Event.OnlyOneCurrentEventAllowed);
+
+            var activeEvent = currentEvents.First();
 
             var response = new EventResponse
             {
@@ -105,6 +108,9 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm TẠO MỚI một giải đấu
         public async Task<ApiResponse<EventResponse>> CreateEventAsync(CreateEventRequest request)
         {
+            var status = NormalizeEventStatus(request.Status);
+            await EnsureNoOtherCurrentEventAsync(status);
+
             // Bước 1: Tạo một thực thể Event mới, đổ dữ liệu từ Request (do Frontend gửi) vào
             var newEvent = new Event
             {
@@ -112,7 +118,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = request.Description,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
-                Status = request.Status, // Trạng thái mặc định thường là "Draft"
+                Status = status, // Trạng thái mặc định thường là "Draft"
                 CreatedAt = DateTime.UtcNow, // Gắn thời gian tạo là giờ chuẩn quốc tế
                 IsDeleted = false
             };
@@ -141,6 +147,8 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm SỬA thông tin một giải đấu đã có
         public async Task<ApiResponse<EventResponse>> UpdateEventAsync(int id, UpdateEventRequest request)
         {
+            var newStatus = NormalizeEventStatus(request.Status);
+
             // Bước 1: Tìm xem giải đấu đó có tồn tại không
             var existingEvent = await _uow.GetRepository<Event>().GetFirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
             if (existingEvent == null)
@@ -148,12 +156,18 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException($"Không tìm thấy Event với ID {id}");
             }
 
+            if (string.Equals(existingEvent.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(newStatus, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Event.CannotReturnToRegistration);
+
+            await EnsureNoOtherCurrentEventAsync(newStatus, id);
+
             // Bước 2: Đè dữ liệu mới (từ request) lên dữ liệu cũ (trong DB)
             existingEvent.Name = request.Name;
             existingEvent.Description = request.Description;
             existingEvent.StartDate = request.StartDate;
             existingEvent.EndDate = request.EndDate;
-            existingEvent.Status = request.Status;
+            existingEvent.Status = newStatus;
             existingEvent.UpdatedAt = DateTime.UtcNow; // Cập nhật lại thời gian sửa
 
             // Bước 3: Đánh dấu entity này đã bị sửa đổi trong Repository
@@ -198,6 +212,49 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Trả về true báo hiệu thành công
             return ApiResponse<bool>.SuccessResult(true, "Xóa Event thành công.");
+        }
+
+        private static string NormalizeEventStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+
+            status = status.Trim();
+
+            if (!EventConstants.Status.ValidStatuses.Contains(status))
+                throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+
+            if (string.Equals(status, EventConstants.Status.Draft, StringComparison.OrdinalIgnoreCase))
+                return EventConstants.Status.Draft;
+
+            if (string.Equals(status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
+                return EventConstants.Status.Registration;
+
+            if (string.Equals(status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                return EventConstants.Status.Active;
+
+            return EventConstants.Status.Completed;
+        }
+
+        private async Task EnsureNoOtherCurrentEventAsync(string status, int? currentEventId = null)
+        {
+            if (!IsCurrentEventStatus(status))
+                return;
+
+            var existingCurrentEvent = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => !e.IsDeleted
+                                          && (!currentEventId.HasValue || e.Id != currentEventId.Value)
+                                          && (e.Status == EventConstants.Status.Registration
+                                           || e.Status == EventConstants.Status.Active));
+
+            if (existingCurrentEvent is not null)
+                throw new ConflictException(ErrorMessages.Event.OnlyOneCurrentEventAllowed);
+        }
+
+        private static bool IsCurrentEventStatus(string status)
+        {
+            return string.Equals(status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

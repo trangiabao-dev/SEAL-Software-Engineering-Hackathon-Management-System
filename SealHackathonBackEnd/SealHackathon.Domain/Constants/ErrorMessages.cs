@@ -21,6 +21,9 @@ namespace SealHackathon.Domain.Constants
             public const string MentorNotInEvent = "Tài khoản được chọn chưa được phân quyền Mentor trong Event này.";
             public const string MentorNotAssignedToTrack = "Mentor này chưa được phân công vào Track của đội thi.";
             public const string MentorMaxTeamsReached = "Mentor này đã hướng dẫn tối đa số đội cho phép.";
+            public const string TeamIdsRequired = "Cần chọn ít nhất một đội để phân công Mentor.";
+            public const string TeamNotInTrack = "Một hoặc nhiều đội được chọn không thuộc Track này.";
+            public const string OnlyApprovedCanAssignMentor = "Chỉ có thể phân Mentor cho đội đã được duyệt.";
         }
 
         public static class TeamMember
@@ -52,6 +55,7 @@ namespace SealHackathon.Domain.Constants
             public const string TeamGithubRepoRequired = "Vui lòng cập nhật link GitHub của đội trước khi nộp bài.";
             public const string RoundNotActive = "Vòng thi hiện không ở trạng thái nhận bài.";
             public const string RoundNotStarted = "Vòng thi chưa bắt đầu.";
+            public const string TeamNotQualifiedForRound = "Đội thi này chưa đủ điều kiện tham gia Round này.";
         }
 
         public static class Common
@@ -77,7 +81,17 @@ namespace SealHackathon.Domain.Constants
         {
             public const string JudgeAlreadyAssigned = "Judge này đã được phân công vào Round này.";
             public const string NoTopicToAssign = "Không có Topic nào trong Round này để gán cho các nhóm.";
-            public const string NotEnoughTopics = "Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.";
+            public const string NotEnoughTopics = "Không đủ Topic để gán đề cho Round này.";
+            public const string EventMustBeActiveToStartRound = "Chỉ được bắt đầu Round khi Event đang Active.";
+            public const string PreviousRoundRankingRequired = "Chưa có kết quả xếp hạng vòng trước để xác định đội đi tiếp.";
+            public const string NoTeamQualifiedForRound = "Không có đội đủ điều kiện tham gia Round này.";
+        }
+
+        public static class Event
+        {
+            public const string CannotReturnToRegistration = "Event đã Active thì không thể chuyển lại Registration.";
+            public const string OnlyOneCurrentEventAllowed = "Chỉ được có một Event đang Registration hoặc Active tại một thời điểm.";
+            public const string CurrentEventNotFound = "Hiện tại không có Event nào đang mở đăng ký hoặc đang diễn ra.";
         }
 
         public static class Criterion

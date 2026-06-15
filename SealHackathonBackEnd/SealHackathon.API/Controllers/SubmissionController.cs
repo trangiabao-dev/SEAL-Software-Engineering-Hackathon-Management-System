@@ -27,14 +27,9 @@ namespace SealHackathon.API.Controllers
         {
             var leaderId = GetCurrentAccountId();
 
-            var result = await _submissionService.CreateSubmissionAsync(
-                roundId,
-                request,
-                leaderId);
+            var result = await _submissionService.CreateSubmissionAsync(roundId, request, leaderId);
 
-            return Ok(ApiResponse<SubmissionDto>.SuccessResult(
-                result,
-                "Nộp bài thành công."));
+            return Ok(ApiResponse<SubmissionDto>.SuccessResult(result, "Nộp bài thành công."));
         }
 
         // PUT api/submissions/{id}

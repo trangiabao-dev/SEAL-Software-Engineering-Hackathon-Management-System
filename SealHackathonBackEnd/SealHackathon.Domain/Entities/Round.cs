@@ -37,6 +37,8 @@ public partial class Round
 
     public virtual ICollection<Ranking> Rankings { get; set; } = new List<Ranking>();
 
+    public virtual ICollection<RoundTeam> RoundTeams { get; set; } = new List<RoundTeam>();
+
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
     public virtual ICollection<Topic> Topics { get; set; } = new List<Topic>();

@@ -29,6 +29,8 @@ public partial class Topic
 
     public virtual Round Round { get; set; } = null!;
 
+    public virtual ICollection<RoundTeam> RoundTeams { get; set; } = new List<RoundTeam>();
+
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 
     public virtual Account? UpdatedByNavigation { get; set; }

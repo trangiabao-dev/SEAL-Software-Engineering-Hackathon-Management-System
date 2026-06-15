@@ -43,6 +43,8 @@ public partial class Team
 
     public virtual ICollection<Ranking> Rankings { get; set; } = new List<Ranking>();
 
+    public virtual ICollection<RoundTeam> RoundTeams { get; set; } = new List<RoundTeam>();
+
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
     public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();

@@ -54,6 +54,8 @@ public partial class Account
 
     public virtual ICollection<Round> RoundUpdatedByNavigations { get; set; } = new List<Round>();
 
+    public virtual ICollection<RoundTeam> RoundTeamAssignedByNavigations { get; set; } = new List<RoundTeam>();
+
     public virtual ICollection<ScoreRecord> ScoreRecords { get; set; } = new List<ScoreRecord>();
 
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
