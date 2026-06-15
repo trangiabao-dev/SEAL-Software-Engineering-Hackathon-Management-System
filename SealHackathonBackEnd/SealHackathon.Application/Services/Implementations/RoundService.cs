@@ -318,6 +318,53 @@ namespace SealHackathon.Application.Services.Implementations
             }
         }
 
+        public async Task<ApiResponse<List<JudgeAssignedRoundResponse>>> GetAssignedRoundsForJudgeAsync(Guid judgeId)
+        {
+            var judgeAssigns = await _uow.GetRepository<JudgeAssign>()
+                .GetAllAsync(ja => ja.JudgeId == judgeId);
+
+            var roundIds = judgeAssigns.Select(ja => ja.RoundId).Distinct().ToList();
+
+            var rounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => roundIds.Contains(r.Id));
+
+            var trackIds = rounds.Select(r => r.TrackId).Distinct().ToList();
+            var tracks = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => trackIds.Contains(t.Id));
+
+            var eventIds = tracks.Select(t => t.EventId).Distinct().ToList();
+            var events = await _uow.GetRepository<Event>()
+                .GetAllAsync(e => eventIds.Contains(e.Id));
+
+            // Đếm số lượng Submission trong các Round này
+            var submissions = await _uow.GetRepository<Submission>()
+                .GetAllAsync(s => roundIds.Contains(s.RoundId));
+            
+            var submissionCounts = submissions.GroupBy(s => s.RoundId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var result = new List<JudgeAssignedRoundResponse>();
+            foreach (var round in rounds)
+            {
+                var track = tracks.FirstOrDefault(t => t.Id == round.TrackId);
+                var ev = track != null ? events.FirstOrDefault(e => e.Id == track.EventId) : null;
+                
+                result.Add(new JudgeAssignedRoundResponse
+                {
+                    Id = round.Id,
+                    Name = round.Name,
+                    TrackName = track?.Name ?? "Unknown Track",
+                    EventName = ev?.Name ?? "Unknown Event",
+                    StartTime = round.StartTime,
+                    EndTime = round.EndTime,
+                    Status = round.Status,
+                    SubmissionCount = submissionCounts.ContainsKey(round.Id) ? submissionCounts[round.Id] : 0
+                });
+            }
+
+            return ApiResponse<List<JudgeAssignedRoundResponse>>.SuccessResult(result, "Lấy danh sách vòng thi được phân công thành công.");
+        }
+
         // Chuyển Round entity sang RoundResponse để trả về cho FE.
         private static RoundResponse MapToRoundResponse(Round round)
         {
