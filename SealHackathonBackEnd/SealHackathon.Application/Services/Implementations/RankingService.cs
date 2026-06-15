@@ -8,7 +8,7 @@ using SealHackathon.Domain.Interfaces.Repositories;
 namespace SealHackathon.Application.Services.Implementations
 {
     /// <summary>
-    /// Handles ranking logic — calculates TotalScore (weighted average), assigns RankPosition, and determines IsAdvancing.
+    /// Xử lý nghiệp vụ xếp hạng: tính tổng điểm có trọng số, xếp hạng và xác định đội được vào vòng tiếp theo.
     /// </summary>
     public class RankingService : IRankingService
     {
@@ -20,59 +20,53 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Calculates (or recalculates) the ranking for a round — deletes existing rankings,
-        /// recomputes from ScoreRecords, and saves the result to the database.
+        /// Tính hoặc tính lại bảng xếp hạng cho một Round, sau đó lưu kết quả xuống database.
         /// </summary>
         public async Task<RankingLeaderboardResponse> CalculateRankingAsync(int roundId)
         {
-            // Step 1: Verify Round exists
+            // Bước 1: Kiểm tra Round có tồn tại.
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
 
             if (round == null)
-                throw new NotFoundException("Round", roundId);
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            // Step 2: Fetch criteria for this round (needed for Weight values)
+            // Bước 2: Lấy tiêu chí của Round để biết trọng số điểm.
             var criteria = await _unitOfWork
                 .GetRepository<Criterion>()
                 .GetAllAsync(c => c.RoundId == roundId);
 
             if (!criteria.Any())
                 throw new BadRequestException(
-                    "This round has no scoring criteria. Please create criteria before calculating rankings.");
+                    "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.");
 
             var criterionWeightDict = criteria.ToDictionary(c => c.Id, c => c.Weight);
 
-            // Step 3: Build a set of disqualified/deleted team IDs to exclude from ranking
-            var disqualifiedTeamIds = (await _unitOfWork
-                .GetRepository<Team>()
-                .GetAllAsync(t => t.Status == TeamConstants.Status.Disqualified || t.IsDeleted))
-                .Select(t => t.Id)
-                .ToHashSet();
-
-            // Step 4: Fetch all valid submissions (not disqualified, team not disqualified/deleted)
+            // Bước 3: Lấy các bài nộp hợp lệ của Round.
+            // Bài nộp hợp lệ là bài chưa bị loại và team cũng chưa bị loại/xóa.
             var submissions = await _unitOfWork
                 .GetRepository<Submission>()
                 .GetAllAsync(s => s.RoundId == roundId
                                   && !s.IsDisqualified
-                                  && !disqualifiedTeamIds.Contains(s.TeamId));
+                                  && !s.Team.IsDeleted
+                                  && s.Team.Status != TeamConstants.Status.Disqualified);
 
             if (!submissions.Any())
                 throw new BadRequestException(
-                    "This round has no valid submissions (all may have been disqualified).");
+                    "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.");
 
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
 
-            // Step 5: Fetch ScoreRecords (exclude calibration records)
+            // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn.
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(sr => submissionIds.Contains(sr.SubmissionId)
                                    && !sr.IsCalibration);
 
-            // Step 6: Calculate TotalScore per team
-            // Formula: TotalScore = sum of (AVG score per criterion × criterion weight)
+            // Bước 5: Tính TotalScore cho từng team.
+            // Công thức: TotalScore = tổng của (điểm trung bình theo tiêu chí x trọng số tiêu chí).
             var teamScores = allScoreRecords
                 .GroupBy(sr => submissionTeamDict[sr.SubmissionId])
                 .Select(teamGroup => new
@@ -103,8 +97,8 @@ namespace SealHackathon.Application.Services.Implementations
                 .Concat(teamIdsWithoutScores.Select(tid => (TeamId: tid, TotalScore: 0.0)))
                 .ToList();
 
-            // Step 7: Assign RankPosition (tied scores share the same rank)
-            // Example: scores [9.5, 8.0, 8.0, 7.0] → ranks [1, 2, 2, 4]
+            // Bước 6: Xếp hạng team, các team bằng điểm sẽ cùng hạng.
+            // Ví dụ: điểm [9.5, 8.0, 8.0, 7.0] sẽ có hạng [1, 2, 2, 4].
             var rankedTeams = new List<(Guid TeamId, double TotalScore, int Rank)>();
             for (int i = 0; i < allTeamScores.Count; i++)
             {
@@ -124,12 +118,12 @@ namespace SealHackathon.Application.Services.Implementations
                 rankedTeams.Add((allTeamScores[i].TeamId, allTeamScores[i].TotalScore, rank));
             }
 
-            // Bước 7: Xác định IsAdvancing
+            // Bước 7: Xác định đội được vào vòng tiếp theo.
             var advancingSlots = round.AdvancingSlots;
 
             var now = DateTime.UtcNow;
 
-            // Bước 8: Xóa ranking cũ → Insert ranking mới
+            // Bước 8: Xóa ranking cũ và thêm ranking mới.
             var existingRankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
                 .GetAllAsync(r => r.RoundId == roundId);
@@ -161,7 +155,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _unitOfWork.SaveChangesAsync();
 
-            // Bước 9: Map sang Response DTO
+            // Bước 9: Chuyển dữ liệu sang response DTO.
             var teamIds = rankedTeams.Select(r => r.TeamId).ToList();
             var teams = await _unitOfWork
                 .GetRepository<Team>()
@@ -170,18 +164,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             var rankingResponses = newRankings
                 .OrderBy(r => r.RankPosition)
-                .Select(r => new RankingResponse
-                {
-                    Id = r.Id,
-                    TeamId = r.TeamId,
-                    TeamName = teamNameDict.GetValueOrDefault(r.TeamId, string.Empty),
-                    RoundId = r.RoundId,
-                    RoundName = round.Name,
-                    TotalScore = r.TotalScore,
-                    RankPosition = r.RankPosition,
-                    IsAdvancing = r.IsAdvancing,
-                    CalculatedAt = r.CalculatedAt
-                })
+                .Select(r => MapToRankingResponse(
+                    r, round.Name, teamNameDict.GetValueOrDefault(r.TeamId, string.Empty)))
                 .ToList();
 
             return new RankingLeaderboardResponse
@@ -200,30 +184,21 @@ namespace SealHackathon.Application.Services.Implementations
         /// </summary>
         public async Task<RankingLeaderboardResponse> GetLeaderboardByRoundAsync(int roundId)
         {
-            // Bước 1: Validate Round tồn tại
+            // Bước 1: Kiểm tra Round có tồn tại.
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
 
             if (round == null)
-                throw new NotFoundException("Round", roundId);
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            // Bước 2: Lấy tất cả Ranking đã tính của round này
+            // Bước 2: Lấy các Ranking hợp lệ đã tính của Round này.
+            // Ranking hợp lệ là ranking của team chưa bị xóa và chưa bị loại.
             var rankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
-                .GetAllAsync(r => r.RoundId == roundId);
-
-            // Step 3: Filter out rankings for teams that were disqualified or deleted after ranking was calculated
-            if (rankings.Any())
-            {
-                var rankingTeamIds = rankings.Select(r => r.TeamId).Distinct().ToList();
-                var disqualifiedTeams = await _unitOfWork
-                    .GetRepository<Team>()
-                    .GetAllAsync(t => rankingTeamIds.Contains(t.Id)
-                                      && (t.Status == TeamConstants.Status.Disqualified || t.IsDeleted));
-                var disqualifiedTeamIds = disqualifiedTeams.Select(t => t.Id).ToHashSet();
-                rankings = rankings.Where(r => !disqualifiedTeamIds.Contains(r.TeamId)).ToList();
-            }
+                .GetAllAsync(r => r.RoundId == roundId
+                                  && !r.Team.IsDeleted
+                                  && r.Team.Status != TeamConstants.Status.Disqualified);
 
             if (!rankings.Any())
             {
@@ -238,28 +213,18 @@ namespace SealHackathon.Application.Services.Implementations
                 };
             }
 
-            // Bước 3: Lấy tên Team
+            // Bước 3: Lấy tên Team.
             var teamIds = rankings.Select(r => r.TeamId).Distinct().ToList();
             var teams = await _unitOfWork
                 .GetRepository<Team>()
                 .GetAllAsync(t => teamIds.Contains(t.Id));
             var teamNameDict = teams.ToDictionary(t => t.Id, t => t.TeamName);
 
-            // Bước 4: Map sang Response DTO
+            // Bước 4: Chuyển dữ liệu sang response DTO.
             var rankingResponses = rankings
                 .OrderBy(r => r.RankPosition)
-                .Select(r => new RankingResponse
-                {
-                    Id = r.Id,
-                    TeamId = r.TeamId,
-                    TeamName = teamNameDict.GetValueOrDefault(r.TeamId, string.Empty),
-                    RoundId = r.RoundId,
-                    RoundName = round.Name,
-                    TotalScore = r.TotalScore,
-                    RankPosition = r.RankPosition,
-                    IsAdvancing = r.IsAdvancing,
-                    CalculatedAt = r.CalculatedAt
-                })
+                .Select(r => MapToRankingResponse(
+                    r, round.Name, teamNameDict.GetValueOrDefault(r.TeamId, string.Empty)))
                 .ToList();
 
             return new RankingLeaderboardResponse
@@ -278,39 +243,46 @@ namespace SealHackathon.Application.Services.Implementations
         /// </summary>
         public async Task<RankingResponse> GetTeamRankingAsync(int roundId, Guid teamId)
         {
-            // Step 1: Verify Round exists
+            // Bước 1: Kiểm tra Round có tồn tại.
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
 
             if (round == null)
-                throw new NotFoundException("Round", roundId);
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            // Step 2: Verify Team exists
-            var team = await _unitOfWork
-                .GetRepository<Team>()
-                .GetFirstOrDefaultAsync(t => t.Id == teamId);
+            // Bước 2: Kiểm tra Team có tồn tại.
+            var team = await _unitOfWork.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == teamId
+                                            && !t.IsDeleted
+                                            && t.Status != TeamConstants.Status.Disqualified);
 
             if (team == null)
-                throw new NotFoundException("Team", teamId);
+                throw new NotFoundException(ErrorMessages.Team.NotFound);
 
-            // Step 3: Find the ranking entry for this team in this round
+            // Bước 3: Tìm ranking của Team trong Round này.
             var ranking = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
                 .GetFirstOrDefaultAsync(r => r.RoundId == roundId && r.TeamId == teamId);
 
             if (ranking == null)
-                throw new NotFoundException(
-                    "Ranking", $"team '{team.TeamName}' in round '{round.Name}'");
+                throw new NotFoundException(ErrorMessages.Ranking.NotFound);
 
-            // Step 4: Map to response DTO
+            // Bước 4: Chuyển dữ liệu sang response DTO.
+            return MapToRankingResponse(ranking, round.Name, team.TeamName);
+        }
+
+        // =============== Mapping helpers ===============
+        private static RankingResponse MapToRankingResponse(
+            Domain.Entities.Ranking ranking, string roundName, string teamName)
+        {
             return new RankingResponse
             {
                 Id = ranking.Id,
                 TeamId = ranking.TeamId,
-                TeamName = team.TeamName,
+                TeamName = teamName,
                 RoundId = ranking.RoundId,
-                RoundName = round.Name,
+                RoundName = roundName,
                 TotalScore = ranking.TotalScore,
                 RankPosition = ranking.RankPosition,
                 IsAdvancing = ranking.IsAdvancing,

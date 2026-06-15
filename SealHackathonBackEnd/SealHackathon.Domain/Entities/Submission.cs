@@ -27,6 +27,8 @@ public partial class Submission
 
     public DateTime CreatedAt { get; set; }
 
+    public DateTime? UpdatedAt { get; set; }
+
     public virtual Account? DisqualifiedByNavigation { get; set; }
 
     public virtual Round Round { get; set; } = null!;

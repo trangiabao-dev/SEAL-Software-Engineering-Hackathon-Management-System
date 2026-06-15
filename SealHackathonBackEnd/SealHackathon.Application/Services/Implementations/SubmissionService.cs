@@ -22,25 +22,14 @@ namespace SealHackathon.Application.Services.Implementations
             if (roundId <= 0)
                 throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
 
-            if (string.IsNullOrWhiteSpace(request.DemoUrl)
-                && string.IsNullOrWhiteSpace(request.ReportUrl))
-                throw new BadRequestException(ErrorMessages.Submission.NeedAtLeastOneLink);
+            ValidateSubmissionLinks(request.DemoUrl, request.ReportUrl);
 
             var round = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
 
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            // Chỉ cho phép nộp/cập nhật bài khi Round đang mở nhận bài.
-            // Active là trạng thái thi chính thức; các trạng thái Upcoming, Scoring, Closed đều không được nhận bài.
-            if (!string.Equals(round.Status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
-                throw new BadRequestException(ErrorMessages.Submission.RoundNotActive);
-
-            if (DateTime.UtcNow < round.StartTime)
-                throw new BadRequestException(ErrorMessages.Submission.RoundNotStarted);
-
-            if (DateTime.UtcNow > round.EndTime)
-                throw new BadRequestException(ErrorMessages.Submission.DeadlinePassed);
+            ValidateRoundIsAcceptingSubmissions(round, ErrorMessages.Submission.DeadlinePassed);
 
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
@@ -82,12 +71,11 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId,
             UpdateSubmissionRequest request, Guid leaderId)
         {
+            // Chặn SubmissionId rỗng để trả lỗi request sai thay vì đi xuống database.
             if (submissionId == Guid.Empty)
                 throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
 
-            if (string.IsNullOrWhiteSpace(request.DemoUrl)
-                && string.IsNullOrWhiteSpace(request.ReportUrl))
-                throw new BadRequestException(ErrorMessages.Submission.NeedAtLeastOneLink);
+            ValidateSubmissionLinks(request.DemoUrl, request.ReportUrl);
 
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultTrackingAsync(s => s.Id == submissionId);
@@ -107,23 +95,20 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException(ErrorMessages.Submission.NoUpdatePermission);
 
+            if (team.Status != TeamConstants.Status.Approved)
+                throw new BadRequestException(ErrorMessages.Submission.TeamNotApproved);
+
             var round = await _uow.GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == submission.RoundId);
 
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            if (!string.Equals(round.Status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
-                throw new BadRequestException(ErrorMessages.Submission.RoundNotActive);
-
-            if (DateTime.UtcNow < round.StartTime)
-                throw new BadRequestException(ErrorMessages.Submission.RoundNotStarted);
-
-            if (DateTime.UtcNow > round.EndTime)
-                throw new BadRequestException(ErrorMessages.Submission.UpdateDeadlinePassed);
+            ValidateRoundIsAcceptingSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
 
             submission.DemoUrl = request.DemoUrl;
             submission.ReportUrl = request.ReportUrl;
+            submission.UpdatedAt = DateTime.UtcNow;
 
             await _uow.SaveChangesAsync();
 
@@ -133,6 +118,9 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId,
             Guid currentAccountId, bool isCoordinator, bool isJudge)
         {
+            if (submissionId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
+
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.Id == submissionId);
 
@@ -147,6 +135,10 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId,
             Guid currentAccountId, bool isCoordinator)
         {
+            // Chặn TeamId rỗng để trả lỗi request sai thay vì đi xuống database.
+            if (teamId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidTeamId);
+
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
 
@@ -174,19 +166,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            if (!isCoordinator)
-            {
-                if (!isJudge)
-                    throw new ForbiddenException(ErrorMessages.Submission.NoViewPermission);
+            await ValidateRoundSubmissionsViewPermissionAsync(roundId, currentAccountId, isCoordinator, isJudge);
 
-                var judgeAssign = await _uow.GetRepository<JudgeAssign>()
-                    .GetFirstOrDefaultAsync(ja => ja.RoundId == roundId
-                                               && ja.JudgeId == currentAccountId);
-
-                if (judgeAssign is null)
-                    throw new ForbiddenException(ErrorMessages.Submission.JudgeNotAssignedToRound);
-            }
-
+            // trả về tất cả bài nộp trong Round - bao gồm những bài bị loại
             var submissions = await _uow.GetRepository<Submission>()
                 .GetAllAsync(s => s.RoundId == roundId);
 
@@ -196,6 +178,9 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task DisqualifySubmissionAsync(Guid submissionId,
             DisqualifySubmissionRequest request, Guid coordinatorId)
         {
+            if (submissionId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
+
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultTrackingAsync(s => s.Id == submissionId);
 
@@ -211,6 +196,53 @@ namespace SealHackathon.Application.Services.Implementations
             submission.DisqualifiedBy = coordinatorId;
 
             await _uow.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Kiểm tra bài nộp có ít nhất một link DemoUrl hoặc ReportUrl.
+        /// </summary>
+        private static void ValidateSubmissionLinks(string? demoUrl, string? reportUrl)
+        {
+            if (string.IsNullOrWhiteSpace(demoUrl)
+                && string.IsNullOrWhiteSpace(reportUrl))
+                throw new BadRequestException(ErrorMessages.Submission.NeedAtLeastOneLink);
+        }
+
+        /// <summary>
+        /// Kiểm tra Round có đang ở trạng thái nhận bài không, gồm Active, chưa quá hạn, chưa bắt đầu quá sớm.
+        /// </summary>
+        private static void ValidateRoundIsAcceptingSubmissions(Round round, string deadlinePassedErrorMessage)
+        {
+            // Chỉ cho phép nộp/cập nhật bài khi Round đang mở nhận bài.
+            // Active là trạng thái thi chính thức; các trạng thái Upcoming, Scoring, Closed đều không được nhận bài.
+            if (!string.Equals(round.Status, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotActive);
+
+            if (DateTime.UtcNow < round.StartTime)
+                throw new BadRequestException(ErrorMessages.Submission.RoundNotStarted);
+
+            if (DateTime.UtcNow > round.EndTime)
+                throw new BadRequestException(deadlinePassedErrorMessage);
+        }
+
+        /// <summary>
+        /// Kiểm tra quyền xem danh sách bài nộp của Round
+        /// </summary>
+        private async Task ValidateRoundSubmissionsViewPermissionAsync(int roundId,
+            Guid currentAccountId, bool isCoordinator, bool isJudge)
+        {
+            if (isCoordinator)
+                return;
+
+            if (!isJudge)
+                throw new ForbiddenException(ErrorMessages.Submission.NoViewPermission);
+
+            var judgeAssign = await _uow.GetRepository<JudgeAssign>()
+                .GetFirstOrDefaultAsync(ja => ja.RoundId == roundId
+                                           && ja.JudgeId == currentAccountId);
+
+            if (judgeAssign is null)
+                throw new ForbiddenException(ErrorMessages.Submission.JudgeNotAssignedToRound);
         }
 
         private async Task EnsureCanViewSubmissionAsync(Submission submission, Guid currentAccountId,
@@ -255,7 +287,8 @@ namespace SealHackathon.Application.Services.Implementations
                 DisqualifyReason = submission.DisqualifyReason,
                 DisqualifiedAt = submission.DisqualifiedAt,
                 DisqualifiedBy = submission.DisqualifiedBy,
-                CreatedAt = submission.CreatedAt
+                CreatedAt = submission.CreatedAt,
+                UpdatedAt = submission.UpdatedAt
             };
         }
     }

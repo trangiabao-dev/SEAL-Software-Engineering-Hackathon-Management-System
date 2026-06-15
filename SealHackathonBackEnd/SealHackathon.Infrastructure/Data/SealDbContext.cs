@@ -12,45 +12,45 @@ public partial class SealDbContext : DbContext
     {
     }
 
-    public virtual DbSet<Account> Accounts { get; set; }
+    public virtual DbSet<Account> Accounts { get; set; } = null!;
 
-    public virtual DbSet<AuditLog> AuditLogs { get; set; }
+    public virtual DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
-    public virtual DbSet<Criterion> Criteria { get; set; }
+    public virtual DbSet<Criterion> Criteria { get; set; } = null!;
 
-    public virtual DbSet<CriterionTemplate> CriterionTemplates { get; set; }
+    public virtual DbSet<CriterionTemplate> CriterionTemplates { get; set; } = null!;
 
-    public virtual DbSet<CriterionTemplateItem> CriterionTemplateItems { get; set; }
+    public virtual DbSet<CriterionTemplateItem> CriterionTemplateItems { get; set; } = null!;
 
-    public virtual DbSet<Event> Events { get; set; }
+    public virtual DbSet<Event> Events { get; set; } = null!;
 
-    public virtual DbSet<EventAccount> EventAccounts { get; set; }
+    public virtual DbSet<EventAccount> EventAccounts { get; set; } = null!;
 
-    public virtual DbSet<JudgeAssign> JudgeAssigns { get; set; }
+    public virtual DbSet<JudgeAssign> JudgeAssigns { get; set; } = null!;
 
-    public virtual DbSet<MentorAssign> MentorAssigns { get; set; }
+    public virtual DbSet<MentorAssign> MentorAssigns { get; set; } = null!;
 
-    public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<Notification> Notifications { get; set; } = null!;
 
-    public virtual DbSet<Prize> Prizes { get; set; }
+    public virtual DbSet<Prize> Prizes { get; set; } = null!;
 
-    public virtual DbSet<Ranking> Rankings { get; set; }
+    public virtual DbSet<Ranking> Rankings { get; set; } = null!;
 
-    public virtual DbSet<Round> Rounds { get; set; }
+    public virtual DbSet<Round> Rounds { get; set; } = null!;
 
-    public virtual DbSet<SchemaVersion> SchemaVersions { get; set; }
+    public virtual DbSet<SchemaVersion> SchemaVersions { get; set; } = null!;
 
-    public virtual DbSet<ScoreRecord> ScoreRecords { get; set; }
+    public virtual DbSet<ScoreRecord> ScoreRecords { get; set; } = null!;
 
-    public virtual DbSet<Submission> Submissions { get; set; }
+    public virtual DbSet<Submission> Submissions { get; set; } = null!;
 
-    public virtual DbSet<Team> Teams { get; set; }
+    public virtual DbSet<Team> Teams { get; set; } = null!;
 
-    public virtual DbSet<TeamMember> TeamMembers { get; set; }
+    public virtual DbSet<TeamMember> TeamMembers { get; set; } = null!;
 
-    public virtual DbSet<Topic> Topics { get; set; }
+    public virtual DbSet<Topic> Topics { get; set; } = null!;
 
-    public virtual DbSet<Track> Tracks { get; set; }
+    public virtual DbSet<Track> Tracks { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -406,6 +406,7 @@ public partial class SealDbContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UpdatedAt);
             entity.Property(e => e.DemoUrl)
                 .HasMaxLength(1000)
                 .IsUnicode(false);

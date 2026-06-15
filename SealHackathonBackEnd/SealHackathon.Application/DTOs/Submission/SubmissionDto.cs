@@ -16,5 +16,6 @@
         public DateTime? DisqualifiedAt { get; set; }
         public Guid? DisqualifiedBy { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }

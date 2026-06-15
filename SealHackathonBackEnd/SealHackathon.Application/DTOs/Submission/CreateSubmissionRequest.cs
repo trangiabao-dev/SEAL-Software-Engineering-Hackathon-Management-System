@@ -9,7 +9,7 @@ namespace SealHackathon.Application.DTOs.Submission
         public string? DemoUrl { get; set; }
 
         [Url(ErrorMessage = "ReportUrl không đúng định dạng URL.")]
-        [StringLength (1000, ErrorMessage = "ReportUrl không được vượt quá 1000 ký tự.")]
+        [StringLength(1000, ErrorMessage = "ReportUrl không được vượt quá 1000 ký tự.")]
         public string? ReportUrl { get; set; }
     }
 }

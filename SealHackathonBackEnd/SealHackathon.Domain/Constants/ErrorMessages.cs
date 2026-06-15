@@ -61,6 +61,7 @@ namespace SealHackathon.Domain.Constants
             public const string InvalidPageSize = "PageSize không hợp lệ.";
             public const string InvalidAccount = "Tài khoản của bạn không tồn tại hoặc đã bị vô hiệu hóa.";
             public const string InvalidRoundId = "RoundId không hợp lệ.";
+            public const string InvalidTeamId = "TeamId không hợp lệ.";
             public const string InvalidSubmissionId = "SubmissionId không hợp lệ.";
             public const string InvalidMentorId = "MentorId không hợp lệ.";
             public const string RoundNotFound = "Không tìm thấy vòng thi.";
@@ -70,6 +71,13 @@ namespace SealHackathon.Domain.Constants
             public const string InvalidJudgeId = "JudgeId không hợp lệ.";
             public const string JudgeNotFound = "Không tìm thấy Judge.";
             public const string JudgeNotInEvent = "Tài khoản này chưa được phân quyền Judge trong Event của Round này.";
+        }
+
+        public static class Round
+        {
+            public const string JudgeAlreadyAssigned = "Judge này đã được phân công vào Round này.";
+            public const string NoTopicToAssign = "Không có Topic nào trong Round này để gán cho các nhóm.";
+            public const string NotEnoughTopics = "Số lượng Topic không đủ để gán mỗi đội một đề khác nhau.";
         }
 
         public static class Criterion
@@ -102,6 +110,11 @@ namespace SealHackathon.Domain.Constants
             public const string JudgeNoUpdatePermission = "Bạn chỉ được chỉnh sửa điểm do chính bạn đã chấm.";
             public const string AlreadyScored = "Bạn đã chấm tiêu chí này cho bài nộp này.";
             public const string InvalidScoreRange = "Điểm chấm không hợp lệ.";
+        }
+
+        public static class Ranking
+        {
+            public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
         }
     }
 }
