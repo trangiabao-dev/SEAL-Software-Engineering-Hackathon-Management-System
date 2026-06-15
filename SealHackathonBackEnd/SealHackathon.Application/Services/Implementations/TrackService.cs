@@ -170,6 +170,89 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<bool>.SuccessResult(true, "Phân công Mentor vào Track thành công.");
         }
 
+        public async Task<ApiResponse<MentorTeamAssignmentResponse>> AssignMentorToTeamsAsync(
+            int trackId, Guid mentorId, AssignMentorTeamsRequest request, Guid assignedBy)
+        {
+            if (trackId <= 0)
+                throw new BadRequestException("TrackId không hợp lệ.");
+
+            if (mentorId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidMentorId);
+
+            var selectedTeamIds = request.TeamIds
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            if (!selectedTeamIds.Any())
+                throw new BadRequestException(ErrorMessages.Team.TeamIdsRequired);
+
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            await EnsureMentorCanManageTrackAsync(track, mentorId);
+
+            // Lấy toàn bộ team trong Track rồi lọc bằng C# để tránh lỗi Contains với SQL Server cũ.
+            var teamsInTrack = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => t.TrackId == trackId && !t.IsDeleted);
+
+            var selectedTeams = teamsInTrack
+                .Where(t => selectedTeamIds.Contains(t.Id))
+                .ToList();
+
+            if (selectedTeams.Count != selectedTeamIds.Count)
+                throw new BadRequestException(ErrorMessages.Team.TeamNotInTrack);
+
+            if (selectedTeams.Any(t => t.Status != TeamConstants.Status.Approved))
+                throw new BadRequestException(ErrorMessages.Team.OnlyApprovedCanAssignMentor);
+
+            var teamRepo = _uow.GetRepository<Team>();
+            var now = DateTime.UtcNow;
+
+            foreach (var team in selectedTeams)
+            {
+                team.MentorId = mentorId;
+                team.UpdatedAt = now;
+                team.UpdatedBy = assignedBy;
+                teamRepo.Update(team);
+            }
+
+            await _uow.SaveChangesAsync();
+
+            return ApiResponse<MentorTeamAssignmentResponse>.SuccessResult(
+                MapToMentorTeamAssignmentResponse(trackId, mentorId, selectedTeams),
+                "Phân công Mentor phụ trách team thành công.");
+        }
+
+        public async Task<ApiResponse<MentorTeamAssignmentResponse>> GetMentorTeamsAsync(int trackId, Guid mentorId)
+        {
+            if (trackId <= 0)
+                throw new BadRequestException("TrackId không hợp lệ.");
+
+            if (mentorId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidMentorId);
+
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            await EnsureMentorCanManageTrackAsync(track, mentorId);
+
+            var teams = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => t.TrackId == trackId
+                               && t.MentorId == mentorId
+                               && !t.IsDeleted);
+
+            return ApiResponse<MentorTeamAssignmentResponse>.SuccessResult(
+                MapToMentorTeamAssignmentResponse(trackId, mentorId, teams),
+                "Lấy danh sách team Mentor phụ trách thành công.");
+        }
+
         public async Task<ApiResponse<List<TrackRoundsResponse>>> GetAllTracksWithRoundsAsync()
         {
             var trackRepo = _uow.GetRepository<Track>();
@@ -229,6 +312,49 @@ namespace SealHackathon.Application.Services.Implementations
             if (totalDuration <= 0) return 100;
             
             return (int)((elapsedDuration / totalDuration) * 100);
+        }
+
+        private async Task EnsureMentorCanManageTrackAsync(Track track, Guid mentorId)
+        {
+            var mentor = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == mentorId && !a.IsDeleted);
+
+            if (mentor is null)
+                throw new NotFoundException(ErrorMessages.Common.MentorNotFound);
+
+            var mentorEventRole = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(ea => ea.EventId == track.EventId
+                                           && ea.AccountId == mentorId
+                                           && ea.EventRole == RoleConstants.Mentor
+                                           && ea.Status == EventAccountConstants.Status.Approved);
+
+            if (mentorEventRole is null)
+                throw new BadRequestException(ErrorMessages.Team.MentorNotInEvent);
+
+            var mentorAssign = await _uow.GetRepository<MentorAssign>()
+                .GetFirstOrDefaultAsync(ma => ma.MentorId == mentorId
+                                           && ma.TrackId == track.Id);
+
+            if (mentorAssign is null)
+                throw new BadRequestException(ErrorMessages.Team.MentorNotAssignedToTrack);
+        }
+
+        private static MentorTeamAssignmentResponse MapToMentorTeamAssignmentResponse(
+            int trackId, Guid mentorId, List<Team> teams)
+        {
+            return new MentorTeamAssignmentResponse
+            {
+                TrackId = trackId,
+                MentorId = mentorId,
+                AssignedTeams = teams
+                    .OrderBy(t => t.TeamName)
+                    .Select(t => new MentorAssignedTeamDto
+                    {
+                        TeamId = t.Id,
+                        TeamName = t.TeamName
+                    })
+                    .ToList()
+            };
         }
     }
 }

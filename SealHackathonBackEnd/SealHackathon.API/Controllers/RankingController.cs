@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Application.Common.Responses;
-using SealHackathon.Application.Ranking;
+using SealHackathon.Application.DTOs.Ranking;
 using SealHackathon.Application.Services.Interfaces;
 
 namespace SealHackathon.API.Controllers

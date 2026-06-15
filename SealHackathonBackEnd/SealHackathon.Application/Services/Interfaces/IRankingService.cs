@@ -1,4 +1,4 @@
-using SealHackathon.Application.Ranking;
+using SealHackathon.Application.DTOs.Ranking;
 
 namespace SealHackathon.Application.Services.Interfaces
 {

@@ -1,4 +1,4 @@
-using SealHackathon.Application.Ranking;
+using SealHackathon.Application.DTOs.Ranking;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;

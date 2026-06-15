@@ -183,9 +183,10 @@ public class AuthService : IAuthService
             var activeEventAccount = await _uow.GetRepository<EventAccount>()
                 .GetFirstOrDefaultAsync(ea =>
                     ea.AccountId == account.Id &&
-                    ea.Status == "Approved" &&
+                    ea.Status == EventAccountConstants.Status.Approved &&
                     !ea.Event.IsDeleted &&
-                    ea.Event.Status == EventConstants.Status.Active);
+                    (ea.Event.Status == EventConstants.Status.Registration
+                     || ea.Event.Status == EventConstants.Status.Active));
 
             if (activeEventAccount is null)
                 throw new ForbiddenException("Tài khoản này hiện không hoạt động trong sự kiện nào.");
@@ -608,9 +609,10 @@ public class AuthService : IAuthService
         var activeEventRoles = await _uow.GetRepository<EventAccount>()
             .GetAllAsync(ea =>
                 ea.AccountId == account.Id &&
-                ea.Status == "Approved" &&
+                ea.Status == EventAccountConstants.Status.Approved &&
                 !ea.Event.IsDeleted &&
-                ea.Event.Status == EventConstants.Status.Active);
+                (ea.Event.Status == EventConstants.Status.Registration
+                 || ea.Event.Status == EventConstants.Status.Active));
 
         foreach (var eventRole in activeEventRoles.Select(ea => ea.EventRole).Distinct())
         {
