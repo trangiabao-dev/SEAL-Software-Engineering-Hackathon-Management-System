@@ -45,6 +45,11 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission.IsDisqualified)
                 throw new BadRequestException(ErrorMessages.Score.SubmissionDisqualified);
 
+            // Lớp bảo vệ thứ hai: kiểm tra chính Team có bị loại không.
+            // Phòng trường hợp submission được tạo sau khi team bị loại mà chưa set IsDisqualified.
+            await EnsureTeamNotDisqualifiedAsync(
+                submission.TeamId, ErrorMessages.Score.TeamDisqualified);
+
             // Tiêu chí phải thuộc cùng Round với bài nộp.
             if (criterion.RoundId != submission.RoundId)
                 throw new BadRequestException(ErrorMessages.Score.CriterionNotInSubmissionRound);
@@ -182,6 +187,10 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission.IsDisqualified)
                 throw new BadRequestException(ErrorMessages.Score.SubmissionDisqualifiedCannotUpdate);
 
+            // Lớp bảo vệ thứ hai: kiểm tra chính Team có bị loại không.
+            await EnsureTeamNotDisqualifiedAsync(
+                submission.TeamId, ErrorMessages.Score.TeamDisqualifiedCannotUpdate);
+
             // Round phải tồn tại và đang ở trạng thái Scoring.
             var round = await GetScoringRoundAsync(submission.RoundId);
 
@@ -212,6 +221,24 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Lớp bảo vệ thứ hai (defense in depth): kiểm tra Team có bị Disqualified không.
+        /// Phòng trường hợp Submission lọt qua mà chưa được đánh cờ IsDisqualified.
+        /// </summary>
+        private async Task EnsureTeamNotDisqualifiedAsync(Guid teamId, string errorMessage)
+        {
+            var team = await _unitOfWork
+                .GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+
+            if (team is not null
+                && string.Equals(team.Status, TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(errorMessage);
+            }
+        }
+
         // Kiểm tra Round có tồn tại và đang ở trạng thái Scoring.
         private async Task<Round> GetScoringRoundAsync(int roundId)
         {

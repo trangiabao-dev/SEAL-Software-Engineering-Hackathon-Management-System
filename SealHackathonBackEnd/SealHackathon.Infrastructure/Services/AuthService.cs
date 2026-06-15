@@ -496,18 +496,35 @@ public class AuthService : IAuthService
         var eventAccounts = await _uow.GetRepository<EventAccount>()
             .GetAllAsync(ea => ea.EventId == eventId);
 
-        // Fetch Accounts to get Email and Username
+        // Khắc phục lỗi "OPENJSON" của EF Core 8 trên SQL Server cũ khi dùng Contains
         var accountIds = eventAccounts.Select(ea => ea.AccountId).Distinct().ToList();
-        var accounts = await _uow.GetRepository<Account>()
-            .GetAllAsync(a => accountIds.Contains(a.Id) && !a.IsDeleted);
+        var accounts = new List<Account>();
+        
+        foreach (var id in accountIds)
+        {
+            var acc = await _uow.GetRepository<Account>().GetFirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            if (acc != null)
+            {
+                accounts.Add(acc);
+            }
+        }
         var accountDict = accounts.ToDictionary(a => a.Id);
+
+        var mentorTeams = await _uow.GetRepository<Team>()
+            .GetAllAsync(t => t.Track.EventId == eventId && t.MentorId != null && !t.IsDeleted);
+
+        var judgeAssignments = await _uow.GetRepository<JudgeAssign>()
+            .GetAllAsync(ja => ja.Round.Track.EventId == eventId);
+
+        var eventRounds = await _uow.GetRepository<Round>()
+            .GetAllAsync(r => r.Track.EventId == eventId);
 
         var result = new List<EventStaffResponse>();
         foreach (var ea in eventAccounts)
         {
             if (accountDict.TryGetValue(ea.AccountId, out var acc))
             {
-                result.Add(new EventStaffResponse
+                var staffResponse = new EventStaffResponse
                 {
                     AccountId = ea.AccountId,
                     EventId = ea.EventId,
@@ -516,7 +533,39 @@ public class AuthService : IAuthService
                     EventRole = ea.EventRole,
                     Status = ea.Status,
                     JudgeType = ea.JudgeType
-                });
+                };
+
+                // [DEV 1 - THÊM DỮ LIỆU ASSIGNED TEAMS CHO MENTOR]
+                // Chức năng: Giúp FE hiển thị danh sách các Đội mà Mentor được phân công quản lý.
+                if (ea.EventRole == RoleConstants.Mentor)
+                {
+                    staffResponse.AssignedTeams = mentorTeams
+                        .Where(t => t.MentorId == ea.AccountId)
+                        .Select(t => new StaffTeamDto
+                        {
+                            Id = t.Id,
+                            TeamName = t.TeamName
+                        }).ToList();
+                }
+                // [DEV 1 - THÊM DỮ LIỆU ASSIGNED ROUNDS CHO JUDGE]
+                // Chức năng: Giúp FE hiển thị danh sách các Vòng thi mà Giám khảo được phân công chấm điểm.
+                else if (ea.EventRole == RoleConstants.Judge)
+                {
+                    var assignedRoundIds = judgeAssignments
+                        .Where(ja => ja.JudgeId == ea.AccountId)
+                        .Select(ja => ja.RoundId)
+                        .ToList();
+
+                    staffResponse.AssignedRounds = eventRounds
+                        .Where(r => assignedRoundIds.Contains(r.Id))
+                        .Select(r => new StaffRoundDto
+                        {
+                            Id = r.Id,
+                            Name = r.Name
+                        }).ToList();
+                }
+
+                result.Add(staffResponse);
             }
         }
 

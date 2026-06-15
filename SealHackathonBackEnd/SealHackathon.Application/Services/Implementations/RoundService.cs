@@ -196,6 +196,50 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
         }
 
+
+        // [DEV 1 - LẤY DANH SÁCH GIÁM KHẢO CỦA VÒNG THI]
+        // Chức năng: Trả về danh sách chi tiết các giám khảo (kèm email, username, loại giám khảo) đã được phân công vào vòng thi này.
+        public async Task<ApiResponse<List<RoundJudgeResponse>>> GetJudgesByRoundAsync(int roundId)
+        {
+            var round = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
+            if (round == null) throw new NotFoundException($"Không tìm thấy Round với ID {roundId}");
+
+            var judgeAssigns = await _uow.GetRepository<JudgeAssign>()
+                .GetAllAsync(ja => ja.RoundId == roundId);
+
+            var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).Distinct().ToList();
+            
+            // Khắc phục lỗi "OPENJSON" của EF Core 8 trên SQL Server cũ khi dùng Contains
+            var judges = new List<Account>();
+            foreach (var id in judgeIds)
+            {
+                var acc = await _uow.GetRepository<Account>().GetFirstOrDefaultAsync(a => a.Id == id);
+                if (acc != null)
+                {
+                    judges.Add(acc);
+                }
+            }
+
+            var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
+            var eventAccounts = await _uow.GetRepository<EventAccount>()
+                .GetAllAsync(ea => ea.EventId == track!.EventId && ea.EventRole == RoleConstants.Judge);
+
+            var response = judgeAssigns.Select(ja => {
+                var ea = eventAccounts.FirstOrDefault(e => e.AccountId == ja.JudgeId);
+                var judgeAcc = judges.FirstOrDefault(j => j.Id == ja.JudgeId);
+                return new RoundJudgeResponse
+                {
+                    JudgeId = ja.JudgeId,
+                    Email = judgeAcc?.Email ?? "",
+                    Username = judgeAcc?.Username ?? "",
+                    JudgeType = ea?.JudgeType,
+                    AssignedAt = ja.AssignedAt
+                };
+            }).ToList();
+
+            return ApiResponse<List<RoundJudgeResponse>>.SuccessResult(response);
+        }
+
         // =============== Private helpers ===============
         // Kiểm tra và chuẩn hóa status của Round.
         // BE chỉ cho phép 4 trạng thái: Upcoming, Active, Scoring, Closed.
@@ -272,6 +316,53 @@ namespace SealHackathon.Application.Services.Implementations
                 teamsWithoutTopic[i].UpdatedAt = now;
                 teamRepo.Update(teamsWithoutTopic[i]);
             }
+        }
+
+        public async Task<ApiResponse<List<JudgeAssignedRoundResponse>>> GetAssignedRoundsForJudgeAsync(Guid judgeId)
+        {
+            var judgeAssigns = await _uow.GetRepository<JudgeAssign>()
+                .GetAllAsync(ja => ja.JudgeId == judgeId);
+
+            var roundIds = judgeAssigns.Select(ja => ja.RoundId).Distinct().ToList();
+
+            var rounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => roundIds.Contains(r.Id));
+
+            var trackIds = rounds.Select(r => r.TrackId).Distinct().ToList();
+            var tracks = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => trackIds.Contains(t.Id));
+
+            var eventIds = tracks.Select(t => t.EventId).Distinct().ToList();
+            var events = await _uow.GetRepository<Event>()
+                .GetAllAsync(e => eventIds.Contains(e.Id));
+
+            // Đếm số lượng Submission trong các Round này
+            var submissions = await _uow.GetRepository<Submission>()
+                .GetAllAsync(s => roundIds.Contains(s.RoundId));
+            
+            var submissionCounts = submissions.GroupBy(s => s.RoundId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var result = new List<JudgeAssignedRoundResponse>();
+            foreach (var round in rounds)
+            {
+                var track = tracks.FirstOrDefault(t => t.Id == round.TrackId);
+                var ev = track != null ? events.FirstOrDefault(e => e.Id == track.EventId) : null;
+                
+                result.Add(new JudgeAssignedRoundResponse
+                {
+                    Id = round.Id,
+                    Name = round.Name,
+                    TrackName = track?.Name ?? "Unknown Track",
+                    EventName = ev?.Name ?? "Unknown Event",
+                    StartTime = round.StartTime,
+                    EndTime = round.EndTime,
+                    Status = round.Status,
+                    SubmissionCount = submissionCounts.ContainsKey(round.Id) ? submissionCounts[round.Id] : 0
+                });
+            }
+
+            return ApiResponse<List<JudgeAssignedRoundResponse>>.SuccessResult(result, "Lấy danh sách vòng thi được phân công thành công.");
         }
 
         // Chuyển Round entity sang RoundResponse để trả về cho FE.

@@ -122,7 +122,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddDbContext<SealDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), 
+        sqlOptions => sqlOptions.UseCompatibilityLevel(120));
 });
 
 // Đăng ký UnitOfWork với vòng đời Scoped
@@ -139,7 +140,11 @@ builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<ICriterionService, CriterionService>();
 builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+builder.Services.AddScoped<INotificationService, NotificationService>();
+//=======
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+
 
 // Đăng ký Background Service - chạy ngầm
 builder.Services.AddHostedService<SealHackathon.API.BackgroundServices.UnverifiedAccountCleanupService>();
