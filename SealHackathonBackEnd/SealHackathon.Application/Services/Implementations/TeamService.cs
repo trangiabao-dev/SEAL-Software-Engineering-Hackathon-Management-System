@@ -173,6 +173,70 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToDto(team, members, topic);
         }
 
+        public async Task<MyActiveRoundResponse?> GetMyActiveRoundAsync(Guid leaderId)
+        {
+            var leaderAccount = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
+
+            if (leaderAccount is null)
+                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
+
+            var currentEvents = await _uow.GetRepository<Event>()
+                .GetAllAsync(e => !e.IsDeleted
+                               && e.Status == EventConstants.Status.Active);
+
+            if (!currentEvents.Any())
+                return null;
+
+            if (currentEvents.Count > 1)
+                throw new ConflictException("Hệ thống đang có nhiều hơn một Event đang diễn ra.");
+
+            var currentEvent = currentEvents.First();
+
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.LeaderId == leaderId
+                                            && t.Track.EventId == currentEvent.Id
+                                            && !t.Track.IsDeleted && !t.IsDeleted);
+
+            if (team is null)
+                return null;
+
+            if (team.Status != TeamConstants.Status.Approved)
+                return null;
+
+            var activeRounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => r.TrackId == team.TrackId && r.Status == RoundConstants.Status.Active);
+
+            var activeRound = activeRounds.OrderBy(r => r.OrderIndex).FirstOrDefault();
+
+            if (activeRound is null)
+                return null;
+
+            var roundTeam = await _uow.GetRepository<RoundTeam>()
+                .GetFirstOrDefaultAsync(rt => rt.RoundId == activeRound.Id
+                                           && rt.TeamId == team.Id
+                                           && rt.TopicId != null);
+
+            Topic? topic = null;
+
+            if (roundTeam?.TopicId is not null)
+            {
+                topic = await _uow.GetRepository<Topic>()
+                    .GetFirstOrDefaultAsync(t => t.Id == roundTeam.TopicId.Value);
+            }
+
+            return new MyActiveRoundResponse
+            {
+                RoundId = activeRound.Id,
+                RoundName = activeRound.Name,
+                Status = activeRound.Status,
+                StartTime = activeRound.StartTime,
+                EndTime = activeRound.EndTime,
+                CanSubmit = topic is not null,
+                Topic = MapToTopicDto(topic)
+            };
+        }
+
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
         {
             var repo = _uow.GetRepository<Team>();
@@ -654,20 +718,21 @@ namespace SealHackathon.Application.Services.Implementations
 
         private async Task<Topic?> GetTopicForTeamAsync(Team team)
         {
+            // Leader chỉ được thấy đề khi hệ thống đã tạo RoundTeam.
             var roundTeams = await _uow.GetRepository<RoundTeam>()
-                .GetAllAsync(rt => rt.TeamId == team.Id && rt.TopicId != null);
+                .GetAllAsync(rt => rt.TeamId == team.Id
+                                && rt.TopicId != null
+                                && rt.Round.Status != RoundConstants.Status.Upcoming);
 
             var latestRoundTeam = roundTeams
                 .OrderByDescending(rt => rt.AssignedAt)
                 .FirstOrDefault();
 
-            var topicId = latestRoundTeam?.TopicId ?? team.TopicId;
-
-            if (!topicId.HasValue)
+            if (latestRoundTeam?.TopicId is null)
                 return null;
 
             return await _uow.GetRepository<Topic>()
-                .GetFirstOrDefaultAsync(t => t.Id == topicId.Value);
+                .GetFirstOrDefaultAsync(t => t.Id == latestRoundTeam.TopicId.Value);
         }
 
         // =============== Mapping helpers ===============
@@ -681,7 +746,7 @@ namespace SealHackathon.Application.Services.Implementations
                 TrackId = team.TrackId,
                 LeaderId = team.LeaderId,
                 MentorId = team.MentorId,
-                TopicId = team.TopicId,
+                TopicId = topic?.Id,
                 Topic = MapToTopicDto(topic),
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,

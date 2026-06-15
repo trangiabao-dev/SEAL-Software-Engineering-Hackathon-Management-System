@@ -92,6 +92,17 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<TeamDetailDto?>.SuccessResult(result));
         }
 
+        // GET api/teams/my-active-round — Leader kiểm tra Round đang Active và đề đã được phát chưa.
+        [HttpGet("my-active-round")]
+        [Authorize(Roles = RoleConstants.Leader)]
+        public async Task<IActionResult> GetMyActiveRound()
+        {
+            var leaderId = GetCurrentAccountId();
+            var result = await _teamService.GetMyActiveRoundAsync(leaderId);
+
+            return Ok(ApiResponse<MyActiveRoundResponse?>.SuccessResult(result));
+        }
+
         // ==========================================
         // COORDINATOR OPERATIONS
         // ==========================================
