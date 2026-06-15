@@ -110,6 +110,8 @@ namespace SealHackathon.Domain.Constants
             public const string JudgeNoUpdatePermission = "Bạn chỉ được chỉnh sửa điểm do chính bạn đã chấm.";
             public const string AlreadyScored = "Bạn đã chấm tiêu chí này cho bài nộp này.";
             public const string InvalidScoreRange = "Điểm chấm không hợp lệ.";
+            public const string TeamDisqualified = "Đội thi đã bị loại, không thể chấm điểm.";
+            public const string TeamDisqualifiedCannotUpdate = "Đội thi đã bị loại, không thể cập nhật điểm.";
         }
 
         public static class Ranking
