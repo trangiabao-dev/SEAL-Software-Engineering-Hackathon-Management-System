@@ -1,5 +1,3 @@
-using System;
-
 namespace SealHackathon.Application.DTOs.Round
 {
     // DTO tạo mới Round trong một Track cụ thể

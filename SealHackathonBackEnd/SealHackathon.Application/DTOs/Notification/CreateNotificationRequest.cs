@@ -1,5 +1,3 @@
-using System;
-
 namespace SealHackathon.Application.DTOs.Notification
 {
     public class CreateNotificationRequest

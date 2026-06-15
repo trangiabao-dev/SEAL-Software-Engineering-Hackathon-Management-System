@@ -5,10 +5,7 @@ using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using RankingEntity = SealHackathon.Domain.Entities.Ranking;
 
 namespace SealHackathon.Application.Services.Implementations
 {
@@ -119,6 +116,7 @@ namespace SealHackathon.Application.Services.Implementations
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
             if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
             {
+                await EnsureEventIsActiveBeforeStartingRoundAsync(existingRound);
                 await AssignTopicsForRoundAsync(existingRound);
             }
 
@@ -267,55 +265,116 @@ namespace SealHackathon.Application.Services.Implementations
 
         // Gán Topic cho các team đã được duyệt trong Track của Round.
         // Team đã có Topic thì giữ nguyên, không random lại.
+        private async Task EnsureEventIsActiveBeforeStartingRoundAsync(Round round)
+        {
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            var eventEntity = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == track.EventId && !e.IsDeleted);
+
+            if (eventEntity is null)
+                throw new NotFoundException(ErrorMessages.Event.CurrentEventNotFound);
+
+            if (!string.Equals(eventEntity.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Round.EventMustBeActiveToStartRound);
+        }
+
         private async Task AssignTopicsForRoundAsync(Round round)
         {
-            // Lấy tất cả Topic thuộc Round này.
-            var topics = await _uow.GetRepository<Topic>()
-                .GetAllAsync(x => x.RoundId == round.Id);
+            var roundTeamRepo = _uow.GetRepository<RoundTeam>();
 
-            if (!topics.Any())
-                throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
-
-            // Chỉ lấy các team đã được duyệt và chưa có Topic để gán đề.
-            var teamsWithoutTopic = await _uow.GetRepository<Team>()
-                .GetAllAsync(x => x.TrackId == round.TrackId
-                               && x.Status == TeamConstants.Status.Approved
-                               && !x.IsDeleted
-                               && x.TopicId == null);
-
-            if (!teamsWithoutTopic.Any())
+            var existingRoundTeams = await roundTeamRepo.GetAllAsync(rt => rt.RoundId == round.Id);
+            if (existingRoundTeams.Any())
                 return;
 
-            // Lấy danh sách Topic đã được dùng trong Track để không gán trùng đề.
-            var teamsWithTopic = await _uow.GetRepository<Team>()
-                .GetAllAsync(x => x.TrackId == round.TrackId
-                               && x.Status == TeamConstants.Status.Approved
-                               && !x.IsDeleted
-                               && x.TopicId != null);
+            var teams = await GetTeamsQualifiedForRoundAsync(round);
+            if (!teams.Any())
+                throw new BadRequestException(ErrorMessages.Round.NoTeamQualifiedForRound);
 
-            var usedTopicIds = teamsWithTopic
-                .Select(x => x.TopicId!.Value)
-                .ToHashSet();
-
-            // Random danh sách Topic còn trống.
-            var availableTopics = topics
-                .Where(x => !usedTopicIds.Contains(x.Id))
-                .OrderBy(_ => Random.Shared.Next())
-                .ToList();
-
-            if (availableTopics.Count < teamsWithoutTopic.Count)
-                throw new BadRequestException(ErrorMessages.Round.NotEnoughTopics);
+            var topic = await ResolveTopicForRoundAsync(round, teams);
 
             var now = DateTime.UtcNow;
             var teamRepo = _uow.GetRepository<Team>();
 
-            // Gán mỗi team một Topic khác nhau.
-            for (var i = 0; i < teamsWithoutTopic.Count; i++)
+            foreach (var team in teams)
             {
-                teamsWithoutTopic[i].TopicId = availableTopics[i].Id;
-                teamsWithoutTopic[i].UpdatedAt = now;
-                teamRepo.Update(teamsWithoutTopic[i]);
+                await roundTeamRepo.AddAsync(new RoundTeam
+                {
+                    Id = Guid.NewGuid(),
+                    RoundId = round.Id,
+                    TeamId = team.Id,
+                    TopicId = topic.Id,
+                    AssignedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                team.TopicId = topic.Id;
+                team.UpdatedAt = now;
+                teamRepo.Update(team);
             }
+        }
+
+        private async Task<List<Team>> GetTeamsQualifiedForRoundAsync(Round round)
+        {
+            var teams = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => t.TrackId == round.TrackId
+                               && t.Status == TeamConstants.Status.Approved
+                               && !t.IsDeleted);
+
+            var previousRound = await GetPreviousRoundAsync(round);
+            if (previousRound is null)
+                return teams;
+
+            var advancingRankings = await _uow.GetRepository<RankingEntity>()
+                .GetAllAsync(r => r.RoundId == previousRound.Id && r.IsAdvancing);
+
+            if (!advancingRankings.Any())
+                throw new BadRequestException(ErrorMessages.Round.PreviousRoundRankingRequired);
+
+            var advancingTeamIds = advancingRankings.Select(r => r.TeamId).ToHashSet();
+
+            return teams.Where(t => advancingTeamIds.Contains(t.Id)).ToList();
+        }
+
+        private async Task<Round?> GetPreviousRoundAsync(Round round)
+        {
+            var rounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => r.TrackId == round.TrackId && r.OrderIndex < round.OrderIndex);
+
+            return rounds
+                .OrderByDescending(r => r.OrderIndex)
+                .FirstOrDefault();
+        }
+
+        private async Task<Topic> ResolveTopicForRoundAsync(Round round, List<Team> teams)
+        {
+            var roundTopics = await _uow.GetRepository<Topic>()
+                .GetAllAsync(t => t.RoundId == round.Id);
+
+            if (roundTopics.Any())
+                return roundTopics.OrderBy(_ => Random.Shared.Next()).First();
+
+            var existingTopicIds = teams
+                .Where(t => t.TopicId.HasValue)
+                .Select(t => t.TopicId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (existingTopicIds.Count == 1)
+            {
+                var existingTopic = await _uow.GetRepository<Topic>()
+                    .GetFirstOrDefaultAsync(t => t.Id == existingTopicIds[0]);
+
+                if (existingTopic is not null)
+                    return existingTopic;
+            }
+
+            throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
         }
 
         public async Task<ApiResponse<List<JudgeAssignedRoundResponse>>> GetAssignedRoundsForJudgeAsync(Guid judgeId)

@@ -1,5 +1,3 @@
-using System;
-
 namespace SealHackathon.Application.DTOs.Event
 {
     // DTO cho yêu cầu tạo Event mới

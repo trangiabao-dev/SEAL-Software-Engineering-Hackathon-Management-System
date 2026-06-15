@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Application.Ranking
+﻿namespace SealHackathon.Application.DTOs.Ranking
 {
     /// <summary>
     /// Dữ liệu ranking của 1 team trong 1 round — trả về cho client

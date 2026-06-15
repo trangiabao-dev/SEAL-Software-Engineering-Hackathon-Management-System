@@ -654,11 +654,20 @@ namespace SealHackathon.Application.Services.Implementations
 
         private async Task<Topic?> GetTopicForTeamAsync(Team team)
         {
-            if (!team.TopicId.HasValue)
+            var roundTeams = await _uow.GetRepository<RoundTeam>()
+                .GetAllAsync(rt => rt.TeamId == team.Id && rt.TopicId != null);
+
+            var latestRoundTeam = roundTeams
+                .OrderByDescending(rt => rt.AssignedAt)
+                .FirstOrDefault();
+
+            var topicId = latestRoundTeam?.TopicId ?? team.TopicId;
+
+            if (!topicId.HasValue)
                 return null;
 
             return await _uow.GetRepository<Topic>()
-                .GetFirstOrDefaultAsync(t => t.Id == team.TopicId.Value);
+                .GetFirstOrDefaultAsync(t => t.Id == topicId.Value);
         }
 
         // =============== Mapping helpers ===============

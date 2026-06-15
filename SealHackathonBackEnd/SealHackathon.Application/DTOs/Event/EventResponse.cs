@@ -1,5 +1,3 @@
-using System;
-
 namespace SealHackathon.Application.DTOs.Event
 {
     // DTO trả về thông tin chi tiết của một Event

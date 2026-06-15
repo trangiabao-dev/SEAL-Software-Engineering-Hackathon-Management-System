@@ -1,5 +1,3 @@
-using System;
-
 namespace SealHackathon.Application.DTOs.Round
 {
     // DTO cập nhật Round thông thường

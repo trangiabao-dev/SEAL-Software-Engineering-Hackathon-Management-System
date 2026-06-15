@@ -1,4 +1,4 @@
-namespace SealHackathon.Application.Ranking
+namespace SealHackathon.Application.DTOs.Ranking
 {
     /// <summary>
     /// Wrapper chứa toàn bộ bảng xếp hạng của 1 round 

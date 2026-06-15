@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace SealHackathon.Application.DTOs.CriterionTemplate
+﻿namespace SealHackathon.Application.DTOs.CriterionTemplate
 {
     public class UpdateCriterionTemplateRequest
     {

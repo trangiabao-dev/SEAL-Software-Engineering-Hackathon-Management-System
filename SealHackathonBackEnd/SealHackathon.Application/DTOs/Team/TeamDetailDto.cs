@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using SealHackathon.Application.DTOs.Topic;
+﻿using SealHackathon.Application.DTOs.Topic;
 
 namespace SealHackathon.Application.DTOs.Team
 {

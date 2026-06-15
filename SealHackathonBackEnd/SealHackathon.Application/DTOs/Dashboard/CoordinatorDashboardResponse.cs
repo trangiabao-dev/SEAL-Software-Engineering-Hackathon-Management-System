@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace SealHackathon.Application.DTOs.Dashboard
 {
     public class CoordinatorDashboardResponse

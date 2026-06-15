@@ -45,6 +45,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (string.IsNullOrWhiteSpace(team.GithubRepoLink))
                 throw new BadRequestException(ErrorMessages.Submission.TeamGithubRepoRequired);
 
+            await EnsureTeamCanSubmitRoundAsync(team.Id, round.Id);
+
             var existingSubmission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == round.Id);
 
@@ -198,6 +200,8 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.SaveChangesAsync();
         }
 
+
+        // =============== Private helpers ===============
         /// <summary>
         /// Kiểm tra bài nộp có ít nhất một link DemoUrl hoặc ReportUrl.
         /// </summary>
@@ -273,6 +277,16 @@ namespace SealHackathon.Application.Services.Implementations
             throw new ForbiddenException(ErrorMessages.Submission.NoViewPermission);
         }
 
+        private async Task EnsureTeamCanSubmitRoundAsync(Guid teamId, int roundId)
+        {
+            var roundTeam = await _uow.GetRepository<RoundTeam>()
+                .GetFirstOrDefaultAsync(rt => rt.RoundId == roundId && rt.TeamId == teamId);
+
+            if (roundTeam is null)
+                throw new ForbiddenException(ErrorMessages.Submission.TeamNotQualifiedForRound);
+        }
+
+        // =============== Mapping helpers ===============
         private static SubmissionDto MapToDto(Submission submission)
         {
             return new SubmissionDto
@@ -291,5 +305,7 @@ namespace SealHackathon.Application.Services.Implementations
                 UpdatedAt = submission.UpdatedAt
             };
         }
+
+
     }
 }

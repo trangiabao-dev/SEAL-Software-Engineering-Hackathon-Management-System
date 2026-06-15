@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace SealHackathon.Application.DTOs.CriterionTemplate
 {
     public class CreateCriterionTemplateRequest
