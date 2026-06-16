@@ -8,7 +8,6 @@ using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
 using System.Linq.Expressions;
-using static SealHackathon.Domain.Constants.AuditActionConstants;
 
 namespace SealHackathon.Application.Services.Implementations
 {

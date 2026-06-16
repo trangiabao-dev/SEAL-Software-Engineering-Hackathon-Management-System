@@ -4,7 +4,6 @@ using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
-using static SealHackathon.Domain.Constants.AuditActionConstants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
