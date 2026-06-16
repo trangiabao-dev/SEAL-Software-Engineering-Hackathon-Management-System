@@ -6,7 +6,7 @@
 -- 1. Account
 CREATE TABLE Account (
     Id           UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    Username     VARCHAR(255)     NOT NULL UNIQUE,
+    Username     NVARCHAR(255)    NOT NULL UNIQUE,
     PasswordHash VARCHAR(500)     NOT NULL,
     Email        VARCHAR(255)     NOT NULL UNIQUE,
     SystemRole   VARCHAR(50)      NOT NULL DEFAULT 'Leader',

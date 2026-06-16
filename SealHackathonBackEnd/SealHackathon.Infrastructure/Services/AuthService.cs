@@ -76,7 +76,7 @@ public class AuthService : IAuthService
         if (existingAccount is not null)
         {
             // Nếu Email tồn tại nhưng KHÔNG phải trạng thái Pending (Đã được xác nhận hoặc là admin)
-            if (existingAccount.SystemRole != "Pending")
+            if (existingAccount.SystemRole != RoleConstants.Pending)
             {
                 throw new ConflictException("Email này đã được sử dụng. Vui lòng chọn email khác.");
             }
@@ -102,7 +102,7 @@ public class AuthService : IAuthService
                 Username = generatedUsername,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                SystemRole = "Pending",
+                SystemRole = RoleConstants.Pending,
                 EmailConfirmToken = Guid.NewGuid().ToString(),
                 TokenExpiresAt = DateTime.UtcNow.AddMinutes(5), // <-- SỬA Ở ĐÂY: Đổi thành 5 phút cho nhánh Tạo Mới
                 IsDeleted = false,
@@ -151,7 +151,7 @@ public class AuthService : IAuthService
         if (account.TokenExpiresAt is not null && account.TokenExpiresAt < DateTime.UtcNow)
             throw new BadRequestException("Link xác nhận đã hết hạn. Vui lòng yêu cầu gửi lại email.");
 
-        account.SystemRole = "Leader";
+        account.SystemRole = RoleConstants.Leader;
         account.EmailConfirmToken = null;
         account.TokenExpiresAt = null;
         account.UpdatedAt = DateTime.UtcNow;
@@ -174,10 +174,9 @@ public class AuthService : IAuthService
             throw new BadRequestException("Email hoặc mật khẩu không đúng.");
 
         // Kiểm tra xem người này đã click vào link trong Email chưa (Role vẫn là Pending thì chặn lại)
-        if (account.SystemRole == "Pending")
+        if (account.SystemRole == RoleConstants.Pending)
             throw new ForbiddenException("Tài khoản của bạn chưa được xác thực. Vui lòng kiểm tra hộp thư email của bạn để kích hoạt tài khoản.");
 
-        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
         if (account.SystemRole == RoleConstants.Inactive)
         {
             var activeEventAccount = await _uow.GetRepository<EventAccount>()
@@ -227,7 +226,7 @@ public class AuthService : IAuthService
     public async Task<List<AccountPendingResponse>> GetPendingAccountsAsync()
     {
         var repo = _uow.GetRepository<Account>();
-        var pending = await repo.GetAllAsync(a => a.SystemRole == "Pending" && !a.IsDeleted);
+        var pending = await repo.GetAllAsync(a => a.SystemRole == RoleConstants.Pending && !a.IsDeleted);
         return pending.Select(a => new AccountPendingResponse { Id = a.Id, Username = a.Username, Email = a.Email, SystemRole = a.SystemRole, CreatedAt = a.CreatedAt }).ToList();
     }
 
@@ -235,10 +234,10 @@ public class AuthService : IAuthService
     public async Task ApproveAccountAsync(Guid accountId, Guid coordinatorId)
     {
         var repo = _uow.GetRepository<Account>();
-        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == RoleConstants.Pending && !a.IsDeleted);
         if (account is null) throw new NotFoundException("Account", accountId);
 
-        account.SystemRole = "Leader";
+        account.SystemRole = RoleConstants.Leader;
         account.UpdatedAt = DateTime.UtcNow;
         await _uow.SaveChangesAsync();
     }
@@ -247,7 +246,7 @@ public class AuthService : IAuthService
     public async Task RejectAccountAsync(Guid accountId, Guid coordinatorId, string reason)
     {
         var repo = _uow.GetRepository<Account>();
-        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == "Pending" && !a.IsDeleted);
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Id == accountId && a.SystemRole == RoleConstants.Pending && !a.IsDeleted);
         if (account is null) throw new NotFoundException("Account", accountId);
 
         account.IsDeleted = true;
@@ -258,8 +257,6 @@ public class AuthService : IAuthService
     // ==========================================
     // 6. HÀM TẠO CHÌA KHÓA (JWT TOKEN)
     // ==========================================
-
-    // Bảo thêm cho Thức sửa lại rule Mentor và Judge
     private (string token, DateTime expiresAt) GenerateJwtToken(Account account, List<string> roles)
     {
         var jwt = _config.GetSection("JwtSettings");
@@ -295,7 +292,6 @@ public class AuthService : IAuthService
     // 7. TẠO TÀI KHOẢN JUDGE/MENTOR (Dành cho Coordinator)
     // ==========================================
 
-    // Bảo mới thêm vào đây
     public async Task<EventStaffResponse> CreateEventStaffAsync(int eventId, CreateEventStaffRequest request, Guid coordinatorId)
     {
         if (eventId <= 0)
@@ -374,7 +370,7 @@ public class AuthService : IAuthService
                 AccountId = account.Id,
                 EventRole = request.EventRole,
                 JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null,
-                Status = "Approved",
+                Status = EventAccountConstants.Status.Approved,
                 AssignedBy = coordinatorId,
                 AssignedAt = DateTime.UtcNow
             };
@@ -384,7 +380,7 @@ public class AuthService : IAuthService
         else
         {
             eventAccount.JudgeType = request.EventRole == RoleConstants.Judge ? request.JudgeType : null;
-            eventAccount.Status = "Approved";
+            eventAccount.Status = EventAccountConstants.Status.Approved;
             eventAccount.AssignedBy = coordinatorId;
             eventAccount.AssignedAt = DateTime.UtcNow;
         }
@@ -432,7 +428,6 @@ public class AuthService : IAuthService
         };
     }
 
-    // Bảo mới thêm vào đây
     public async Task DeactivateEventStaffAsync(int eventId, Guid accountId, string eventRole, Guid coordinatorId)
     {
         if (eventId <= 0)
@@ -454,7 +449,7 @@ public class AuthService : IAuthService
         if (eventAccount is null)
             throw new NotFoundException("EventAccount", $"{eventId}-{accountId}");
 
-        eventAccount.Status = "Inactive";
+        eventAccount.Status = EventAccountConstants.Status.Inactive;
         eventAccount.AssignedBy = coordinatorId;
         eventAccount.AssignedAt = DateTime.UtcNow;
 
@@ -482,34 +477,26 @@ public class AuthService : IAuthService
         if (eventAccount is null)
             throw new NotFoundException("EventAccount", $"{eventId}-{accountId}");
 
-        eventAccount.Status = "Approved";
+        eventAccount.Status = EventAccountConstants.Status.Approved;
         eventAccount.AssignedBy = coordinatorId;
         eventAccount.AssignedAt = DateTime.UtcNow;
 
         await _uow.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Cần hàm này để Coordinator lấy danh sách Mentor/Judge trong một Event kèm các dữ liệu FE cần hiển thị.
+    /// Bên trong hàm sẽ lấy EventAccount kèm Account để tránh query từng tài khoản, sau đó gom team của Mentor và round của Judge để trả về chung trong một response.
+    /// </summary>
     public async Task<List<EventStaffResponse>> GetEventStaffAsync(int eventId)
     {
         if (eventId <= 0)
             throw new BadRequestException("EventId không hợp lệ.");
 
         var eventAccounts = await _uow.GetRepository<EventAccount>()
-            .GetAllAsync(ea => ea.EventId == eventId);
-
-        // Khắc phục lỗi "OPENJSON" của EF Core 8 trên SQL Server cũ khi dùng Contains
-        var accountIds = eventAccounts.Select(ea => ea.AccountId).Distinct().ToList();
-        var accounts = new List<Account>();
-        
-        foreach (var id in accountIds)
-        {
-            var acc = await _uow.GetRepository<Account>().GetFirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
-            if (acc != null)
-            {
-                accounts.Add(acc);
-            }
-        }
-        var accountDict = accounts.ToDictionary(a => a.Id);
+            .GetAllWithIncludeAsync(
+                ea => ea.EventId == eventId && !ea.Account.IsDeleted,
+                ea => ea.Account);
 
         var mentorTeams = await _uow.GetRepository<Team>()
             .GetAllAsync(t => t.Track.EventId == eventId && t.MentorId != null && !t.IsDeleted);
@@ -520,57 +507,65 @@ public class AuthService : IAuthService
         var eventRounds = await _uow.GetRepository<Round>()
             .GetAllAsync(r => r.Track.EventId == eventId);
 
-        var result = new List<EventStaffResponse>();
-        foreach (var ea in eventAccounts)
+        return eventAccounts
+            .Select(ea => MapToEventStaffResponse(ea, mentorTeams, judgeAssignments, eventRounds))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Cần hàm này để gom logic chuyển EventAccount sang response ở một chỗ, thay vì để GetEventStaffAsync vừa query vừa tự gắn dữ liệu phụ.
+    /// Bên trong hàm, Mentor sẽ được gắn danh sách team đang phụ trách, còn Judge sẽ được gắn danh sách round đang được phân công.
+    /// </summary>
+    private static EventStaffResponse MapToEventStaffResponse(
+        EventAccount eventAccount,
+        List<Team> mentorTeams,
+        List<JudgeAssign> judgeAssignments,
+        List<Round> eventRounds)
+    {
+        var response = new EventStaffResponse
         {
-            if (accountDict.TryGetValue(ea.AccountId, out var acc))
-            {
-                var staffResponse = new EventStaffResponse
-                {
-                    AccountId = ea.AccountId,
-                    EventId = ea.EventId,
-                    Email = acc.Email,
-                    Username = acc.Username,
-                    EventRole = ea.EventRole,
-                    Status = ea.Status,
-                    JudgeType = ea.JudgeType
-                };
+            AccountId = eventAccount.AccountId,
+            EventId = eventAccount.EventId,
+            Email = eventAccount.Account.Email,
+            Username = eventAccount.Account.Username,
+            EventRole = eventAccount.EventRole,
+            Status = eventAccount.Status,
+            JudgeType = eventAccount.JudgeType
+        };
 
-                // [DEV 1 - THÊM DỮ LIỆU ASSIGNED TEAMS CHO MENTOR]
-                // Chức năng: Giúp FE hiển thị danh sách các Đội mà Mentor được phân công quản lý.
-                if (ea.EventRole == RoleConstants.Mentor)
+        // [DEV 1 - THÊM DỮ LIỆU ASSIGNED TEAMS CHO MENTOR]
+        // Chức năng: Giúp FE hiển thị danh sách các Đội mà Mentor được phân công quản lý.
+        if (eventAccount.EventRole == RoleConstants.Mentor)
+        {
+            response.AssignedTeams = mentorTeams
+                .Where(t => t.MentorId == eventAccount.AccountId)
+                .Select(t => new StaffTeamDto
                 {
-                    staffResponse.AssignedTeams = mentorTeams
-                        .Where(t => t.MentorId == ea.AccountId)
-                        .Select(t => new StaffTeamDto
-                        {
-                            Id = t.Id,
-                            TeamName = t.TeamName
-                        }).ToList();
-                }
-                // [DEV 1 - THÊM DỮ LIỆU ASSIGNED ROUNDS CHO JUDGE]
-                // Chức năng: Giúp FE hiển thị danh sách các Vòng thi mà Giám khảo được phân công chấm điểm.
-                else if (ea.EventRole == RoleConstants.Judge)
+                    Id = t.Id,
+                    TeamName = t.TeamName
+                })
+                .ToList();
+        }
+        // [DEV 1 - THÊM DỮ LIỆU ASSIGNED ROUNDS CHO JUDGE]
+        // Chức năng: Giúp FE hiển thị danh sách các Vòng thi mà Giám khảo được phân công chấm điểm.
+        else if (eventAccount.EventRole == RoleConstants.Judge)
+        {
+            var assignedRoundIds = judgeAssignments
+                .Where(ja => ja.JudgeId == eventAccount.AccountId)
+                .Select(ja => ja.RoundId)
+                .ToHashSet();
+
+            response.AssignedRounds = eventRounds
+                .Where(r => assignedRoundIds.Contains(r.Id))
+                .Select(r => new StaffRoundDto
                 {
-                    var assignedRoundIds = judgeAssignments
-                        .Where(ja => ja.JudgeId == ea.AccountId)
-                        .Select(ja => ja.RoundId)
-                        .ToList();
-
-                    staffResponse.AssignedRounds = eventRounds
-                        .Where(r => assignedRoundIds.Contains(r.Id))
-                        .Select(r => new StaffRoundDto
-                        {
-                            Id = r.Id,
-                            Name = r.Name
-                        }).ToList();
-                }
-
-                result.Add(staffResponse);
-            }
+                    Id = r.Id,
+                    Name = r.Name
+                })
+                .ToList();
         }
 
-        return result;
+        return response;
     }
 
     private string BuildEmailVerificationLink(string confirmToken)

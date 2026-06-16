@@ -62,7 +62,7 @@ public partial class SealDbContext : DbContext
 
             entity.ToTable("Account");
 
-            entity.HasIndex(e => e.Username, "UQ__Account__536C85E462E4A95F").IsUnique();
+            entity.HasIndex(e => e.Username, "UQ_Account_Username").IsUnique();
 
             entity.HasIndex(e => e.Email, "UQ__Account__A9D105348F2FC7A6").IsUnique();
 
@@ -80,8 +80,7 @@ public partial class SealDbContext : DbContext
                 .HasDefaultValue("Leader");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Username)
-                .HasMaxLength(255)
-                .IsUnicode(false);
+                .HasMaxLength(255);
         });
 
         modelBuilder.Entity<AuditLog>(entity =>

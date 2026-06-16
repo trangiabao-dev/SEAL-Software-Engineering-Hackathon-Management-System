@@ -44,8 +44,8 @@ namespace SealHackathon.API.Middleware
 
         private static async Task HandleExceptionAsync(HttpContext context, int statusCode, string message)
         {
-            // Thiết lập response trả về dạng JSON
-            context.Response.ContentType = "application/json";
+            // Thiết lập response trả về dạng JSON UTF-8 để message tiếng Việt không bị lỗi ký tự.
+            context.Response.ContentType = "application/json; charset=utf-8";
             context.Response.StatusCode = statusCode;
 
             var response = ApiResponse<object>.FailResult(message);
@@ -53,7 +53,8 @@ namespace SealHackathon.API.Middleware
             // Serialize object thành JSON string rồi ghi vào response
             var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
 
             await context.Response.WriteAsync(json);

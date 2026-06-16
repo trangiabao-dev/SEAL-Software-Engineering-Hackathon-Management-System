@@ -25,6 +25,28 @@ namespace SealHackathon.Infrastructure.Repositories
         {
             return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
         }
+
+        /// <summary>
+        /// Cần hàm này khi service phải đọc entity chính kèm dữ liệu liên quan trong cùng một truy vấn.
+        /// Bên trong hàm, mỗi navigation property trong includes sẽ được đưa vào Include để EF Core lấy kèm dữ liệu liên quan.
+        /// Cách này tránh việc service lấy danh sách trước rồi query từng dòng liên quan sau.
+        /// </summary>
+        public async Task<List<T>> GetAllWithIncludeAsync(
+            Expression<Func<T, bool>> predicate,
+            params Expression<Func<T, object>>[] includes)
+        {
+            IQueryable<T> query = _dbSet.AsNoTracking();
+
+            foreach (var include in includes)
+            {
+                query = query.Include(include);
+            }
+
+            return await query
+                .Where(predicate)
+                .ToListAsync();
+        }
+
         // Thức 
 
         public void Update(T entity)
@@ -32,7 +54,6 @@ namespace SealHackathon.Infrastructure.Repositories
             _dbSet.Update(entity);
         }
 
-        // Bảo thêm 1
         /// <summary>
         /// Gọi hàm CountAsync của Entity Framework Core để đếm dữ liệu bằng SQL Server.
         /// </summary>
@@ -78,11 +99,25 @@ namespace SealHackathon.Infrastructure.Repositories
             return await _dbSet.FirstOrDefaultAsync(predicate); // KHÔNG có AsNoTracking
         }
 
-        // Bảo thêm 3
-        public async Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate, int skip, int take)
+        /// <summary>
+        /// Lấy dữ liệu phân trang có sắp xếp cố định để tránh dữ liệu bị nhảy giữa các trang.
+        /// </summary>
+        public async Task<List<T>> GetPagedAsync<TKey>(
+            Expression<Func<T, bool>> predicate,
+            Expression<Func<T, TKey>> orderBy,
+            int skip,
+            int take,
+            bool descending = false)
         {
-            return await _dbSet.AsNoTracking()
+            var query = _dbSet.AsNoTracking()
                 .Where(predicate)
+                .AsQueryable();
+
+            query = descending
+                ? query.OrderByDescending(orderBy)
+                : query.OrderBy(orderBy);
+
+            return await query
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();

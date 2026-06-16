@@ -182,8 +182,7 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
 
             var currentEvents = await _uow.GetRepository<Event>()
-                .GetAllAsync(e => !e.IsDeleted
-                               && e.Status == EventConstants.Status.Active);
+                .GetAllAsync(e => !e.IsDeleted && e.Status == EventConstants.Status.Active);
 
             if (!currentEvents.Any())
                 return null;
@@ -316,7 +315,8 @@ namespace SealHackathon.Application.Services.Implementations
             var totalRecords = await _uow.GetRepository<Team>().CountAsync(predicate);
 
             var skip = (pageNumber - 1) * pageSize;
-            var teams = await _uow.GetRepository<Team>().GetPagedAsync(predicate, skip, pageSize);
+            var teams = await _uow.GetRepository<Team>()
+                .GetPagedAsync(predicate, t => t.CreatedAt, skip, pageSize, descending: true);
 
             var teamIds = teams.Select(t => t.Id).ToList();
 
@@ -415,9 +415,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.SaveChangesAsync();
 
-            // [DEV 1 - BẮN THÔNG BÁO DUYỆT ĐỘI THI]
-            // Chức năng: Khi Coordinator bấm duyệt, hệ thống tự động bắn Notification "TEAM_APPROVED" cho Leader.
-            // Send notification to Leader
+            // Khi Coordinator bấm duyệt, hệ thống tự động đưa Notification "TEAM_APPROVED" cho Leader.
             await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
             {
                 AccountId = team.LeaderId,
@@ -463,9 +461,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.SaveChangesAsync();
 
-            // [DEV 1 - BẮN THÔNG BÁO LOẠI ĐỘI THI]
-            // Chức năng: Khi Coordinator bấm loại, hệ thống tự động bắn Notification "TEAM_DISQUALIFIED" kèm lý do cho Leader.
-            // Send notification to Leader
+            // Khi Coordinator bấm loại, hệ thống tự động đưa Notification "TEAM_DISQUALIFIED" kèm lý do cho Leader.
             await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
             {
                 AccountId = team.LeaderId,
@@ -548,7 +544,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
-            // Bước 2: Kiểm tra không quá 5 người
+            // Kiểm tra team không quá 5 người
             var memberCount = await _uow.GetRepository<TeamMember>()
                 .CountAsync(m => m.TeamId == teamId);
 
@@ -556,7 +552,6 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(ErrorMessages.TeamMember.MaxMembersReached);
 
             // StudentCode không được trùng trong cùng Event.
-            // Quan hệ DB: Event -> Track -> Team -> TeamMember.
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
 
@@ -672,9 +667,7 @@ namespace SealHackathon.Application.Services.Implementations
                 if (memberCount <= 3)
                     throw new BadRequestException(ErrorMessages.TeamMember.ApprovedTeamMinMembersRequired);
             }
-
-
-            // Xóa
+            
             memberRepo.Delete(member);
             await _uow.SaveChangesAsync();
         }

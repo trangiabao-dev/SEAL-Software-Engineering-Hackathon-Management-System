@@ -4,16 +4,19 @@ using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
+using static SealHackathon.Domain.Constants.AuditActionConstants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
     public class SubmissionService : ISubmissionService
     {
         private readonly IUnitOfWork _uow;
+        private readonly IAuditLogService _auditLogService;
 
-        public SubmissionService(IUnitOfWork uow)
+        public SubmissionService(IUnitOfWork uow, IAuditLogService auditLogService)
         {
             _uow = uow;
+            _auditLogService = auditLogService;
         }
 
         public async Task<SubmissionDto> CreateSubmissionAsync(int roundId,
@@ -65,6 +68,24 @@ namespace SealHackathon.Application.Services.Implementations
             };
 
             await _uow.GetRepository<Submission>().AddAsync(submission);
+
+            await _auditLogService.AddAsync(
+                performedBy: leaderId,
+                action: SubmissionAudit.Create,
+                entityName: nameof(Submission),
+                entityId: submission.Id.ToString(),
+                oldValues: null,
+                newValues: new
+                {
+                    submission.Id,
+                    submission.TeamId,
+                    submission.RoundId,
+                    submission.DemoUrl,
+                    submission.ReportUrl,
+                    submission.CreatedAt
+                });
+                
+
             await _uow.SaveChangesAsync();
 
             return MapToDto(submission);
@@ -108,9 +129,31 @@ namespace SealHackathon.Application.Services.Implementations
 
             ValidateRoundIsAcceptingSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
 
+            var oldSubmissionValues = new
+            {
+                submission.DemoUrl,
+                submission.ReportUrl,
+                submission.UpdatedAt
+            };
+
             submission.DemoUrl = request.DemoUrl;
             submission.ReportUrl = request.ReportUrl;
             submission.UpdatedAt = DateTime.UtcNow;
+
+
+            // Ghi lại dữ liệu trước và sau khi Leader cập nhật bài nộp để tránh không biết bài đã bị đổi khi nào.
+            await _auditLogService.AddAsync(
+                performedBy: leaderId,
+                action: SubmissionAudit.Update,
+                entityName: nameof(Submission),
+                entityId: submission.Id.ToString(),
+                oldValues: oldSubmissionValues,
+                newValues: new
+                {
+                    submission.DemoUrl,
+                    submission.ReportUrl,
+                    submission.UpdatedAt
+                });
 
             await _uow.SaveChangesAsync();
 
@@ -192,10 +235,33 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission.IsDisqualified)
                 throw new BadRequestException(ErrorMessages.Submission.AlreadyDisqualified);
 
+            var oldSubmissionValues = new
+            {
+                submission.IsDisqualified,
+                submission.DisqualifyReason,
+                submission.DisqualifiedAt,
+                submission.DisqualifiedBy
+            };
+
             submission.IsDisqualified = true;
             submission.DisqualifyReason = request.Reason;
             submission.DisqualifiedAt = DateTime.UtcNow;
             submission.DisqualifiedBy = coordinatorId;
+
+            // Ghi lại lý do và người loại bài nộp để kết quả bị hủy có căn cứ truy vết.
+            await _auditLogService.AddAsync(
+                performedBy: coordinatorId,
+                action: SubmissionAudit.Disqualify,
+                entityName: nameof(Submission),
+                entityId: submission.Id.ToString(),
+                oldValues: oldSubmissionValues,
+                newValues: new
+                {
+                    submission.IsDisqualified,
+                    submission.DisqualifyReason,
+                    submission.DisqualifiedAt,
+                    submission.DisqualifiedBy
+                });
 
             await _uow.SaveChangesAsync();
         }

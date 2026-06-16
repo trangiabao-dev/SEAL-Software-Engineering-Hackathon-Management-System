@@ -115,7 +115,6 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<TrackResponse>.SuccessResult(response, "Cập nhật Track thành công.");
         }
 
-        // Bảo thêm cho Thức sửa lại rule Mentor và Judge
         // Hàm phân công Ban Giám Khảo (Mentor/Giám khảo hỗ trợ) vào một Bảng đấu
         public async Task<ApiResponse<bool>> AssignMentorAsync(int trackId, AssignMentorRequest request, Guid assignedBy)
         {

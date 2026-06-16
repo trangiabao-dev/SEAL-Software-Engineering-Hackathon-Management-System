@@ -4,6 +4,7 @@ using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
+using System.Collections.Concurrent;
 
 namespace SealHackathon.Application.Services.Implementations
 {
@@ -12,6 +13,8 @@ namespace SealHackathon.Application.Services.Implementations
     /// </summary>
     public class RankingService : IRankingService
     {
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> RoundRankingLocks = new();
+
         private readonly IUnitOfWork _unitOfWork;
 
         public RankingService(IUnitOfWork unitOfWork)
@@ -23,6 +26,24 @@ namespace SealHackathon.Application.Services.Implementations
         /// Tính hoặc tính lại bảng xếp hạng cho một Round, sau đó lưu kết quả xuống database.
         /// </summary>
         public async Task<RankingLeaderboardResponse> CalculateRankingAsync(int roundId)
+        {
+            var rankingLock = RoundRankingLocks.GetOrAdd(roundId, _ => new SemaphoreSlim(1, 1));
+
+            await rankingLock.WaitAsync();
+            try
+            {
+                return await CalculateRankingCoreAsync(roundId);
+            }
+            finally
+            {
+                rankingLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Chạy logic tính ranking thật sự sau khi đã giữ khóa theo Round.
+        /// </summary>
+        private async Task<RankingLeaderboardResponse> CalculateRankingCoreAsync(int roundId)
         {
             // Bước 1: Kiểm tra Round có tồn tại.
             var round = await _unitOfWork

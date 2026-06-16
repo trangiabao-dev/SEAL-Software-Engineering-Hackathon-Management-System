@@ -22,8 +22,6 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         /// </summary>
         /// <param name="predicate">Điều kiện đếm (Ví dụ: x => x.IsDeleted == false)</param>
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
-
-        // Bảo thêm 4
         Task<Dictionary<TKey, int>> CountByGroupAsync<TKey>(
             Expression<Func<T, bool>> predicate,
             Expression<Func<T, TKey>> groupBy)
@@ -38,9 +36,18 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         //vd: SELECT TOP(1) * FROM[Account] WHERE[Username] = 'giabao'
 
         Task<List<T>> GetAllAsync(Expression<Func<T, bool>> predicate);
+
+        /// <summary>
+        /// Cần hàm này khi service phải đọc entity chính kèm dữ liệu liên quan.
+        /// Nếu không có Include, service dễ rơi vào lỗi N+1 query: lấy danh sách trước rồi query từng dòng liên quan sau.
+        /// Bên trong hàm sẽ nhận điều kiện lọc và các navigation property cần lấy kèm, rồi để EF Core sinh truy vấn phù hợp.
+        /// </summary>
+        Task<List<T>> GetAllWithIncludeAsync(
+            Expression<Func<T, bool>> predicate,
+            params Expression<Func<T, object>>[] includes);
+
         void Update(T entity);
 
-        // Bảo thêm 1
         void Delete(T entity);
 
         /// <summary>
@@ -49,8 +56,16 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         /// </summary>
         Task<T?> GetFirstOrDefaultTrackingAsync(Expression<Func<T, bool>> predicate);
 
-        // Bảo thêm 3
-        Task<List<T>> GetPagedAsync(Expression<Func<T, bool>> predicate, int skip, int take);
+        /// <summary>
+        /// Lấy dữ liệu phân trang có sắp xếp cố định.
+        /// Nếu phân trang mà không có OrderBy, dữ liệu giữa các trang có thể bị nhảy khi database lớn hoặc có dữ liệu mới.
+        /// </summary>
+        Task<List<T>> GetPagedAsync<TKey>(
+            Expression<Func<T, bool>> predicate,
+            Expression<Func<T, TKey>> orderBy,
+            int skip,
+            int take,
+            bool descending = false);
 
 
     }
