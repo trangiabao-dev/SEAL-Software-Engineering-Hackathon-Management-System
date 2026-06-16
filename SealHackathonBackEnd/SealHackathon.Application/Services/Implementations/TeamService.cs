@@ -15,15 +15,12 @@ namespace SealHackathon.Application.Services.Implementations
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _uow;
-
         private readonly INotificationService _notificationService;
-        private readonly IAuditLogService _auditLogService;
 
-        public TeamService(IUnitOfWork uow, INotificationService notificationService, IAuditLogService auditLogService)
+        public TeamService(IUnitOfWork uow, INotificationService notificationService)
         {
             _uow = uow;
             _notificationService = notificationService;
-            _auditLogService = auditLogService;
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
@@ -112,24 +109,6 @@ namespace SealHackathon.Application.Services.Implementations
             };
 
             await _uow.GetRepository<TeamMember>().AddAsync(leaderMember); // Chuẩn bị insert entity này. Chưa lưu vào DB.
-
-            await _auditLogService.AddAsync(
-                performedBy: leaderId,
-                action: TeamAudit.Create,
-                entityName: nameof(Team),
-                entityId: newTeam.Id.ToString(),
-                oldValues: null,
-                newValues: new
-                {
-                    newTeam.Id,
-                    newTeam.TeamName,
-                    newTeam.University,
-                    newTeam.TrackId,
-                    newTeam.LeaderId,
-                    newTeam.GithubRepoLink,
-                    newTeam.Status,
-                    newTeam.CreatedAt,
-                });
 
             await _uow.SaveChangesAsync();
 
@@ -295,35 +274,9 @@ namespace SealHackathon.Application.Services.Implementations
                 team.GithubRepoLink = request.GithubRepoLink;
             }
 
-            var oldTeamValues = new
-            {
-                team.TeamName,
-                team.University,
-                team.GithubRepoLink,
-                team.Status,
-                team.UpdatedAt,
-                team.UpdatedBy
-            };
-
             // Lưu
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = leaderId;
-
-            await _auditLogService.AddAsync(
-                performedBy: leaderId,
-                action: TeamAudit.Update,
-                entityName: nameof(Team),
-                entityId: team.Id.ToString(),
-                oldValues: oldTeamValues,
-                newValues: new
-                {
-                    team.TeamName,
-                    team.University,
-                    team.GithubRepoLink,
-                    team.Status,
-                    team.UpdatedAt,
-                    team.UpdatedBy
-                });
 
             await _uow.SaveChangesAsync();
 
@@ -464,20 +417,6 @@ namespace SealHackathon.Application.Services.Implementations
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = coordinatorId;
 
-            // Ghi lại việc Coordinator duyệt đội vì đây là mốc quyết định đội được tham gia thi.
-            await _auditLogService.AddAsync(
-                performedBy: coordinatorId,
-                action: TeamAudit.Approve,
-                entityName: nameof(Team),
-                entityId: team.Id.ToString(),
-                oldValues: oldTeamValues,
-                newValues: new
-                {
-                    team.Status,
-                    team.UpdatedAt,
-                    team.UpdatedBy
-                });
-
             await _uow.SaveChangesAsync();
 
             // Khi Coordinator bấm duyệt, hệ thống tự động đưa Notification "TEAM_APPROVED" cho Leader.
@@ -533,22 +472,6 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             var affectedSubmissionIds = submissions.Select(s => s.Id).ToList();
-
-            // Ghi lại việc loại đội và các bài nộp bị ảnh hưởng để kết quả bị hủy có căn cứ truy vết.
-            await _auditLogService.AddAsync(
-                performedBy: coordinatorId,
-                action: TeamAudit.Disqualify,
-                entityName: nameof(Team),
-                entityId: team.Id.ToString(),
-                oldValues: oldTeamValues,
-                newValues: new
-                {
-                    team.Status,
-                    team.DisqualifyReason,
-                    team.UpdatedAt,
-                    team.UpdatedBy,
-                    AffectedSubmissionIds = affectedSubmissionIds
-                });
 
             await _uow.SaveChangesAsync();
 
@@ -609,30 +532,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (currentTeamCount >= TeamConstants.Rules.MaxTeamsPerMentor)
                 throw new BadRequestException(ErrorMessages.Team.MentorMaxTeamsReached);
 
-            var oldTeamValues = new
-            {
-                team.MentorId,
-                team.UpdatedAt,
-                team.UpdatedBy
-            };
-
             team.MentorId = request.MentorId;
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = coordinatorId;
-
-            // Ghi lại việc Coordinator gán Mentor cho team để biết team đã được chuyển cho Mentor nào phụ trách.
-            await _auditLogService.AddAsync(
-                performedBy: coordinatorId,
-                action: TeamAudit.AssignMentor,
-                entityName: nameof(Team),
-                entityId: team.Id.ToString(),
-                oldValues: oldTeamValues,
-                newValues: new
-                {
-                    team.MentorId,
-                    team.UpdatedAt,
-                    team.UpdatedBy
-                });
 
             await _uow.SaveChangesAsync();
         }
@@ -856,13 +758,7 @@ namespace SealHackathon.Application.Services.Implementations
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
                 DisqualifyReason = team.DisqualifyReason,
-                // Nếu có members thì map từng member sang DTO.
-                // Nếu members bị null thì trả về danh sách rỗng, không để FE nhận null.
                 Members = members?.Select(MapToMemberDto).ToList() ?? new List<TeamMemberDto>()
-                // Dấu ?. nghĩa là: nếu members khác null thì chạy tiếp; nếu members là null thì không gọi .Select(...).
-                // Select(MapToMemberDto): Nghĩa là biến từng TeamMember entity thành TeamMemberDto.
-                // .ToList(): Biến kết quả thành danh sách List<TeamMemberDto>.
-                // ?? new List<TeamMemberDto>(): Nếu vế trái là null thì trả về list rỗng.
             };
         }
 
