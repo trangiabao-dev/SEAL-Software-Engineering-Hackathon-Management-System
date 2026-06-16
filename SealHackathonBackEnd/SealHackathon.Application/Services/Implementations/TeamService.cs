@@ -113,6 +113,24 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.GetRepository<TeamMember>().AddAsync(leaderMember); // Chuẩn bị insert entity này. Chưa lưu vào DB.
 
+            await _auditLogService.AddAsync(
+                performedBy: leaderId,
+                action: TeamAudit.Create,
+                entityName: nameof(Team),
+                entityId: newTeam.Id.ToString(),
+                oldValues: null,
+                newValues: new
+                {
+                    newTeam.Id,
+                    newTeam.TeamName,
+                    newTeam.University,
+                    newTeam.TrackId,
+                    newTeam.LeaderId,
+                    newTeam.GithubRepoLink,
+                    newTeam.Status,
+                    newTeam.CreatedAt,
+                });
+
             await _uow.SaveChangesAsync();
 
             return MapToDto(newTeam, new List<TeamMember> { leaderMember }); // tạo team xong thấy luôn leader trong members
@@ -277,9 +295,35 @@ namespace SealHackathon.Application.Services.Implementations
                 team.GithubRepoLink = request.GithubRepoLink;
             }
 
+            var oldTeamValues = new
+            {
+                team.TeamName,
+                team.University,
+                team.GithubRepoLink,
+                team.Status,
+                team.UpdatedAt,
+                team.UpdatedBy
+            };
+
             // Lưu
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = leaderId;
+
+            await _auditLogService.AddAsync(
+                performedBy: leaderId,
+                action: TeamAudit.Update,
+                entityName: nameof(Team),
+                entityId: team.Id.ToString(),
+                oldValues: oldTeamValues,
+                newValues: new
+                {
+                    team.TeamName,
+                    team.University,
+                    team.GithubRepoLink,
+                    team.Status,
+                    team.UpdatedAt,
+                    team.UpdatedBy
+                });
 
             await _uow.SaveChangesAsync();
 
@@ -409,9 +453,30 @@ namespace SealHackathon.Application.Services.Implementations
             if (memberCount < TeamConstants.Rules.MinMembersPerTeam)
                 throw new BadRequestException($"Đội thi phải có ít nhất {TeamConstants.Rules.MinMembersPerTeam} thành viên mới đủ điều kiện duyệt.");
 
+            var oldTeamValues = new
+            {
+                team.Status,
+                team.UpdatedAt,
+                team.UpdatedBy
+            };
+
             team.Status = TeamConstants.Status.Approved;
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = coordinatorId;
+
+            // Ghi lại việc Coordinator duyệt đội vì đây là mốc quyết định đội được tham gia thi.
+            await _auditLogService.AddAsync(
+                performedBy: coordinatorId,
+                action: TeamAudit.Approve,
+                entityName: nameof(Team),
+                entityId: team.Id.ToString(),
+                oldValues: oldTeamValues,
+                newValues: new
+                {
+                    team.Status,
+                    team.UpdatedAt,
+                    team.UpdatedBy
+                });
 
             await _uow.SaveChangesAsync();
 
@@ -440,6 +505,14 @@ namespace SealHackathon.Application.Services.Implementations
             var reason = request.Reason.Trim();
             var now = DateTime.UtcNow;
 
+            var oldTeamValues = new
+            {
+                team.Status,
+                team.DisqualifyReason,
+                team.UpdatedAt,
+                team.UpdatedBy
+            };
+
             team.Status = TeamConstants.Status.Disqualified;
             team.DisqualifyReason = reason;
             team.UpdatedAt = now;
@@ -458,6 +531,24 @@ namespace SealHackathon.Application.Services.Implementations
                 submission.DisqualifiedBy = coordinatorId;
                 submissionRepo.Update(submission);
             }
+
+            var affectedSubmissionIds = submissions.Select(s => s.Id).ToList();
+
+            // Ghi lại việc loại đội và các bài nộp bị ảnh hưởng để kết quả bị hủy có căn cứ truy vết.
+            await _auditLogService.AddAsync(
+                performedBy: coordinatorId,
+                action: TeamAudit.Disqualify,
+                entityName: nameof(Team),
+                entityId: team.Id.ToString(),
+                oldValues: oldTeamValues,
+                newValues: new
+                {
+                    team.Status,
+                    team.DisqualifyReason,
+                    team.UpdatedAt,
+                    team.UpdatedBy,
+                    AffectedSubmissionIds = affectedSubmissionIds
+                });
 
             await _uow.SaveChangesAsync();
 
@@ -518,9 +609,30 @@ namespace SealHackathon.Application.Services.Implementations
             if (currentTeamCount >= TeamConstants.Rules.MaxTeamsPerMentor)
                 throw new BadRequestException(ErrorMessages.Team.MentorMaxTeamsReached);
 
+            var oldTeamValues = new
+            {
+                team.MentorId,
+                team.UpdatedAt,
+                team.UpdatedBy
+            };
+
             team.MentorId = request.MentorId;
             team.UpdatedAt = DateTime.UtcNow;
             team.UpdatedBy = coordinatorId;
+
+            // Ghi lại việc Coordinator gán Mentor cho team để biết team đã được chuyển cho Mentor nào phụ trách.
+            await _auditLogService.AddAsync(
+                performedBy: coordinatorId,
+                action: TeamAudit.AssignMentor,
+                entityName: nameof(Team),
+                entityId: team.Id.ToString(),
+                oldValues: oldTeamValues,
+                newValues: new
+                {
+                    team.MentorId,
+                    team.UpdatedAt,
+                    team.UpdatedBy
+                });
 
             await _uow.SaveChangesAsync();
         }
