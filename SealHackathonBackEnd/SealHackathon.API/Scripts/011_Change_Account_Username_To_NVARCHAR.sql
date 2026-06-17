@@ -17,7 +17,14 @@ WHERE kc.parent_object_id = OBJECT_ID(N'dbo.Account')
 
 IF @UsernameConstraintName IS NOT NULL
 BEGIN
-    EXEC(N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName));
+    -- Khai báo biến để chứa chuỗi lệnh động
+    DECLARE @DropConstraintSql NVARCHAR(MAX);
+    
+    -- Gán chuỗi lệnh vào biến trước
+    SET @DropConstraintSql = N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName);
+    
+    -- Thực thi biến
+    EXEC(@DropConstraintSql);
 END;
 
 IF EXISTS (
