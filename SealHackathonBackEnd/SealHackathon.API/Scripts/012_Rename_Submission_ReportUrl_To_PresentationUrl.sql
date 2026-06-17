@@ -9,10 +9,12 @@ END;
 
 IF COL_LENGTH('dbo.Submission', 'ReportUrl') IS NOT NULL
 BEGIN
-    UPDATE dbo.Submission
-    SET PresentationUrl = ReportUrl
-    WHERE PresentationUrl IS NULL
-      AND ReportUrl IS NOT NULL;
+    EXEC(N'
+        UPDATE dbo.Submission
+        SET PresentationUrl = ReportUrl
+        WHERE PresentationUrl IS NULL
+          AND ReportUrl IS NOT NULL;
+    ');
 END;
 
 IF COL_LENGTH('dbo.Submission', 'DemoUrl') IS NOT NULL
@@ -27,15 +29,13 @@ BEGIN
     DROP COLUMN ReportUrl;
 END;
 
-IF EXISTS (
-    SELECT 1
-    FROM dbo.Submission
-    WHERE PresentationUrl IS NULL
-)
+IF COL_LENGTH('dbo.Submission', 'PresentationUrl') IS NOT NULL
 BEGIN
-    UPDATE dbo.Submission
-    SET PresentationUrl = ''
-    WHERE PresentationUrl IS NULL;
+    EXEC(N'
+        UPDATE dbo.Submission
+        SET PresentationUrl = ''''
+        WHERE PresentationUrl IS NULL;
+    ');
 END;
 
 IF EXISTS (
@@ -46,6 +46,8 @@ IF EXISTS (
       AND is_nullable = 1
 )
 BEGIN
-    ALTER TABLE dbo.Submission
-    ALTER COLUMN PresentationUrl VARCHAR(1000) NOT NULL;
+    EXEC(N'
+        ALTER TABLE dbo.Submission
+        ALTER COLUMN PresentationUrl VARCHAR(1000) NOT NULL;
+    ');
 END;
