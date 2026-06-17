@@ -50,12 +50,12 @@ namespace SealHackathon.Domain.Constants
             public const string UpdateDeadlinePassed = "Đã quá hạn cập nhật bài nộp của Round này.";
             public const string CannotUpdateDisqualified = "Bài nộp đã bị loại, không thể cập nhật.";
             public const string AlreadyDisqualified = "Bài nộp này đã bị loại trước đó.";
-            public const string NeedAtLeastOneLink = "Cần cung cấp ít nhất một link bài nộp.";
             public const string JudgeNotAssignedToRound = "Bạn không được phân công chấm Round này.";
             public const string TeamGithubRepoRequired = "Vui lòng cập nhật link GitHub của đội trước khi nộp bài.";
             public const string RoundNotActive = "Vòng thi hiện không ở trạng thái nhận bài.";
             public const string RoundNotStarted = "Vòng thi chưa bắt đầu.";
             public const string TeamNotQualifiedForRound = "Đội thi này chưa đủ điều kiện tham gia Round này.";
+            public const string PresentationUrlRequired = "Link bài thuyết trình không được để trống.";
         }
 
         public static class Common
