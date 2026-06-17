@@ -131,6 +131,10 @@ namespace SealHackathon.Domain.Constants
         public static class Ranking
         {
             public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
+            public const string RoundHasNoCriteria = "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.";
+            public const string RoundHasNoValidSubmissions = "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.";
+            public const string CriterionConfigNotFound = "Không tìm thấy cấu hình tiêu chí chấm điểm khi tính xếp hạng.";
+            public const string CriterionMaxScoreInvalid = Criterion.MaxScoreInvalid;
         }
     }
 }

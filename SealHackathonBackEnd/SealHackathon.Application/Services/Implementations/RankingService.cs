@@ -59,10 +59,15 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetAllAsync(c => c.RoundId == roundId);
 
             if (!criteria.Any())
-                throw new BadRequestException(
-                    "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.");
+                throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoCriteria);
 
-            var criterionWeightDict = criteria.ToDictionary(c => c.Id, c => c.Weight);
+            var criterionScoreConfigDict = criteria.ToDictionary(
+                c => c.Id,
+                c => new
+                {
+                    c.Weight,
+                    c.MaxScore
+                });
 
             // Bước 3: Lấy các bài nộp hợp lệ của Round.
             // Bài nộp hợp lệ là bài chưa bị loại và team cũng chưa bị loại/xóa.
@@ -74,8 +79,7 @@ namespace SealHackathon.Application.Services.Implementations
                                   && s.Team.Status != TeamConstants.Status.Disqualified);
 
             if (!submissions.Any())
-                throw new BadRequestException(
-                    "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.");
+                throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoValidSubmissions);
 
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
@@ -87,7 +91,7 @@ namespace SealHackathon.Application.Services.Implementations
                                    && !sr.IsCalibration);
 
             // Bước 5: Tính TotalScore cho từng team.
-            // Công thức: TotalScore = tổng của (điểm trung bình theo tiêu chí x trọng số tiêu chí).
+            // Công thức: TotalScore = tổng của ((điểm trung bình / điểm tối đa tiêu chí) x trọng số tiêu chí x 100).
             var teamScores = allScoreRecords
                 .GroupBy(sr => submissionTeamDict[sr.SubmissionId])
                 .Select(teamGroup => new
@@ -97,9 +101,20 @@ namespace SealHackathon.Application.Services.Implementations
                         .GroupBy(sr => sr.CriterionId)
                         .Sum(criterionGroup =>
                         {
+                            if (!criterionScoreConfigDict.TryGetValue(criterionGroup.Key, out var criterionConfig))
+                            {
+                                throw new BadRequestException(ErrorMessages.Ranking.CriterionConfigNotFound);
+                            }
+
+                            if (criterionConfig.MaxScore <= 0)
+                            {
+                                throw new BadRequestException(ErrorMessages.Ranking.CriterionMaxScoreInvalid);
+                            }
+
                             var avgScore = criterionGroup.Average(sr => sr.Score);
-                            var weight = criterionWeightDict.GetValueOrDefault(criterionGroup.Key, 0);
-                            return avgScore * weight;
+                            var normalizedScore = avgScore / criterionConfig.MaxScore;
+
+                            return normalizedScore * criterionConfig.Weight * 100;
                         })
                 })
                 .OrderByDescending(ts => ts.TotalScore)
