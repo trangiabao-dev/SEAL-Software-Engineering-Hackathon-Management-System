@@ -84,11 +84,22 @@ namespace SealHackathon.Application.Services.Implementations
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
 
-            // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn.
+            // Ranking chỉ tính điểm từ judge được assign và còn quyền Judge hợp lệ trong Event.
+            var assignedJudgeIds = await GetActiveAssignedJudgeIdsAsync(round);
+
+            // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn và điểm của judge không được assign.
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(sr => submissionIds.Contains(sr.SubmissionId)
+                                   && assignedJudgeIds.Contains(sr.JudgeId)
                                    && !sr.IsCalibration);
+
+            // Backend vẫn phải kiểm đủ điểm để tránh FE lỗi hoặc API bị gọi trực tiếp.
+            EnsureAllRequiredScoresExist(
+                submissions,
+                criteria,
+                assignedJudgeIds,
+                allScoreRecords);
 
             // Bước 5: Tính TotalScore cho từng team.
             // Công thức: TotalScore = tổng của ((điểm trung bình / điểm tối đa tiêu chí) x trọng số tiêu chí x 100).
@@ -308,7 +319,82 @@ namespace SealHackathon.Application.Services.Implementations
             return MapToRankingResponse(ranking, round.Name, team.TeamName);
         }
 
+        // =============== Private helpers ===============
+
+        /// <summary>
+        /// Lấy danh sách judge được assign vào round và còn quyền Judge hợp lệ trong event.
+        /// </summary>
+        private async Task<List<Guid>> GetActiveAssignedJudgeIdsAsync(Round round)
+        {
+            var track = await _unitOfWork
+                .GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            var judgeAssigns = await _unitOfWork
+                .GetRepository<JudgeAssign>()
+                .GetAllAsync(ja => ja.RoundId == round.Id);
+
+            var assignedJudgeIdSet = judgeAssigns
+                .Select(ja => ja.JudgeId)
+                .ToHashSet();
+
+            // JudgeAssign chỉ chứng minh được phân công;
+            // EventAccount mới chứng minh judge còn quyền hợp lệ trong Event.
+            var activeJudgeAccounts = await _unitOfWork
+                .GetRepository<EventAccount>()
+                .GetAllAsync(ea => assignedJudgeIdSet.Contains(ea.AccountId)
+                                   && ea.EventId == track.EventId
+                                   && ea.EventRole == RoleConstants.Judge
+                                   && ea.Status == EventAccountConstants.Status.Approved
+                                   && !ea.Event.IsDeleted
+                                   && ea.Event.Status == EventConstants.Status.Active);
+
+            var judgeIds = activeJudgeAccounts
+                .Select(ea => ea.AccountId)
+                .Distinct()
+                .ToList();
+
+            if (!judgeIds.Any())
+                throw new BadRequestException(ErrorMessages.Ranking.NoAssignedJudges);
+
+            return judgeIds;
+        }
+
+        /// <summary>
+        /// Đảm bảo mọi judge hợp lệ đã chấm mọi tiêu chí cho mọi bài nộp hợp lệ.
+        /// </summary>
+        private static void EnsureAllRequiredScoresExist(
+            List<Submission> submissions,
+            List<Criterion> criteria,
+            List<Guid> judgeIds,
+            List<ScoreRecord> scoreRecords)
+        {
+            // Dùng bộ khóa chính xác để tránh trường hợp tổng số điểm đủ nhưng thiếu sai vị trí.
+            var scoredKeys = scoreRecords
+                .Select(sr => (sr.SubmissionId, sr.JudgeId, sr.CriterionId))
+                .ToHashSet();
+
+            foreach (var submission in submissions)
+            {
+                foreach (var judgeId in judgeIds)
+                {
+                    foreach (var criterion in criteria)
+                    {
+                        if (!scoredKeys.Contains((submission.Id, judgeId, criterion.Id)))
+                            throw new BadRequestException(ErrorMessages.Ranking.ScoresNotCompleted);
+                    }
+                }
+            }
+        }
+
         // =============== Mapping helpers ===============
+
+        /// <summary>
+        /// Chuyển entity Ranking sang DTO trả về cho client.
+        /// </summary>
         private static RankingResponse MapToRankingResponse(
             Domain.Entities.Ranking ranking, string roundName, string teamName)
         {

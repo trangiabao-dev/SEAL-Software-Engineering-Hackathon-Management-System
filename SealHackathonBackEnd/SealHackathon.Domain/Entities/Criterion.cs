@@ -13,7 +13,7 @@ public partial class Criterion
 
     public string? Description { get; set; }
 
-    public double MaxScore { get; set; }
+    public double   MaxScore { get; set; }
 
     public double Weight { get; set; }
 

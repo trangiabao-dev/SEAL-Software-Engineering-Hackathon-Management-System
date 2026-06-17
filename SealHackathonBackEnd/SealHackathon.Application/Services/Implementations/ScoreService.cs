@@ -57,6 +57,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Round phải tồn tại và đang ở trạng thái Scoring.
             var round = await GetScoringRoundAsync(submission.RoundId);
 
+            // Ranking đã tính thì điểm phải bị khóa để tránh lệch với TotalScore đã công bố.
+            await EnsureRankingNotCalculatedAsync(round.Id);
+
             // Judge phải còn quyền Judge trong Event và được phân công vào Round này.
             await EnsureJudgeCanScoreRoundAsync(judgeId, round);
 
@@ -194,6 +197,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Round phải tồn tại và đang ở trạng thái Scoring.
             var round = await GetScoringRoundAsync(submission.RoundId);
 
+            // Ranking đã tính thì không cho sửa ScoreRecord cũ.
+            await EnsureRankingNotCalculatedAsync(round.Id);
+
             // Judge phải còn quyền Judge trong Event và được phân công vào Round này.
             await EnsureJudgeCanScoreRoundAsync(judgeId, round);
 
@@ -253,6 +259,19 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(ErrorMessages.Score.RoundNotInScoring);
 
             return round;
+        }
+
+        /// <summary>
+        /// Chặn tạo hoặc cập nhật điểm nếu round đã có kết quả ranking.
+        /// </summary>
+        private async Task EnsureRankingNotCalculatedAsync(int roundId)
+        {
+            var existingRanking = await _unitOfWork
+                .GetRepository<Ranking>()
+                .GetFirstOrDefaultAsync(r => r.RoundId == roundId);
+
+            if (existingRanking is not null)
+                throw new BadRequestException(ErrorMessages.Score.RankingAlreadyCalculated);
         }
 
         // Kiểm tra Judge còn quyền trong Event và được phân công vào Round.
