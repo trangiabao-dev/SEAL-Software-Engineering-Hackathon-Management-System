@@ -192,7 +192,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (track is null)
                 throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
-            await EnsureMentorCanManageTrackAsync(track, mentorId);
+            await CheckMentorCanManageTrackAsync(track, mentorId);
 
             // Lấy toàn bộ team trong Track rồi lọc bằng C# để tránh lỗi Contains với SQL Server cũ.
             var teamsInTrack = await _uow.GetRepository<Team>()
@@ -240,7 +240,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (track is null)
                 throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
-            await EnsureMentorCanManageTrackAsync(track, mentorId);
+            await CheckMentorCanManageTrackAsync(track, mentorId);
 
             var teams = await _uow.GetRepository<Team>()
                 .GetAllAsync(t => t.TrackId == trackId
@@ -313,7 +313,7 @@ namespace SealHackathon.Application.Services.Implementations
             return (int)((elapsedDuration / totalDuration) * 100);
         }
 
-        private async Task EnsureMentorCanManageTrackAsync(Track track, Guid mentorId)
+        private async Task CheckMentorCanManageTrackAsync(Track track, Guid mentorId)
         {
             var mentor = await _uow.GetRepository<Account>()
                 .GetFirstOrDefaultAsync(a => a.Id == mentorId && !a.IsDeleted);
