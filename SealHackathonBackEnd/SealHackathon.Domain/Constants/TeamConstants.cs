@@ -11,18 +11,6 @@
             public const string Approved = "Approved";
             public const string Rejected = "Rejected";
             public const string Disqualified = "Disqualified";
-
-            /// <summary>
-            /// Hộp chứa các status của TeamConstants
-            /// </summary>
-            public static readonly HashSet<string> ValidStatuses =
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    Pending,
-                    Approved,
-                    Rejected,
-                    Disqualified
-                };
         }
 
         /// <summary>

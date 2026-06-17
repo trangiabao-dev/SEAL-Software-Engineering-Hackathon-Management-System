@@ -8,31 +8,24 @@ using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
 using System.Linq.Expressions;
-using static SealHackathon.Domain.Constants.AuditActionConstants;
 
 namespace SealHackathon.Application.Services.Implementations
 {
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _uow;
-
         private readonly INotificationService _notificationService;
-        private readonly IAuditLogService _auditLogService;
 
-        public TeamService(IUnitOfWork uow, INotificationService notificationService, IAuditLogService auditLogService)
+        public TeamService(IUnitOfWork uow, INotificationService notificationService)
         {
             _uow = uow;
             _notificationService = notificationService;
-            _auditLogService = auditLogService;
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
         {
             // Kiểm tra Leader account còn active
-            var leaderAccount = await _uow.GetRepository<Account>()
-                .GetFirstOrDefaultAsync(t => t.Id == leaderId && !t.IsDeleted);
-            if (leaderAccount is null)
-                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
+            await CheckLeaderAccountActiveAsync(leaderId);
 
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == request.TrackId && !t.IsDeleted);
@@ -135,11 +128,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
         public async Task<TeamDetailDto?> GetMyTeamAsync(Guid leaderId)
         {
-            var leaderAccount = await _uow.GetRepository<Account>()
-                .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
-
-            if (leaderAccount is null)
-                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
+            await CheckLeaderAccountActiveAsync(leaderId);
 
             // Registration: Leader đang đăng ký / quản lý team trước khi thi.
             // Active: Event đang thi, Leader vẫn cần xem team của mình.
@@ -175,11 +164,7 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<MyActiveRoundResponse?> GetMyActiveRoundAsync(Guid leaderId)
         {
-            var leaderAccount = await _uow.GetRepository<Account>()
-                .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
-
-            if (leaderAccount is null)
-                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
+            await CheckLeaderAccountActiveAsync(leaderId);
 
             var currentEvents = await _uow.GetRepository<Event>()
                 .GetAllAsync(e => !e.IsDeleted && e.Status == EventConstants.Status.Active);
@@ -238,6 +223,8 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
         {
+            await CheckLeaderAccountActiveAsync(leaderId);
+
             var repo = _uow.GetRepository<Team>();
 
             var team = await repo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
@@ -248,6 +235,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Kiểm tra quyền
             if (team.LeaderId != leaderId)
                 throw new ForbiddenException(ErrorMessages.Team.NoUpdatePermission);
+
+            if (team.Status == TeamConstants.Status.Disqualified)
+                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
             // Kiểm tra nếu team đã được duyệt thì chỉ được phép cập nhật Link Github và không được đổi gì khác
             if (team.Status == TeamConstants.Status.Approved)
@@ -303,12 +293,11 @@ namespace SealHackathon.Application.Services.Implementations
             if (pageSize < 1 || pageSize > PaginationRequest.MaxPageSize)
                 throw new BadRequestException($"PageSize phải nằm trong khoảng 1 đến {PaginationRequest.MaxPageSize}.");
 
-            // Nếu FE có gửi status, nhưng status đó không nằm trong danh sách status hợp lệ thì báo lỗi.
-            if (status is not null && !TeamConstants.Status.ValidStatuses.Contains(status))
-                throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+            // Chuẩn hóa status FE gửi lên để query luôn dùng đúng giá trị hệ thống đang lưu.
+            var statusFilter = ResolveTeamStatusFilter(status);
 
             Expression<Func<Team, bool>> predicate = t => !t.IsDeleted
-                && (status == null || t.Status == status)
+                && (statusFilter == null || t.Status == statusFilter)
                 && (trackId == null || t.TrackId == trackId)
                 && (eventId == null || t.Track.EventId == eventId);
 
@@ -530,19 +519,8 @@ namespace SealHackathon.Application.Services.Implementations
         // =======================================================
         public async Task<TeamMemberDto> AddMemberAsync(Guid teamId, AddMemberRequest request, Guid leaderId)
         {
-            var teamRepo = _uow.GetRepository<Team>();
-
-            // Tìm team và kiểm tra quyền
-            var team = await teamRepo.GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
-
-            if (team is null)
-                throw new NotFoundException(ErrorMessages.Team.NotFound);
-
-            if (team.LeaderId != leaderId)
-                throw new ForbiddenException(ErrorMessages.Team.NoAddMemberPermission);
-
-            if (team.Status == TeamConstants.Status.Disqualified)
-                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+            var team = await GetTeamForMemberManagementAsync(
+                teamId, leaderId, ErrorMessages.Team.NoAddMemberPermission);
 
             // Kiểm tra team không quá 5 người
             var memberCount = await _uow.GetRepository<TeamMember>()
@@ -587,19 +565,9 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<TeamMemberDto> UpdateMemberAsync(
             Guid teamId, int memberId, UpdateMemberRequest request, Guid leaderId)
         {
-            var team = await _uow.GetRepository<Team>()
-                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            var team = await GetTeamForMemberManagementAsync(
+                teamId, leaderId, ErrorMessages.Team.NoUpdateMemberPermission);
 
-            if (team is null)
-                throw new NotFoundException(ErrorMessages.Team.NotFound);
-
-            if (team.LeaderId != leaderId)
-                throw new ForbiddenException(ErrorMessages.Team.NoUpdateMemberPermission);
-
-            if (team.Status == TeamConstants.Status.Disqualified)
-                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
-
-            // Tìm member
             var memberRepo = _uow.GetRepository<TeamMember>();
 
             var member = await memberRepo
@@ -636,23 +604,14 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task DeleteMemberAsync(Guid teamId, int memberId, Guid leaderId)
         {
-            // Kiểm tra team và quyền
-            var team = await _uow.GetRepository<Team>()
-                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+            var team = await GetTeamForMemberManagementAsync(
+                teamId, leaderId, ErrorMessages.Team.NoDeleteMemberPermission);
 
-            if (team is null)
-                throw new NotFoundException(ErrorMessages.Team.NotFound);
-
-            if (team.LeaderId != leaderId)
-                throw new ForbiddenException(ErrorMessages.Team.NoDeleteMemberPermission);
-
-            if (team.Status == TeamConstants.Status.Disqualified)
-                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
-
-            // Tìm member
             var memberRepo = _uow.GetRepository<TeamMember>();
 
-            var member = await memberRepo.GetFirstOrDefaultTrackingAsync(m => m.Id == memberId && m.TeamId == teamId);
+            var member = await memberRepo
+                .GetFirstOrDefaultTrackingAsync(m => m.Id == memberId && m.TeamId == teamId);
+
             if (member is null)
                 throw new NotFoundException(ErrorMessages.TeamMember.NotFound);
 
@@ -667,12 +626,36 @@ namespace SealHackathon.Application.Services.Implementations
                 if (memberCount <= 3)
                     throw new BadRequestException(ErrorMessages.TeamMember.ApprovedTeamMinMembersRequired);
             }
-            
+
             memberRepo.Delete(member);
             await _uow.SaveChangesAsync();
         }
 
         // =============== Business helpers ===============
+        /// <summary>
+        /// Lấy team cho các thao tác quản lý thành viên và kiểm tra Leader có quyền thao tác.
+        /// Cần helper này vì AddMember, UpdateMember và DeleteMember đều dùng chung rule:
+        /// team phải tồn tại, Leader phải là chủ đội, và team chưa bị loại.
+        /// </summary>
+        private async Task<Team> GetTeamForMemberManagementAsync(Guid teamId, Guid leaderId, string forbiddenMessage)
+        {
+            await CheckLeaderAccountActiveAsync(leaderId);
+
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
+
+            if (team is null)
+                throw new NotFoundException(ErrorMessages.Team.NotFound);
+
+            if (team.LeaderId != leaderId)
+                throw new ForbiddenException(forbiddenMessage);
+
+            if (team.Status == TeamConstants.Status.Disqualified)
+                throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+
+            return team;
+        }
+
         private async Task CheckStudentCodeNotUsedInEventAsync(int eventId, string studentCode)
         {
             var duplicateStudent = await _uow.GetRepository<TeamMember>()
@@ -689,8 +672,7 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var duplicate = await _uow.GetRepository<TeamMember>()
                 .GetFirstOrDefaultAsync(m => m.Email == email
-                                          // HasValue - bool  → hỏi "cái này có chứa gì không?"
-                                          // Value    - int   → hỏi "cái này đang chứa gì vậy?"
+                                          // Khi update member, bỏ qua chính member hiện tại để không tự báo trùng email.
                                           && (!ignoreMemberId.HasValue || m.Id != ignoreMemberId.Value)
                                           && !m.Team.IsDeleted
                                           && !m.Team.Track.IsDeleted
@@ -698,6 +680,22 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (duplicate is not null)
                 throw new ConflictException(ErrorMessages.TeamMember.EmailAlreadyUsedInEvent);
+        }
+
+        /// <summary>
+        /// Tập trung logic kiểm tra Leader còn tồn tại và chưa bị xóa mềm.
+        /// Cần helper này vì nhiều hàm Leader đều phải chặn account đã bị deactivate nhưng token vẫn còn hạn.
+        /// </summary>
+        private async Task CheckLeaderAccountActiveAsync(Guid leaderId)
+        {
+            if (leaderId == Guid.Empty)
+                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
+
+            var leaderAccount = await _uow.GetRepository<Account>()
+                .GetFirstOrDefaultAsync(a => a.Id == leaderId && !a.IsDeleted);
+
+            if (leaderAccount is null)
+                throw new ForbiddenException(ErrorMessages.Common.InvalidAccount);
         }
 
         private async Task<Team?> GetLeaderTeamInEventAsync(Guid leaderId, int eventId)
@@ -728,6 +726,35 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(t => t.Id == latestRoundTeam.TopicId.Value);
         }
 
+        /// <summary>
+        /// Chuẩn hóa status team FE gửi lên thành đúng format BE đang lưu.
+        /// Cần helper này để tránh lặp logic validate status và tránh lỗi khác hoa/thường khi FE gửi query.
+        /// </summary>
+        private static string? ResolveTeamStatusFilter(string? status)
+        {
+            if (status is null)
+                return null;
+
+            status = status.Trim();
+
+            if (string.IsNullOrWhiteSpace(status))
+                throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+
+            if (string.Equals(status, TeamConstants.Status.Pending, StringComparison.OrdinalIgnoreCase))
+                return TeamConstants.Status.Pending;
+
+            if (string.Equals(status, TeamConstants.Status.Approved, StringComparison.OrdinalIgnoreCase))
+                return TeamConstants.Status.Approved;
+
+            if (string.Equals(status, TeamConstants.Status.Rejected, StringComparison.OrdinalIgnoreCase))
+                return TeamConstants.Status.Rejected;
+
+            if (string.Equals(status, TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
+                return TeamConstants.Status.Disqualified;
+
+            throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+        }
+
         // =============== Mapping helpers ===============
         private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null, Topic? topic = null)
         {
@@ -744,13 +771,7 @@ namespace SealHackathon.Application.Services.Implementations
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
                 DisqualifyReason = team.DisqualifyReason,
-                // Nếu có members thì map từng member sang DTO.
-                // Nếu members bị null thì trả về danh sách rỗng, không để FE nhận null.
                 Members = members?.Select(MapToMemberDto).ToList() ?? new List<TeamMemberDto>()
-                // Dấu ?. nghĩa là: nếu members khác null thì chạy tiếp; nếu members là null thì không gọi .Select(...).
-                // Select(MapToMemberDto): Nghĩa là biến từng TeamMember entity thành TeamMemberDto.
-                // .ToList(): Biến kết quả thành danh sách List<TeamMemberDto>.
-                // ?? new List<TeamMemberDto>(): Nếu vế trái là null thì trả về list rỗng.
             };
         }
 
@@ -787,7 +808,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Đếm số lượng thành viên của team để map vào TeamListDto trả về cho FE
+        /// Chuyển Team entity sang TeamListDto và gắn thêm số lượng thành viên đã được tính sẵn.
         /// </summary>
         private TeamListDto MapToListDto(Team team, int memberCount)
         {
