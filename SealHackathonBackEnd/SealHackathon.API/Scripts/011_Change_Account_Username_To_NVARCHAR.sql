@@ -2,6 +2,7 @@
 -- Dung NVARCHAR de luu duoc ten co dau tieng Viet, tranh bi loi ky tu khi tao Leader, Mentor, Judge.
 
 DECLARE @UsernameConstraintName SYSNAME;
+DECLARE @Sql NVARCHAR(MAX);
 
 SELECT @UsernameConstraintName = kc.name
 FROM sys.key_constraints kc
@@ -17,7 +18,8 @@ WHERE kc.parent_object_id = OBJECT_ID(N'dbo.Account')
 
 IF @UsernameConstraintName IS NOT NULL
 BEGIN
-    EXEC(N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName));
+    SET @Sql = N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName);
+    EXEC(@Sql);
 END;
 
 IF EXISTS (
