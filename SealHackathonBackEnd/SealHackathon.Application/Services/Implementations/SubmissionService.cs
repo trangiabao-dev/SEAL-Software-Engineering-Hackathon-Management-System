@@ -57,6 +57,7 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Id = Guid.NewGuid(),
                 TeamId = team.Id,
+                RoundId = round.Id,
                 PresentationUrl = request.PresentationUrl,
                 IsDisqualified = false,
                 CreatedAt = DateTime.UtcNow
