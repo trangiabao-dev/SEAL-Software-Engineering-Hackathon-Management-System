@@ -440,11 +440,7 @@ public partial class SealDbContext : DbContext
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.UpdatedAt);
-            entity.Property(e => e.DemoUrl)
-                .HasMaxLength(1000)
-                .IsUnicode(false);
-            entity.Property(e => e.DisqualifyReason).HasMaxLength(500);
-            entity.Property(e => e.ReportUrl)
+            entity.Property(e => e.PresentationUrl)
                 .HasMaxLength(1000)
                 .IsUnicode(false);
 

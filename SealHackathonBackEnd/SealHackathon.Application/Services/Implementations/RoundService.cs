@@ -14,10 +14,12 @@ namespace SealHackathon.Application.Services.Implementations
     {
         // UnitOfWork dùng để truy cập repository và lưu thay đổi xuống database.
         private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notificationService;
 
-        public RoundService(IUnitOfWork uow)
+        public RoundService(IUnitOfWork uow, INotificationService notificationService)
         {
             _uow = uow;
+            _notificationService = notificationService;
         }
 
         // Hàm lấy ra danh sách các Vòng thi thuộc về một Bảng đấu cụ thể
@@ -116,6 +118,17 @@ namespace SealHackathon.Application.Services.Implementations
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
             if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
             {
+                // Fix lỗ hổng: Không cho phép 2 Round cùng Active trong 1 Track
+                var activeRoundExists = await roundRepo.GetFirstOrDefaultAsync(r => 
+                    r.TrackId == existingRound.TrackId && 
+                    r.Id != existingRound.Id && 
+                    r.Status == RoundConstants.Status.Active);
+                
+                if (activeRoundExists != null)
+                {
+                    throw new BadRequestException("Không thể kích hoạt vòng thi này vì đang có một vòng thi khác đang diễn ra (Active) trong cùng một bảng đấu (Track). Vui lòng đóng vòng thi hiện tại trước.");
+                }
+
                 await EnsureEventIsActiveBeforeStartingRoundAsync(existingRound);
                 await AssignTopicsForRoundAsync(existingRound);
             }
@@ -190,6 +203,15 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.GetRepository<JudgeAssign>().AddAsync(judgeAssign);
             await _uow.SaveChangesAsync();
+
+            // Gửi thông báo cho Giám khảo
+            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
+            {
+                AccountId = request.JudgeId,
+                Title = "Phân công Giám khảo",
+                Message = $"Bạn vừa được phân công làm giám khảo cho vòng thi {round.Name}.",
+                Type = "JUDGE_ASSIGNED"
+            });
 
             return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
         }

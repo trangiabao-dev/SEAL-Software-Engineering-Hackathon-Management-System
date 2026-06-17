@@ -166,7 +166,9 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             // Bước 7: Xác định đội được vào vòng tiếp theo.
-            var advancingSlots = round.AdvancingSlots;
+            // Nếu Round chưa cấu hình AdvancingSlots, tạm thời "hardcode" lấy Top 10 đội theo yêu cầu.
+            var advancingSlots = round.AdvancingSlots ?? 10;
+            int currentAdvancingCount = 0;
 
             var now = DateTime.UtcNow;
 
@@ -183,7 +185,14 @@ namespace SealHackathon.Application.Services.Implementations
             var newRankings = new List<Domain.Entities.Ranking>();
             foreach (var team in rankedTeams)
             {
-                var isAdvancing = advancingSlots.HasValue && team.Rank <= advancingSlots.Value;
+                // Rào cứng: Bất kể có đồng hạng hay không, chỉ lấy đúng tối đa AdvancingSlots (hoặc 10) đội đi tiếp.
+                // Các đội đồng hạng sẽ được "bốc" theo thứ tự sắp xếp ngẫu nhiên trước đó cho đến khi đủ chỉ tiêu.
+                var isAdvancing = false;
+                if (currentAdvancingCount < advancingSlots)
+                {
+                    isAdvancing = true;
+                    currentAdvancingCount++;
+                }
 
                 var ranking = new Domain.Entities.Ranking
                 {
