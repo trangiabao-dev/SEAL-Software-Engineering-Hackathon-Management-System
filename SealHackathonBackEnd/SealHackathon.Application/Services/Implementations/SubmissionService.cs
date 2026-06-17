@@ -22,7 +22,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (roundId <= 0)
                 throw new BadRequestException(ErrorMessages.Common.InvalidRoundId);
 
-            ValidateSubmissionLinks(request.DemoUrl, request.ReportUrl);
+            ValidatePresentationUrl(request.PresentationUrl);
 
             var round = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
 
@@ -57,9 +57,7 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Id = Guid.NewGuid(),
                 TeamId = team.Id,
-                RoundId = round.Id,
-                DemoUrl = request.DemoUrl,
-                ReportUrl = request.ReportUrl,
+                PresentationUrl = request.PresentationUrl,
                 IsDisqualified = false,
                 CreatedAt = DateTime.UtcNow
             };
@@ -78,7 +76,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (submissionId == Guid.Empty)
                 throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
 
-            ValidateSubmissionLinks(request.DemoUrl, request.ReportUrl);
+            ValidatePresentationUrl(request.PresentationUrl);
 
             var submission = await _uow.GetRepository<Submission>()
                 .GetFirstOrDefaultTrackingAsync(s => s.Id == submissionId);
@@ -109,8 +107,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             ValidateRoundIsAcceptingSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
 
-            submission.DemoUrl = request.DemoUrl;
-            submission.ReportUrl = request.ReportUrl;
+            submission.PresentationUrl = request.PresentationUrl;
             submission.UpdatedAt = DateTime.UtcNow;
 
             await _uow.SaveChangesAsync();
@@ -204,13 +201,13 @@ namespace SealHackathon.Application.Services.Implementations
 
         // =============== Private helpers ===============
         /// <summary>
-        /// Kiểm tra bài nộp có ít nhất một link DemoUrl hoặc ReportUrl.
+        /// Bài nộp của hệ thống cần có link bài thuyết trình/slide.
+        /// Link mã nguồn được quản lý ở Team.GithubRepoLink, nên Submission chỉ cần lưu link thuyết trình.
         /// </summary>
-        private static void ValidateSubmissionLinks(string? demoUrl, string? reportUrl)
+        private static void ValidatePresentationUrl(string? presentationUrl)
         {
-            if (string.IsNullOrWhiteSpace(demoUrl)
-                && string.IsNullOrWhiteSpace(reportUrl))
-                throw new BadRequestException(ErrorMessages.Submission.NeedAtLeastOneLink);
+            if (string.IsNullOrWhiteSpace(presentationUrl))
+                throw new BadRequestException(ErrorMessages.Submission.PresentationUrlRequired);
         }
 
         /// <summary>
@@ -295,8 +292,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = submission.Id,
                 TeamId = submission.TeamId,
                 RoundId = submission.RoundId,
-                DemoUrl = submission.DemoUrl,
-                ReportUrl = submission.ReportUrl,
+                PresentationUrl = submission.PresentationUrl,
                 AiEvaluation = submission.AiEvaluation,
                 IsDisqualified = submission.IsDisqualified,
                 DisqualifyReason = submission.DisqualifyReason,
