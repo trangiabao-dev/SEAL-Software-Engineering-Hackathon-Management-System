@@ -14,10 +14,12 @@ namespace SealHackathon.Application.Services.Implementations
     {
         // UnitOfWork dùng để truy cập repository và lưu thay đổi xuống database.
         private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notificationService;
 
-        public RoundService(IUnitOfWork uow)
+        public RoundService(IUnitOfWork uow, INotificationService notificationService)
         {
             _uow = uow;
+            _notificationService = notificationService;
         }
 
         // Hàm lấy ra danh sách các Vòng thi thuộc về một Bảng đấu cụ thể
@@ -190,6 +192,15 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.GetRepository<JudgeAssign>().AddAsync(judgeAssign);
             await _uow.SaveChangesAsync();
+
+            // Gửi thông báo cho Giám khảo
+            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
+            {
+                AccountId = request.JudgeId,
+                Title = "Phân công Giám khảo",
+                Message = $"Bạn vừa được phân công làm giám khảo cho vòng thi {round.Name}.",
+                Type = "JUDGE_ASSIGNED"
+            });
 
             return ApiResponse<bool>.SuccessResult(true, "Phân công Judge vào Round thành công.");
         }
