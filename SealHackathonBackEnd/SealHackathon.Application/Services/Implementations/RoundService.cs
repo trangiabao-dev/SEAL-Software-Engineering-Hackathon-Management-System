@@ -118,6 +118,17 @@ namespace SealHackathon.Application.Services.Implementations
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
             if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))
             {
+                // Fix lỗ hổng: Không cho phép 2 Round cùng Active trong 1 Track
+                var activeRoundExists = await roundRepo.GetFirstOrDefaultAsync(r => 
+                    r.TrackId == existingRound.TrackId && 
+                    r.Id != existingRound.Id && 
+                    r.Status == RoundConstants.Status.Active);
+                
+                if (activeRoundExists != null)
+                {
+                    throw new BadRequestException("Không thể kích hoạt vòng thi này vì đang có một vòng thi khác đang diễn ra (Active) trong cùng một bảng đấu (Track). Vui lòng đóng vòng thi hiện tại trước.");
+                }
+
                 await EnsureEventIsActiveBeforeStartingRoundAsync(existingRound);
                 await AssignTopicsForRoundAsync(existingRound);
             }
