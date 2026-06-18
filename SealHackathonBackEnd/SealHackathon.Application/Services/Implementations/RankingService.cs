@@ -53,6 +53,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (round == null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
+            EnsureRoundCanCalculateRanking(round);
+
             // Bước 2: Lấy tiêu chí của Round để biết trọng số điểm.
             var criteria = await _unitOfWork
                 .GetRepository<Criterion>()
@@ -329,6 +331,19 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Đảm bảo chỉ tính ranking khi Round đang ở giai đoạn chấm điểm hoặc đã đóng.
+        /// </summary>
+        private static void EnsureRoundCanCalculateRanking(Round round)
+        {
+            var canCalculate =
+                string.Equals(round.Status, RoundConstants.Status.Scoring, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(round.Status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase);
+
+            if (!canCalculate)
+                throw new BadRequestException(ErrorMessages.Ranking.RoundStatusInvalidForCalculation);
+        }
 
         /// <summary>
         /// Lấy danh sách judge được assign vào round và còn quyền Judge hợp lệ trong event.
