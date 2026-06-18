@@ -128,15 +128,33 @@ namespace SealHackathon.Domain.Constants
             public const string InvalidScoreRange = "Điểm chấm không hợp lệ.";
             public const string TeamDisqualified = "Đội thi đã bị loại, không thể chấm điểm.";
             public const string TeamDisqualifiedCannotUpdate = "Đội thi đã bị loại, không thể cập nhật điểm.";
+            public const string RankingAlreadyCalculated = "Ranking đã được tính, không thể chấm hoặc cập nhật điểm.";
         }
 
         public static class Ranking
         {
             public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
+            public const string RoundStatusInvalidForCalculation = "Chỉ được tính ranking khi Round đang ở trạng thái Scoring hoặc Closed.";
             public const string RoundHasNoCriteria = "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.";
             public const string RoundHasNoValidSubmissions = "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.";
             public const string CriterionConfigNotFound = "Không tìm thấy cấu hình tiêu chí chấm điểm khi tính xếp hạng.";
             public const string CriterionMaxScoreInvalid = Criterion.MaxScoreInvalid;
+            public const string NoAssignedJudges = "Round này chưa có giám khảo hợp lệ được phân công để tính xếp hạng.";
+            public const string ScoresNotCompleted = "Chưa đủ điểm chấm cho tất cả giám khảo, tiêu chí và bài nộp hợp lệ. Không thể tính xếp hạng.";
+        }
+
+        public static class Prize
+        {
+            public const string NotFound = "Không tìm thấy cấu hình giải thưởng.";
+            public const string NameRequired = "Tên giải thưởng không được để trống.";
+            public const string RankPositionInvalid = "Hạng giải thưởng chỉ được là 1, 2 hoặc 3.";
+            public const string AmountInvalid = "Giá trị giải thưởng không được âm.";
+            public const string RankPositionDuplicated = "Hạng giải thưởng này đã được cấu hình trong Track.";
+            public const string PrizeConfigNotFound = "Track chưa cấu hình giải thưởng.";
+            public const string RequiredRanksNotConfigured = "Track phải cấu hình đủ giải hạng 1, 2 và 3.";
+            public const string RoundRankingNotFound = "Round chưa có kết quả ranking để xác định giải thưởng.";
+            public const string PrizeRankWinnerMissing = "Ranking chưa có đủ hạng 1, 2 và 3 để xác định giải thưởng.";
+            public const string PrizeRankTieExists = "Ranking còn đồng hạng trong nhóm giải thưởng. Vui lòng xử lý tie-break trước khi xuất giải.";
         }
     }
 }
