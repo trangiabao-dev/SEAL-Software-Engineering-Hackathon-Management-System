@@ -27,6 +27,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Kiểm tra Leader account còn active
             await CheckLeaderAccountActiveAsync(leaderId);
 
+            // Chặn dữ liệu trùng giữa Leader và các thành viên trước khi truy vấn database.
+            EnsureCreateTeamMembersAreUnique(request);
+
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == request.TrackId && !t.IsDeleted);
 
@@ -753,6 +756,46 @@ namespace SealHackathon.Application.Services.Implementations
                 return TeamConstants.Status.Disqualified;
 
             throw new BadRequestException(ErrorMessages.Common.InvalidStatus);
+        }
+
+        // =============== Private helpers ===============
+        // Kiểm tra Leader và các thành viên gửi trong cùng request không trùng định danh.
+        // Cần kiểm tra trên RAM vì những thành viên này chưa tồn tại trong database.
+        private static void EnsureCreateTeamMembersAreUnique(CreateTeamRequest request)
+        {
+            var studentCodes = request.Members
+                .Select(member => NormalizeStudentCode(member.StudentCode))
+                .Append(NormalizeStudentCode(request.StudentCode))
+                .ToList();
+
+            if (studentCodes.Distinct().Count() != studentCodes.Count)
+            {
+                throw new ConflictException(
+                    ErrorMessages.TeamMember.DuplicateStudentCodeInRequest);
+            }
+
+            var emails = request.Members
+                .Select(member => NormalizeEmail(member.Email))
+                .Append(NormalizeEmail(request.Email))
+                .ToList();
+
+            if (emails.Distinct().Count() != emails.Count)
+            {
+                throw new ConflictException(
+                    ErrorMessages.TeamMember.DuplicateEmailInRequest);
+            }
+        }
+
+        // Chuyển mã SV "se190374" và " SE190374 "
+        private static string NormalizeStudentCode(string studentCode)
+        {
+            return studentCode.Trim().ToUpperInvariant();
+        }
+
+        // Chuẩn hóa email để khác chữ hoa/thường hoặc khoảng trắng vẫn được xem là trùng.
+        private static string NormalizeEmail(string email)
+        {
+            return email.Trim().ToLowerInvariant();
         }
 
         // =============== Mapping helpers ===============

@@ -2,7 +2,6 @@
 -- Dung NVARCHAR de luu duoc ten co dau tieng Viet, tranh bi loi ky tu khi tao Leader, Mentor, Judge.
 
 DECLARE @UsernameConstraintName SYSNAME;
-DECLARE @Sql NVARCHAR(MAX);
 
 SELECT @UsernameConstraintName = kc.name
 FROM sys.key_constraints kc
@@ -18,18 +17,11 @@ WHERE kc.parent_object_id = OBJECT_ID(N'dbo.Account')
 
 IF @UsernameConstraintName IS NOT NULL
 BEGIN
-    -- Khai báo biến để chứa chuỗi lệnh động
+    -- Tên constraint UNIQUE do SQL Server tự sinh có thể khác nhau giữa các máy.
+    -- Tìm đúng tên thực tế rồi chỉ xóa một lần trước khi đổi kiểu dữ liệu cột.
     DECLARE @DropConstraintSql NVARCHAR(MAX);
-    
-    -- Gán chuỗi lệnh vào biến trước
     SET @DropConstraintSql = N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName);
-    
-    -- Thực thi biến
     EXEC(@DropConstraintSql);
-
-    SET @Sql = N'ALTER TABLE dbo.Account DROP CONSTRAINT ' + QUOTENAME(@UsernameConstraintName);
-    EXEC(@Sql);
-
 END;
 
 IF EXISTS (

@@ -56,7 +56,6 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đăng xuất thành công."));
         }
 
-        // Bảo mới thêm vào đây
         [HttpPost("/api/events/{eventId:int}/staff")]
         [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CreateEventStaff(int eventId, [FromBody] CreateEventStaffRequest request)
@@ -71,7 +70,6 @@ namespace SealHackathon.API.Controllers
             ));
         }
 
-        // Bảo mới thêm vào đây
         [HttpPut("/api/events/{eventId:int}/staff/{accountId:guid}/deactivate")]
         [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> DeactivateEventStaff(int eventId, Guid accountId, [FromQuery] string eventRole)
