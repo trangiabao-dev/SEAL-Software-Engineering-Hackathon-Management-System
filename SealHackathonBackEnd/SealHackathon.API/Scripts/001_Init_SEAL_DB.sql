@@ -264,7 +264,7 @@ INSERT INTO Account (Id, Username, PasswordHash, Email, SystemRole)
 VALUES (
     NEWID(),
     'coordinator',
-    '$2a$11$replacethiswithrealbcrypthashxxxxxxxxxxxxxxxxxxxxxxxx',
+    '$2a$11$xnUmMEGce7kVScKttuCS0Oj2DaCV.jVCz8U3/f5fco6f/u0pP/VZu',
     'coordinator@seal.edu.vn',
     'Coordinator'
 );

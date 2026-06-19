@@ -226,6 +226,62 @@ namespace SealHackathon.Application.Services.Implementations
                 "Phân công Mentor phụ trách team thành công.");
         }
 
+        public async Task<ApiResponse<bool>> AutoAssignMentorsAsync(int trackId, Guid assignedBy)
+        {
+            if (trackId <= 0)
+                throw new BadRequestException("TrackId không hợp lệ.");
+
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            // 1. Lấy danh sách Mentor đã được phân công vào Track này
+            var mentorAssigns = await _uow.GetRepository<MentorAssign>()
+                .GetAllAsync(ma => ma.TrackId == trackId);
+
+            var mentorIds = mentorAssigns.Select(ma => ma.MentorId).Distinct().ToList();
+
+            if (!mentorIds.Any())
+                throw new BadRequestException("Chưa có Mentor nào được phân công vào Track này.");
+
+            // 2. Lấy danh sách Team đã Approved trong Track và chưa có Mentor
+            var teamsWithoutMentor = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => t.TrackId == trackId 
+                               && t.Status == TeamConstants.Status.Approved 
+                               && t.MentorId == null 
+                               && !t.IsDeleted);
+
+            if (!teamsWithoutMentor.Any())
+                throw new BadRequestException("Không có Team hợp lệ nào cần phân công Mentor (các team có thể đã có Mentor hoặc chưa được duyệt).");
+
+            // 3. Phân chia vòng lặp (Round Robin)
+            int mentorIndex = 0;
+            var now = DateTime.UtcNow;
+
+            foreach (var team in teamsWithoutMentor)
+            {
+                var mentorId = mentorIds[mentorIndex];
+                
+                team.MentorId = mentorId;
+                team.UpdatedAt = now;
+                team.UpdatedBy = assignedBy;
+                
+                _uow.GetRepository<Team>().Update(team);
+
+                mentorIndex++;
+                if (mentorIndex >= mentorIds.Count)
+                {
+                    mentorIndex = 0;
+                }
+            }
+
+            await _uow.SaveChangesAsync();
+
+            return ApiResponse<bool>.SuccessResult(true, $"Đã tự động phân công Mentor cho {teamsWithoutMentor.Count} team thành công.");
+        }
+
         public async Task<ApiResponse<MentorTeamAssignmentResponse>> GetMentorTeamsAsync(int trackId, Guid mentorId)
         {
             if (trackId <= 0)

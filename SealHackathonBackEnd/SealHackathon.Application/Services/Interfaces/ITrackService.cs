@@ -13,6 +13,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<ApiResponse<TrackResponse>> UpdateTrackAsync(int id, UpdateTrackRequest request);
         Task<ApiResponse<bool>> AssignMentorAsync(int trackId, AssignMentorRequest request, Guid assignedBy);
         Task<ApiResponse<MentorTeamAssignmentResponse>> AssignMentorToTeamsAsync(int trackId, Guid mentorId, AssignMentorTeamsRequest request, Guid assignedBy);
+        Task<ApiResponse<bool>> AutoAssignMentorsAsync(int trackId, Guid assignedBy);
         Task<ApiResponse<MentorTeamAssignmentResponse>> GetMentorTeamsAsync(int trackId, Guid mentorId);
         Task<ApiResponse<List<TrackRoundsResponse>>> GetAllTracksWithRoundsAsync();
     }

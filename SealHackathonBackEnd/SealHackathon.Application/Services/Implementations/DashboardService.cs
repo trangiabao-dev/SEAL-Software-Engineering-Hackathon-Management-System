@@ -142,5 +142,77 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
                 response, "Lấy dữ liệu dashboard thành công.");
         }
+
+        public async Task<ApiResponse<MentorDashboardResponse>> GetMentorDashboardAsync(Guid mentorId)
+        {
+            var teamRepo = _uow.GetRepository<Team>();
+            var roundRepo = _uow.GetRepository<Round>();
+            var roundTeamRepo = _uow.GetRepository<RoundTeam>();
+            var submissionRepo = _uow.GetRepository<Submission>();
+            var topicRepo = _uow.GetRepository<Topic>();
+
+            // 1. Lấy danh sách các Team mà Mentor này đang quản lý, bao gồm Track và Event đang active
+            var teams = await teamRepo.GetAllAsync(t => 
+                t.MentorId == mentorId && 
+                !t.IsDeleted && 
+                (t.Track.Event.Status == EventConstants.Status.Active || t.Track.Event.Status == EventConstants.Status.Registration));
+
+            var response = new MentorDashboardResponse();
+
+            foreach (var team in teams)
+            {
+                var dto = new MentorDashboardTeamDto
+                {
+                    TeamId = team.Id,
+                    TeamName = team.TeamName,
+                    TrackName = team.Track?.Name ?? "N/A"
+                };
+
+                // 2. Tìm Round đang active của Track này
+                var activeRounds = await roundRepo.GetAllAsync(r => 
+                    r.TrackId == team.TrackId && 
+                    r.Status == RoundConstants.Status.Active);
+                
+                var activeRound = activeRounds.OrderBy(r => r.OrderIndex).FirstOrDefault();
+
+                if (activeRound != null)
+                {
+                    dto.ActiveRoundName = activeRound.Name;
+                    dto.ActiveRoundStatus = activeRound.Status;
+
+                    // 3. Tìm Topic của Team trong Round này
+                    var roundTeam = await roundTeamRepo.GetFirstOrDefaultAsync(rt => 
+                        rt.RoundId == activeRound.Id && 
+                        rt.TeamId == team.Id && 
+                        rt.TopicId != null);
+
+                    if (roundTeam != null && roundTeam.TopicId.HasValue)
+                    {
+                        var topic = await topicRepo.GetFirstOrDefaultAsync(tp => tp.Id == roundTeam.TopicId.Value);
+                        dto.TopicName = topic?.Title;
+                    }
+
+                    // 4. Lấy trạng thái Submission của Team trong Round này
+                    var submission = await submissionRepo.GetFirstOrDefaultAsync(s => 
+                        s.RoundId == activeRound.Id && 
+                        s.TeamId == team.Id && 
+                        !s.IsDisqualified);
+
+                    if (submission != null)
+                    {
+                        dto.IsSubmitted = true;
+                        dto.SubmittedAt = submission.CreatedAt;
+                    }
+                    else
+                    {
+                        dto.IsSubmitted = false;
+                    }
+                }
+
+                response.Teams.Add(dto);
+            }
+
+            return ApiResponse<MentorDashboardResponse>.SuccessResult(response, "Lấy dữ liệu Mentor Dashboard thành công.");
+        }
     }
 }

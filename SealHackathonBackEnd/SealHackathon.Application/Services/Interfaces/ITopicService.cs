@@ -10,5 +10,7 @@ namespace SealHackathon.Application.Services.Interfaces
     {
         Task<ApiResponse<List<TopicResponse>>> GetTopicsByRoundIdAsync(int roundId);
         Task<ApiResponse<TopicResponse>> CreateTopicAsync(CreateTopicRequest request);
+        Task<ApiResponse<TopicResponse>> UpdateTopicAsync(int id, UpdateTopicRequest request);
+        Task<ApiResponse<bool>> DeleteTopicAsync(int id);
     }
 }

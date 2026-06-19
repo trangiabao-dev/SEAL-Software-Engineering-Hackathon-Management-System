@@ -7,5 +7,6 @@ namespace SealHackathon.Application.Services.Interfaces
     public interface IDashboardService
     {
         Task<ApiResponse<CoordinatorDashboardResponse>> GetCoordinatorDashboardAsync();
+        Task<ApiResponse<MentorDashboardResponse>> GetMentorDashboardAsync(Guid mentorId);
     }
 }

@@ -1,4 +1,4 @@
-﻿using SealHackathon.Application.DTOs.Team;
+using SealHackathon.Application.DTOs.Team;
 using SealHackathon.Application.Common.Responses;
 
 namespace SealHackathon.Application.Services.Interfaces
@@ -17,6 +17,7 @@ namespace SealHackathon.Application.Services.Interfaces
 
         // Coordinator
         Task<PaginatedResponse<TeamListDto>> GetAllTeamsAsync(int pageNumber, int pageSize, string? status, int? trackId, int? eventId);
+        Task<PaginatedResponse<ParticipantDto>> GetParticipantsAsync(int pageNumber, int pageSize, int? eventId, string? search);
         Task ApproveTeamAsync(Guid teamId, Guid coordinatorId);
         Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId);
         Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId);

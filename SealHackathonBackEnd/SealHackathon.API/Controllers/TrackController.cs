@@ -55,6 +55,15 @@ namespace SealHackathon.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("api/tracks/{id}/mentors/auto-assign")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> AutoAssignMentors(int id)
+        {
+            var assignedBy = GetCurrentAccountId();
+            var result = await _trackService.AutoAssignMentorsAsync(id, assignedBy);
+            return Ok(result);
+        }
+
         [HttpPut("api/tracks/{trackId}/mentors/{mentorId}/teams")]
         [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> AssignMentorToTeams(int trackId, Guid mentorId, [FromBody] AssignMentorTeamsRequest request)

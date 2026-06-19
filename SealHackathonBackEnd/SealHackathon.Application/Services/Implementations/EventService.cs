@@ -144,6 +144,95 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<EventResponse>.SuccessResult(response, "Tạo Event thành công.");
         }
 
+        public async Task<ApiResponse<EventResponse>> CreateFullEventAsync(CreateFullEventRequest request)
+        {
+            await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Draft);
+
+            // 1. Tạo Event
+            var newEvent = new Event
+            {
+                Name = request.Name,
+                Description = request.Description,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                Status = EventConstants.Status.Draft,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+
+            await _uow.GetRepository<Event>().AddAsync(newEvent);
+            await _uow.SaveChangesAsync(); // Cần lưu để lấy EventId
+
+            // 2. Lặp qua các Track
+            foreach (var trackDto in request.Tracks)
+            {
+                var newTrack = new Track
+                {
+                    EventId = newEvent.Id,
+                    Name = trackDto.Name,
+                    Description = trackDto.Description,
+                    MaxTeams = trackDto.MaxTeams,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+
+                await _uow.GetRepository<Track>().AddAsync(newTrack);
+                await _uow.SaveChangesAsync(); // Cần lưu để lấy TrackId
+
+                // 3. Lặp qua các Round
+                int roundOrder = 1;
+                foreach (var roundDto in trackDto.Rounds)
+                {
+                    var newRound = new Round
+                    {
+                        TrackId = newTrack.Id,
+                        Name = roundDto.Name,
+                        OrderIndex = roundOrder++, // Tự động tăng OrderIndex
+                        StartTime = roundDto.StartTime,
+                        EndTime = roundDto.EndTime,
+                        AdvancingSlots = roundDto.AdvancingSlots,
+                        // Round 1 sẽ được Active khi Event chuyển sang Active, ban đầu tất cả là Upcoming
+                        Status = RoundConstants.Status.Upcoming,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _uow.GetRepository<Round>().AddAsync(newRound);
+                    await _uow.SaveChangesAsync(); // Cần lưu để lấy RoundId
+
+                    // 4. Lặp qua các Topic
+                    foreach (var topicDto in roundDto.Topics)
+                    {
+                        var newTopic = new Topic
+                        {
+                            RoundId = newRound.Id,
+                            Title = topicDto.Name,
+                            Description = topicDto.Description,
+                            Requirements = topicDto.Requirements,
+                            AttachmentUrl = topicDto.AttachmentUrl,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        await _uow.GetRepository<Topic>().AddAsync(newTopic);
+                    }
+                }
+            }
+
+            await _uow.SaveChangesAsync(); // Lưu toàn bộ Topic cuối cùng
+
+            var response = new EventResponse
+            {
+                Id = newEvent.Id,
+                Name = newEvent.Name,
+                Description = newEvent.Description,
+                StartDate = newEvent.StartDate,
+                EndDate = newEvent.EndDate,
+                Status = newEvent.Status,
+                IsDeleted = newEvent.IsDeleted
+            };
+
+            return ApiResponse<EventResponse>.SuccessResult(response, "Tạo cấu trúc Event thành công.");
+        }
+
         // Hàm SỬA thông tin một giải đấu đã có
         public async Task<ApiResponse<EventResponse>> UpdateEventAsync(int id, UpdateEventRequest request)
         {
@@ -162,6 +251,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             await EnsureNoOtherCurrentEventAsync(newStatus, id);
 
+            bool isActivating = (newStatus == EventConstants.Status.Active && existingEvent.Status != EventConstants.Status.Active);
+
             // Bước 2: Đè dữ liệu mới (từ request) lên dữ liệu cũ (trong DB)
             existingEvent.Name = request.Name;
             existingEvent.Description = request.Description;
@@ -172,7 +263,29 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Bước 3: Đánh dấu entity này đã bị sửa đổi trong Repository
             _uow.GetRepository<Event>().Update(existingEvent);
-            
+
+            if (isActivating)
+            {
+                // Tìm tất cả các Track của Event
+                var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == existingEvent.Id && !t.IsDeleted);
+                var trackIds = tracks.Select(t => t.Id).ToList();
+
+                // Lấy tất cả Round thuộc các Track này
+                var rounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
+                foreach (var round in rounds)
+                {
+                    if (round.OrderIndex == 1)
+                    {
+                        round.Status = RoundConstants.Status.Active;
+                    }
+                    else
+                    {
+                        round.Status = RoundConstants.Status.Upcoming;
+                    }
+                    _uow.GetRepository<Round>().Update(round);
+                }
+            }
+
             // Lưu xuống DB
             await _uow.SaveChangesAsync();
 

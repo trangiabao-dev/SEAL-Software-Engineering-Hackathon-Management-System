@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Team;
@@ -162,6 +162,19 @@ namespace SealHackathon.API.Controllers
             var coordinatorId = GetCurrentAccountId();
             await _teamService.AssignMentorAsync(id, request, coordinatorId);
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã phân công Mentor thành công."));
+        }
+
+        // GET /api/admin/participants — Coordinator xem tất cả các thí sinh (từ bảng TeamMember)
+        [HttpGet("/api/admin/participants")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetParticipants(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] int? eventId = null,
+            [FromQuery] string? search = null)
+        {
+            var result = await _teamService.GetParticipantsAsync(pageNumber, pageSize, eventId, search);
+            return Ok(ApiResponse<PaginatedResponse<ParticipantDto>>.SuccessResult(result));
         }
     }
 }

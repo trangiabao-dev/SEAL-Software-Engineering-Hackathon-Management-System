@@ -47,6 +47,16 @@ namespace SealHackathon.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("full-template")]
+        public async Task<IActionResult> CreateFullEvent([FromBody] CreateFullEventRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _eventService.CreateFullEventAsync(request);
+            return Ok(result);
+        }
+
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateEvent(int id, [FromBody] UpdateEventRequest request)
         {

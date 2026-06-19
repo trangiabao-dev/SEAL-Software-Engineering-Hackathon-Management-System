@@ -24,5 +24,14 @@ namespace SealHackathon.API.Controllers
             var result = await _dashboardService.GetCoordinatorDashboardAsync();
             return Ok(result);
         }
+
+        [HttpGet("mentor")]
+        [Authorize(Roles = RoleConstants.Mentor)]
+        public async Task<IActionResult> GetMentorDashboard()
+        {
+            var mentorId = GetCurrentAccountId();
+            var result = await _dashboardService.GetMentorDashboardAsync(mentorId);
+            return Ok(result);
+        }
     }
 }

@@ -312,18 +312,63 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teamIds = teams.Select(t => t.Id).ToList();
 
-            // Dictionary là kiểu dữ liệu lưu theo dạng: Key -> Value
-            // Dictionary<Guid, int> : Key có kiểu Guid và Value có kiểu int
             var memberCountByTeamId = teamIds.Count == 0
-                ? new Dictionary<Guid, int>() // TeamId -> số lượng member
+                ? new Dictionary<Guid, int>()
                 : await _uow.GetRepository<TeamMember>()
                     .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
 
+            var mentorIds = teams.Where(t => t.MentorId.HasValue).Select(t => t.MentorId!.Value).Distinct().ToList();
+            var topicIds = teams.Where(t => t.TopicId.HasValue).Select(t => t.TopicId!.Value).Distinct().ToList();
+
+            var mentors = await _uow.GetRepository<Account>().GetAllAsync(a => mentorIds.Contains(a.Id));
+            var topics = await _uow.GetRepository<Topic>().GetAllAsync(tp => topicIds.Contains(tp.Id));
+
+            var mentorDict = mentors.ToDictionary(m => m.Id, m => m.Username);
+            var topicDict = topics.ToDictionary(tp => tp.Id, tp => tp.Title);
+
             var items = teams
-                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+                .Select(team => MapToListDto(
+                    team, 
+                    memberCountByTeamId.GetValueOrDefault(team.Id, 0),
+                    team.MentorId.HasValue ? mentorDict.GetValueOrDefault(team.MentorId.Value) : null,
+                    team.TopicId.HasValue ? topicDict.GetValueOrDefault(team.TopicId.Value) : null))
                 .ToList();
 
             return new PaginatedResponse<TeamListDto>(items, totalRecords, pageNumber, pageSize);
+        }
+
+        public async Task<PaginatedResponse<ParticipantDto>> GetParticipantsAsync(int pageNumber, int pageSize, int? eventId, string? search)
+        {
+            Expression<Func<TeamMember, bool>> predicate = m => 
+                !m.Team.IsDeleted &&
+                (eventId == null || m.Team.Track.EventId == eventId) &&
+                (string.IsNullOrEmpty(search) || m.FullName.Contains(search) || m.StudentCode.Contains(search) || m.Email.Contains(search));
+
+            var totalRecords = await _uow.GetRepository<TeamMember>().CountAsync(predicate);
+
+            var skip = (pageNumber - 1) * pageSize;
+            var members = await _uow.GetRepository<TeamMember>()
+                .GetPagedAsync(predicate, m => m.CreatedAt, skip, pageSize, descending: true);
+
+            var teamIds = members.Select(m => m.TeamId).Distinct().ToList();
+            var teams = await _uow.GetRepository<Team>().GetAllAsync(t => teamIds.Contains(t.Id));
+            var teamDict = teams.ToDictionary(t => t.Id, t => t.TeamName);
+
+            var items = members.Select(m => new ParticipantDto
+            {
+                Id = m.Id,
+                TeamId = m.TeamId,
+                TeamName = teamDict.GetValueOrDefault(m.TeamId, string.Empty),
+                FullName = m.FullName,
+                StudentCode = m.StudentCode,
+                Email = m.Email,
+                University = m.University,
+                Phone = m.Phone,
+                IsLeader = m.IsLeader,
+                IsFPTStudent = m.IsFptstudent
+            }).ToList();
+
+            return new PaginatedResponse<ParticipantDto>(items, totalRecords, pageNumber, pageSize);
         }
 
         public async Task<TeamGroupedByStatusDto> GetTeamsGroupedByStatusAsync(int eventId, int? trackId)
@@ -345,8 +390,21 @@ namespace SealHackathon.Application.Services.Implementations
                 : await _uow.GetRepository<TeamMember>()
                     .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
 
+            var mentorIds = teams.Where(t => t.MentorId.HasValue).Select(t => t.MentorId!.Value).Distinct().ToList();
+            var topicIds = teams.Where(t => t.TopicId.HasValue).Select(t => t.TopicId!.Value).Distinct().ToList();
+
+            var mentors = await _uow.GetRepository<Account>().GetAllAsync(a => mentorIds.Contains(a.Id));
+            var topics = await _uow.GetRepository<Topic>().GetAllAsync(tp => topicIds.Contains(tp.Id));
+
+            var mentorDict = mentors.ToDictionary(m => m.Id, m => m.Username);
+            var topicDict = topics.ToDictionary(tp => tp.Id, tp => tp.Title);
+
             var teamDtos = teams
-                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+                .Select(team => MapToListDto(
+                    team, 
+                    memberCountByTeamId.GetValueOrDefault(team.Id, 0),
+                    team.MentorId.HasValue ? mentorDict.GetValueOrDefault(team.MentorId.Value) : null,
+                    team.TopicId.HasValue ? topicDict.GetValueOrDefault(team.TopicId.Value) : null))
                 .ToList();
 
             var pending = teamDtos
@@ -853,7 +911,7 @@ namespace SealHackathon.Application.Services.Implementations
         /// <summary>
         /// Chuyển Team entity sang TeamListDto và gắn thêm số lượng thành viên đã được tính sẵn.
         /// </summary>
-        private TeamListDto MapToListDto(Team team, int memberCount)
+        private TeamListDto MapToListDto(Team team, int memberCount, string? mentorName = null, string? topicName = null)
         {
             return new TeamListDto
             {
@@ -863,7 +921,9 @@ namespace SealHackathon.Application.Services.Implementations
                 TrackId = team.TrackId,
                 LeaderId = team.LeaderId,
                 MentorId = team.MentorId,
+                MentorName = mentorName,
                 TopicId = team.TopicId,
+                TopicName = topicName,
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
                 MemberCount = memberCount,

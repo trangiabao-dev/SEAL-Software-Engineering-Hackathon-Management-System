@@ -70,5 +70,43 @@ namespace SealHackathon.Application.Services.Implementations
 
             return ApiResponse<TopicResponse>.SuccessResult(response, "Tạo Topic thành công.");
         }
+
+        public async Task<ApiResponse<TopicResponse>> UpdateTopicAsync(int id, UpdateTopicRequest request)
+        {
+            var existingTopic = await _uow.GetRepository<Topic>().GetFirstOrDefaultTrackingAsync(x => x.Id == id);
+            if (existingTopic == null) throw new NotFoundException($"Không tìm thấy Topic với ID {id}");
+
+            existingTopic.Title = request.Title;
+            existingTopic.Description = request.Description;
+            existingTopic.Requirements = request.Requirements;
+            existingTopic.AttachmentUrl = request.AttachmentUrl;
+            existingTopic.UpdatedAt = DateTime.UtcNow;
+
+            await _uow.SaveChangesAsync();
+
+            var response = new TopicResponse
+            {
+                Id = existingTopic.Id,
+                RoundId = existingTopic.RoundId,
+                Title = existingTopic.Title,
+                Description = existingTopic.Description,
+                Requirements = existingTopic.Requirements,
+                AttachmentUrl = existingTopic.AttachmentUrl
+            };
+
+            return ApiResponse<TopicResponse>.SuccessResult(response, "Cập nhật Topic thành công.");
+        }
+
+        public async Task<ApiResponse<bool>> DeleteTopicAsync(int id)
+        {
+            var existingTopic = await _uow.GetRepository<Topic>().GetFirstOrDefaultTrackingAsync(x => x.Id == id);
+            if (existingTopic == null) throw new NotFoundException($"Không tìm thấy Topic với ID {id}");
+
+            // Chỉ xóa mềm nếu DB có hỗ trợ IsDeleted, nhưng hiện tại bảng Topic không có IsDeleted
+            _uow.GetRepository<Topic>().Delete(existingTopic);
+            await _uow.SaveChangesAsync();
+
+            return ApiResponse<bool>.SuccessResult(true, "Xóa Topic thành công.");
+        }
     }
 }

@@ -31,5 +31,19 @@ namespace SealHackathon.API.Controllers
             var result = await _topicService.CreateTopicAsync(request);
             return Ok(result);
         }
+
+        [HttpPut("api/topics/{id}")]
+        public async Task<IActionResult> UpdateTopic(int id, [FromBody] UpdateTopicRequest request)
+        {
+            var result = await _topicService.UpdateTopicAsync(id, request);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/topics/{id}")]
+        public async Task<IActionResult> DeleteTopic(int id)
+        {
+            var result = await _topicService.DeleteTopicAsync(id);
+            return Ok(result);
+        }
     }
 }

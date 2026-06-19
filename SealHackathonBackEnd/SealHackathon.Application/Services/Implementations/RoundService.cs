@@ -276,6 +276,7 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<List<RoundJudgeResponse>>.SuccessResult(response);
         }
 
+
         // =============== Private helpers ===============
         // Kiểm tra và chuẩn hóa status của Round.
         // BE chỉ cho phép 4 trạng thái: Upcoming, Active, Scoring, Closed.
