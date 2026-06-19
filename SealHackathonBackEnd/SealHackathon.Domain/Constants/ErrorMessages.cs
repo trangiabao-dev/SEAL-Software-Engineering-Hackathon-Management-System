@@ -85,6 +85,7 @@ namespace SealHackathon.Domain.Constants
             public const string EventMustBeActiveToStartRound = "Chỉ được bắt đầu Round khi Event đang Active.";
             public const string PreviousRoundRankingRequired = "Chưa có kết quả xếp hạng vòng trước để xác định đội đi tiếp.";
             public const string NoTeamQualifiedForRound = "Không có đội đủ điều kiện tham gia Round này.";
+            public const string PreviousRoundMustBeClosed = "Vòng thi trước phải được đóng (Closed) trước khi có thể lấy danh sách đội đi tiếp.";
         }
 
         public static class Event

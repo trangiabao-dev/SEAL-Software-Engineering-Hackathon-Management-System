@@ -133,6 +133,22 @@ namespace SealHackathon.Application.Services.Implementations
                 await AssignTopicsForRoundAsync(existingRound);
             }
 
+            if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(newStatus, RoundConstants.Status.Scoring, StringComparison.OrdinalIgnoreCase))
+            {
+                var criteria = await _uow.GetRepository<Criterion>().GetAllAsync(c => c.RoundId == id);
+                if (!criteria.Any())
+                {
+                    throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoCriteria);
+                }
+
+                var totalWeight = criteria.Sum(c => c.Weight);
+                if (Math.Abs(totalWeight - 1.0) > 0.0001)
+                {
+                    throw new BadRequestException("Tổng trọng số của các tiêu chí phải đúng 100% trước khi kích hoạt vòng thi hoặc chuyển sang chấm điểm.");
+                }
+            }
+
             existingRound.Status = newStatus;
             existingRound.UpdatedAt = DateTime.UtcNow;
 
@@ -352,6 +368,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (previousRound is null)
                 return teams;
 
+            EnsurePreviousRoundClosed(previousRound);
+
             var advancingRankings = await _uow.GetRepository<RankingEntity>()
                 .GetAllAsync(r => r.RoundId == previousRound.Id && r.IsAdvancing);
 
@@ -361,6 +379,15 @@ namespace SealHackathon.Application.Services.Implementations
             var advancingTeamIds = advancingRankings.Select(r => r.TeamId).ToHashSet();
 
             return teams.Where(t => advancingTeamIds.Contains(t.Id)).ToList();
+        }
+
+        /// <summary>
+        /// Đảm bảo Round trước đã đóng trước khi mở Round tiếp theo.
+        /// </summary>
+        private static void EnsurePreviousRoundClosed(Round previousRound)
+        {
+            if (!string.Equals(previousRound.Status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException(ErrorMessages.Round.PreviousRoundMustBeClosed);
         }
 
         private async Task<Round?> GetPreviousRoundAsync(Round round)
