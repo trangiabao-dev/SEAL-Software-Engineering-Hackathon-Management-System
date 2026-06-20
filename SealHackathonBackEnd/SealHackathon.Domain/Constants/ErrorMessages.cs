@@ -24,6 +24,7 @@ namespace SealHackathon.Domain.Constants
             public const string TeamIdsRequired = "Cần chọn ít nhất một đội để phân công Mentor.";
             public const string TeamNotInTrack = "Một hoặc nhiều đội được chọn không thuộc Track này.";
             public const string OnlyApprovedCanAssignMentor = "Chỉ có thể phân Mentor cho đội đã được duyệt.";
+            public const string NoViewPermission = "Bạn không có quyền xem thông tin đội này.";
         }
 
         public static class TeamMember

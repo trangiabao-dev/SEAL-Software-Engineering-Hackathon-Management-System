@@ -24,10 +24,11 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
         {
-            // Kiểm tra Leader account còn active
+            // Leader phải còn hoạt động.
             await CheckLeaderAccountActiveAsync(leaderId);
 
-            // Chặn dữ liệu trùng giữa Leader và các thành viên trước khi truy vấn database.
+            // Kiểm tra Leader và các thành viên không trùng email/mã sinh viên
+            // ngay trong cùng request, khi dữ liệu chưa được lưu vào database.
             EnsureCreateTeamMembersAreUnique(request);
 
             var track = await _uow.GetRepository<Track>()
@@ -42,10 +43,13 @@ namespace SealHackathon.Application.Services.Implementations
             if (eventOfTrack is null)
                 throw new NotFoundException("Không tìm thấy Event của Track.");
 
-            if (!string.Equals(eventOfTrack.Status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(eventOfTrack.Status,
+                EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
+            {
                 throw new BadRequestException("Chỉ được tạo đội khi Event đang mở đăng ký.");
+            }
 
-            // Kiểm tra Track còn chỗ
+            // Không cho tạo thêm Team khi Track đã đủ số lượng.
             if (track.MaxTeams is not null)
             {
                 var teamCount = await _uow.GetRepository<Team>()
@@ -55,25 +59,36 @@ namespace SealHackathon.Application.Services.Implementations
                     throw new BadRequestException(ErrorMessages.Team.TrackFull);
             }
 
-            // Kiểm tra Leader đã có team trong Event này chưa
             var teamRepo = _uow.GetRepository<Team>();
 
-            var isNameTaken = await teamRepo
-                .GetFirstOrDefaultAsync(t => t.TeamName == request.TeamName && !t.IsDeleted);
+            var isNameTaken = await teamRepo.GetFirstOrDefaultAsync(
+                t => t.TeamName == request.TeamName && !t.IsDeleted);
 
             if (isNameTaken is not null)
                 throw new ConflictException(ErrorMessages.Team.NameAlreadyUsed);
 
-            var existingTeam = await GetLeaderTeamInEventAsync(leaderId, track.EventId);
+            var existingTeam = await GetLeaderTeamInEventAsync(
+                leaderId, track.EventId);
+
             if (existingTeam is not null)
                 throw new ConflictException(ErrorMessages.Team.AlreadyHasTeamInEvent);
 
-            // Kiểm tra mã sinh viên chưa tồn tại trong bất kỳ team nào thuộc cùng Event.
+            // Kiểm tra Leader chưa xuất hiện trong Team khác của cùng Event.
             await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
             await CheckEmailNotUsedInEventAsync(track.EventId, request.Email);
 
-            // Team mới tạo luôn ở trạng thái Pending để Coordinator duyệt trước khi tham gia.
+            // Kiểm tra từng thành viên chưa xuất hiện trong Team khác của Event.
+            // Phải kiểm tra hết trước khi chuẩn bị insert để tránh Team bị tạo dở.
+            foreach (var memberRequest in request.Members)
+            {
+                await CheckStudentCodeNotUsedInEventAsync(track.EventId, memberRequest.StudentCode);
+
+                await CheckEmailNotUsedInEventAsync(track.EventId, memberRequest.Email);
+            }
+
+            var now = DateTime.UtcNow;
+
             var newTeam = new Team
             {
                 Id = Guid.NewGuid(),
@@ -84,14 +99,13 @@ namespace SealHackathon.Application.Services.Implementations
                 GithubRepoLink = request.GithubRepoLink,
                 Status = TeamConstants.Status.Pending,
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = now,
+                UpdatedAt = now,
                 CreatedBy = leaderId
             };
 
-            await teamRepo.AddAsync(newTeam); // Chuẩn bị insert entity này. Chưa lưu vào DB.
+            await teamRepo.AddAsync(newTeam);
 
-            // Tạo TeamMember cho Leader
             var leaderMember = new TeamMember
             {
                 TeamId = newTeam.Id,
@@ -102,25 +116,83 @@ namespace SealHackathon.Application.Services.Implementations
                 Phone = request.Phone,
                 IsLeader = true,
                 IsFptstudent = request.IsFPTStudent,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = now,
+                UpdatedAt = now,
                 CreatedBy = leaderId
             };
 
-            await _uow.GetRepository<TeamMember>().AddAsync(leaderMember); // Chuẩn bị insert entity này. Chưa lưu vào DB.
+            // Danh sách này dùng để vừa lưu database, vừa trả response đầy đủ.
+            var teamMembers = new List<TeamMember>
+            {
+                leaderMember
+            };
 
+            foreach (var memberRequest in request.Members)
+            {
+                teamMembers.Add(new TeamMember
+                {
+                    TeamId = newTeam.Id,
+                    FullName = memberRequest.FullName,
+                    StudentCode = memberRequest.StudentCode,
+                    Email = memberRequest.Email,
+                    University = memberRequest.University,
+                    Phone = memberRequest.Phone,
+                    IsLeader = false,
+                    IsFptstudent = memberRequest.IsFPTStudent,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    CreatedBy = leaderId
+                });
+            }
+
+            var memberRepo = _uow.GetRepository<TeamMember>();
+
+            foreach (var teamMember in teamMembers)
+            {
+                await memberRepo.AddAsync(teamMember);
+            }
+
+            // Chỉ lưu một lần để Team và toàn bộ TeamMember cùng thành công
+            // hoặc cùng thất bại.
             await _uow.SaveChangesAsync();
 
-            return MapToDto(newTeam, new List<TeamMember> { leaderMember }); // tạo team xong thấy luôn leader trong members
+            return MapToDto(newTeam, teamMembers);
         }
 
-        public async Task<TeamDetailDto> GetByIdAsync(Guid teamId)
+        public async Task<TeamDetailDto> GetByIdAsync(
+            Guid teamId, Guid currentAccountId, bool isCoordinator, bool isMentor)
         {
+            if (teamId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidTeamId);
+
             var team = await _uow.GetRepository<Team>()
                 .GetFirstOrDefaultAsync(t => t.Id == teamId && !t.IsDeleted);
 
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
+
+            var mentorCanViewTeam = false;
+
+            if (isMentor && team.MentorId == currentAccountId)
+            {
+                var activeMentorRole = await _uow.GetRepository<EventAccount>()
+                    .GetFirstOrDefaultAsync(eventAccount =>
+                        eventAccount.AccountId == currentAccountId
+                        && eventAccount.EventRole == RoleConstants.Mentor
+                        && eventAccount.Status == EventAccountConstants.Status.Approved
+                        && !eventAccount.Event.IsDeleted
+                        && (eventAccount.Event.Status == EventConstants.Status.Registration
+                            || eventAccount.Event.Status == EventConstants.Status.Active)
+                        && eventAccount.Event.Tracks.Any(track =>
+                            track.Id == team.TrackId && !track.IsDeleted));
+
+                mentorCanViewTeam = activeMentorRole is not null;
+            }
+
+            var canViewTeam = isCoordinator || team.LeaderId == currentAccountId || mentorCanViewTeam;
+
+            if (!canViewTeam)
+                throw new ForbiddenException(ErrorMessages.Team.NoViewPermission);
 
             var members = await _uow.GetRepository<TeamMember>()
                 .GetAllAsync(m => m.TeamId == teamId);
@@ -281,6 +353,43 @@ namespace SealHackathon.Application.Services.Implementations
             var topic = await GetTopicForTeamAsync(team);
 
             return MapToDto(team, members, topic);
+        }
+
+        /// <summary>
+        /// Lấy các Team thuộc Event hiện tại mà Mentor đang được phân công phụ trách.
+        /// Thành viên được tải trong một truy vấn chung để tránh query riêng cho từng Team.
+        /// </summary>
+        public async Task<List<TeamDetailDto>> GetMyMentorTeamsAsync(Guid mentorId)
+        {
+            if (mentorId == Guid.Empty)
+                throw new BadRequestException(ErrorMessages.Common.InvalidMentorId);
+
+            var teams = await _uow.GetRepository<Team>()
+                .GetAllAsync(t => t.MentorId == mentorId && !t.IsDeleted
+                    && !t.Track.IsDeleted && !t.Track.Event.IsDeleted
+                    && (t.Track.Event.Status == EventConstants.Status.Registration
+                        || t.Track.Event.Status == EventConstants.Status.Active)
+                    && t.Track.Event.EventAccounts.Any(eventAccount =>
+                        eventAccount.AccountId == mentorId
+                    && eventAccount.EventRole == RoleConstants.Mentor
+                    && eventAccount.Status == EventAccountConstants.Status.Approved));
+
+            if (teams.Count == 0)
+                return new List<TeamDetailDto>();
+
+            var teamIds = teams.Select(team => team.Id).ToList();
+
+            // Lấy members của tất cả Team trong một lần thay vì query riêng từng Team.
+            var members = await _uow.GetRepository<TeamMember>()
+                .GetAllAsync(member => teamIds.Contains(member.TeamId));
+
+            var membersByTeamId = members.GroupBy(member => member.TeamId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            return teams.OrderBy(team => team.TeamName)
+                .Select(team => MapToDto(team, membersByTeamId
+                .GetValueOrDefault(team.Id, new List<TeamMember>())))
+                .ToList();
         }
 
         // =======================================================

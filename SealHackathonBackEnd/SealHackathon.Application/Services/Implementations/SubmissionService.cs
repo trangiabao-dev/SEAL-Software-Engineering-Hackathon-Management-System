@@ -117,7 +117,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         public async Task<SubmissionDto> GetSubmissionByIdAsync(Guid submissionId,
-            Guid currentAccountId, bool isCoordinator, bool isJudge)
+            Guid currentAccountId, bool isCoordinator, bool isJudge, bool isMentor)
         {
             if (submissionId == Guid.Empty)
                 throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
@@ -128,15 +128,14 @@ namespace SealHackathon.Application.Services.Implementations
             if (submission is null)
                 throw new NotFoundException(ErrorMessages.Submission.NotFound);
 
-            await CheckCanViewSubmissionAsync(submission, currentAccountId, isCoordinator, isJudge);
+            await CheckCanViewSubmissionAsync(submission, currentAccountId, isCoordinator, isJudge, isMentor);
 
             return MapToDto(submission);
         }
 
         public async Task<List<SubmissionDto>> GetSubmissionsByTeamAsync(Guid teamId,
-            Guid currentAccountId, bool isCoordinator)
+            Guid currentAccountId, bool isCoordinator, bool isMentor)
         {
-            // Chặn TeamId rỗng để trả lỗi request sai thay vì đi xuống database.
             if (teamId == Guid.Empty)
                 throw new BadRequestException(ErrorMessages.Common.InvalidTeamId);
 
@@ -146,11 +145,19 @@ namespace SealHackathon.Application.Services.Implementations
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Submission.TeamNotFound);
 
-            if (!isCoordinator && team.LeaderId != currentAccountId)
+            var mentorCanViewTeam =
+                isMentor
+                && await CanMentorViewTeamAsync(team, currentAccountId);
+
+            var canViewSubmissions = isCoordinator
+                        || team.LeaderId == currentAccountId
+                        || mentorCanViewTeam;
+
+            if (!canViewSubmissions)
                 throw new ForbiddenException(ErrorMessages.Submission.NoViewPermission);
 
             var submissions = await _uow.GetRepository<Submission>()
-                .GetAllAsync(s => s.TeamId == teamId);
+                .GetAllAsync(submission => submission.TeamId == teamId);
 
             return submissions.Select(MapToDto).ToList();
         }
@@ -249,7 +256,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         private async Task CheckCanViewSubmissionAsync(Submission submission, Guid currentAccountId,
-            bool isCoordinator, bool isJudge)
+            bool isCoordinator, bool isJudge, bool isMentor)
         {
             if (isCoordinator)
                 return;
@@ -263,17 +270,45 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.LeaderId == currentAccountId)
                 return;
 
+            if (isMentor
+                && await CanMentorViewTeamAsync(team, currentAccountId))
+            {
+                return;
+            }
+
             if (isJudge)
             {
                 var judgeAssign = await _uow.GetRepository<JudgeAssign>()
-                    .GetFirstOrDefaultAsync(ja => ja.RoundId == submission.RoundId
-                                               && ja.JudgeId == currentAccountId);
+                    .GetFirstOrDefaultAsync(judgeAssign => judgeAssign.RoundId == submission.RoundId
+                        && judgeAssign.JudgeId == currentAccountId);
 
                 if (judgeAssign is not null)
                     return;
             }
 
             throw new ForbiddenException(ErrorMessages.Submission.NoViewPermission);
+        }
+
+        /// <summary>
+        /// Kiểm tra Mentor còn hoạt động trong Event và đang phụ trách đúng Team.
+        /// </summary>
+        private async Task<bool> CanMentorViewTeamAsync(Team team, Guid mentorId)
+        {
+            if (team.MentorId != mentorId)
+                return false;
+
+            var activeMentorRole = await _uow.GetRepository<EventAccount>()
+                .GetFirstOrDefaultAsync(eventAccount =>
+                    eventAccount.AccountId == mentorId
+                    && eventAccount.EventRole == RoleConstants.Mentor
+                    && eventAccount.Status == EventAccountConstants.Status.Approved
+                    && !eventAccount.Event.IsDeleted
+                    && (eventAccount.Event.Status == EventConstants.Status.Registration
+                        || eventAccount.Event.Status == EventConstants.Status.Active)
+                    && eventAccount.Event.Tracks.Any(track =>
+                        track.Id == team.TrackId && !track.IsDeleted));
+
+            return activeMentorRole is not null;
         }
 
         private async Task CheckTeamCanSubmitRoundAsync(Guid teamId, int roundId)

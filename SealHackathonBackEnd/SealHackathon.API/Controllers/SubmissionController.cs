@@ -51,31 +51,33 @@ namespace SealHackathon.API.Controllers
                 "Cập nhật bài nộp thành công."));
         }
 
-        // GET api/submissions/{id}
         [HttpGet("api/submissions/{id:guid}")]
+        [Authorize(Roles = $"{RoleConstants.Coordinator}," +
+            $"{RoleConstants.Leader},{RoleConstants.Judge},{RoleConstants.Mentor}")]
         public async Task<IActionResult> GetSubmissionById(Guid id)
         {
             var accountId = GetCurrentAccountId();
 
             var result = await _submissionService.GetSubmissionByIdAsync(
-                id,
-                accountId,
-                User.IsInRole(RoleConstants.Coordinator),
-                User.IsInRole(RoleConstants.Judge));
+                id, accountId,
+                isCoordinator: User.IsInRole(RoleConstants.Coordinator),
+                isJudge: User.IsInRole(RoleConstants.Judge),
+                isMentor: User.IsInRole(RoleConstants.Mentor));
 
             return Ok(ApiResponse<SubmissionDto>.SuccessResult(result));
         }
 
-        // GET api/teams/{teamId}/submissions
         [HttpGet("api/teams/{teamId:guid}/submissions")]
+        [Authorize(Roles = $"{RoleConstants.Coordinator}," +
+            $"{RoleConstants.Leader},{RoleConstants.Mentor}")]
         public async Task<IActionResult> GetSubmissionsByTeam(Guid teamId)
         {
             var accountId = GetCurrentAccountId();
 
             var result = await _submissionService.GetSubmissionsByTeamAsync(
-                teamId,
-                accountId,
-                User.IsInRole(RoleConstants.Coordinator));
+                teamId, accountId,
+                isCoordinator: User.IsInRole(RoleConstants.Coordinator),
+                isMentor: User.IsInRole(RoleConstants.Mentor));
 
             return Ok(ApiResponse<List<SubmissionDto>>.SuccessResult(result));
         }
