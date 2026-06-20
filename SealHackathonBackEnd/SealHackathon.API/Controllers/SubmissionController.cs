@@ -41,16 +41,12 @@ namespace SealHackathon.API.Controllers
         {
             var leaderId = GetCurrentAccountId();
 
-            var result = await _submissionService.UpdateSubmissionAsync(
-                id,
-                request,
-                leaderId);
+            var result = await _submissionService.UpdateSubmissionAsync(id, request, leaderId);
 
-            return Ok(ApiResponse<SubmissionDto>.SuccessResult(
-                result,
-                "Cập nhật bài nộp thành công."));
+            return Ok(ApiResponse<SubmissionDto>.SuccessResult(result, "Cập nhật bài nộp thành công."));
         }
 
+        // GET api/submissions/{id} - Xem chi tiết bài nộp.
         [HttpGet("api/submissions/{id:guid}")]
         [Authorize(Roles = $"{RoleConstants.Coordinator}," +
             $"{RoleConstants.Leader},{RoleConstants.Judge},{RoleConstants.Mentor}")]
@@ -67,6 +63,7 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<SubmissionDto>.SuccessResult(result));
         }
 
+        // GET api/teams/{teamId}/submissions - Xem bài nộp của Team.
         [HttpGet("api/teams/{teamId:guid}/submissions")]
         [Authorize(Roles = $"{RoleConstants.Coordinator}," +
             $"{RoleConstants.Leader},{RoleConstants.Mentor}")]

@@ -421,6 +421,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teamIds = teams.Select(t => t.Id).ToList();
 
+            var leaderAccountsById = await GetLeaderAccountsAsync(teams);
+
             // Dictionary là kiểu dữ liệu lưu theo dạng: Key -> Value
             // Dictionary<Guid, int> : Key có kiểu Guid và Value có kiểu int
             var memberCountByTeamId = teamIds.Count == 0
@@ -428,8 +430,9 @@ namespace SealHackathon.Application.Services.Implementations
                 : await _uow.GetRepository<TeamMember>()
                     .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
 
-            var items = teams
-                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+            var items = teams.Select(team => MapToListDto(team,
+                memberCountByTeamId.GetValueOrDefault(team.Id, 0),
+                leaderAccountsById.GetValueOrDefault(team.LeaderId)))
                 .ToList();
 
             return new PaginatedResponse<TeamListDto>(items, totalRecords, pageNumber, pageSize);
@@ -447,6 +450,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teams = await _uow.GetRepository<Team>().GetAllAsync(predicate);
 
+            var leaderAccountsById = await GetLeaderAccountsAsync(teams);
+
             var teamIds = teams.Select(t => t.Id).ToList();
 
             var memberCountByTeamId = teamIds.Count == 0
@@ -454,8 +459,9 @@ namespace SealHackathon.Application.Services.Implementations
                 : await _uow.GetRepository<TeamMember>()
                     .CountByGroupAsync(m => teamIds.Contains(m.TeamId), m => m.TeamId);
 
-            var teamDtos = teams
-                .Select(team => MapToListDto(team, memberCountByTeamId.GetValueOrDefault(team.Id, 0)))
+            var teamDtos = teams.Select(team => MapToListDto(team,
+                memberCountByTeamId.GetValueOrDefault(team.Id, 0),
+                leaderAccountsById.GetValueOrDefault(team.LeaderId)))
                 .ToList();
 
             var pending = teamDtos
@@ -907,6 +913,22 @@ namespace SealHackathon.Application.Services.Implementations
             return email.Trim().ToLowerInvariant();
         }
 
+        /// <summary>
+        /// Lấy tài khoản Leader của nhiều Team trong một truy vấn để tránh query riêng từng Team.
+        /// </summary>
+        private async Task<Dictionary<Guid, Account>> GetLeaderAccountsAsync(List<Team> teams)
+        {
+            var leaderIds = teams.Select(team => team.LeaderId).Distinct().ToList();
+
+            if (leaderIds.Count == 0)
+                return new Dictionary<Guid, Account>();
+
+            var leaderAccounts = await _uow.GetRepository<Account>()
+                .GetAllAsync(account => leaderIds.Contains(account.Id));
+
+            return leaderAccounts.ToDictionary(account => account.Id, account => account);
+        }
+
         // =============== Mapping helpers ===============
         private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null, Topic? topic = null)
         {
@@ -960,9 +982,9 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Chuyển Team entity sang TeamListDto và gắn thêm số lượng thành viên đã được tính sẵn.
+        /// Chuyển Team thành dữ liệu tóm tắt và bổ sung thông tin tài khoản Leader.
         /// </summary>
-        private TeamListDto MapToListDto(Team team, int memberCount)
+        private TeamListDto MapToListDto(Team team, int memberCount, Account? leaderAccount)
         {
             return new TeamListDto
             {
@@ -971,6 +993,8 @@ namespace SealHackathon.Application.Services.Implementations
                 University = team.University,
                 TrackId = team.TrackId,
                 LeaderId = team.LeaderId,
+                LeaderUsername = leaderAccount?.Username,
+                LeaderEmail = leaderAccount?.Email,
                 MentorId = team.MentorId,
                 TopicId = team.TopicId,
                 GithubRepoLink = team.GithubRepoLink,

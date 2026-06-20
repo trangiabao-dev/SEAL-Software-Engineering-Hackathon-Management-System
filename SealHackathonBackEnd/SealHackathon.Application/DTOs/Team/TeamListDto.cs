@@ -7,6 +7,8 @@
         public string University { get; set; } = null!;
         public int TrackId { get; set; }
         public Guid LeaderId { get; set; }
+        public string? LeaderUsername { get; set; }
+        public string? LeaderEmail { get; set; }
         public Guid? MentorId { get; set; }
         public int? TopicId { get; set; }
         public string? GithubRepoLink { get; set; }
