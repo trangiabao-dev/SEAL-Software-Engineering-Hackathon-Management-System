@@ -435,19 +435,23 @@ namespace SealHackathon.Application.Services.Implementations
             var teamDtos = await BuildTeamListDtosAsync(teams);
 
             var pending = teamDtos
-                .Where(t => string.Equals(t.Status, TeamConstants.Status.Pending, StringComparison.OrdinalIgnoreCase))
+                .Where(t => string.Equals(t.Status, 
+                TeamConstants.Status.Pending, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var approved = teamDtos
-                .Where(t => string.Equals(t.Status, TeamConstants.Status.Approved, StringComparison.OrdinalIgnoreCase))
+                .Where(t => string.Equals(t.Status, 
+                TeamConstants.Status.Approved, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var rejected = teamDtos
-                .Where(t => string.Equals(t.Status, TeamConstants.Status.Rejected, StringComparison.OrdinalIgnoreCase))
+                .Where(t => string.Equals(t.Status, 
+                TeamConstants.Status.Rejected, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var disqualified = teamDtos
-                .Where(t => string.Equals(t.Status, TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
+                .Where(t => string.Equals(t.Status, 
+                TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             return new TeamGroupedByStatusDto

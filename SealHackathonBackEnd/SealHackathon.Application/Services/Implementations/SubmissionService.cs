@@ -357,7 +357,5 @@ namespace SealHackathon.Application.Services.Implementations
                 UpdatedAt = submission.UpdatedAt
             };
         }
-
-
     }
 }
