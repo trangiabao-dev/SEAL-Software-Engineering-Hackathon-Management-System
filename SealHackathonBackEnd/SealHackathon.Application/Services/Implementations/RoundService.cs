@@ -114,6 +114,23 @@ namespace SealHackathon.Application.Services.Implementations
                     "Trạng thái Round không thay đổi.");
             }
 
+            var statusOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { RoundConstants.Status.Upcoming, 0 },
+                { RoundConstants.Status.Active, 1 },
+                { RoundConstants.Status.Scoring, 2 },
+                { RoundConstants.Status.Closed, 3 }
+            };
+
+            if (statusOrder.TryGetValue(existingRound.Status, out int currentOrder) && 
+                statusOrder.TryGetValue(newStatus, out int newOrder))
+            {
+                if (newOrder < currentOrder)
+                {
+                    throw new BadRequestException("Không thể lùi trạng thái của vòng thi về trạng thái trước đó.");
+                }
+            }
+
             // Quy tắc: Chỉ khi chuyển Round sang Active thì mới gán đề cho team.
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.
             if (string.Equals(newStatus, RoundConstants.Status.Active, StringComparison.OrdinalIgnoreCase))

@@ -7,5 +7,6 @@ namespace SealHackathon.Application.DTOs.Track
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public int? MaxTeams { get; set; } // Hỗ trợ giới hạn số đội, có thể null
+        public int? MaxMembers { get; set; } // Giới hạn số thành viên của mỗi đội, có thể null
     }
 }

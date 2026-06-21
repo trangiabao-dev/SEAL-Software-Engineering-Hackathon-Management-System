@@ -23,7 +23,7 @@ namespace SealHackathon.API.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Background Service: Ông lao công dọn rác tài khoản ảo ĐÃ BẮT ĐẦU làm việc.");
+            _logger.LogInformation("Background Service:Delete account not accept pending.");
 
             // Vòng lặp chạy liên tục cho đến khi ứng dụng tắt
             while (!stoppingToken.IsCancellationRequested)

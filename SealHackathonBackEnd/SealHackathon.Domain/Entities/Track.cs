@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SealHackathon.Domain.Entities;
@@ -14,6 +14,8 @@ public partial class Track
     public string? Description { get; set; }
 
     public int? MaxTeams { get; set; }
+
+    public int? MaxMembers { get; set; }
 
     public bool IsDeleted { get; set; }
 

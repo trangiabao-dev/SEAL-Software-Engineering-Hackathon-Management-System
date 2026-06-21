@@ -108,7 +108,7 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm TẠO MỚI một giải đấu
         public async Task<ApiResponse<EventResponse>> CreateEventAsync(CreateEventRequest request)
         {
-            var status = NormalizeEventStatus(request.Status);
+            var status = EventConstants.Status.Registration;
             await EnsureNoOtherCurrentEventAsync(status);
 
             // Bước 1: Tạo một thực thể Event mới, đổ dữ liệu từ Request (do Frontend gửi) vào
@@ -118,7 +118,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = request.Description,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
-                Status = status, // Trạng thái mặc định thường là "Draft"
+                Status = status, // Trạng thái mặc định là Registration
                 CreatedAt = DateTime.UtcNow, // Gắn thời gian tạo là giờ chuẩn quốc tế
                 IsDeleted = false
             };
@@ -146,7 +146,7 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<ApiResponse<EventResponse>> CreateFullEventAsync(CreateFullEventRequest request)
         {
-            await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Draft);
+            await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Registration);
 
             // 1. Tạo Event
             var newEvent = new Event
@@ -155,7 +155,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = request.Description,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
-                Status = EventConstants.Status.Draft,
+                Status = EventConstants.Status.Registration,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false
             };
@@ -172,6 +172,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = trackDto.Name,
                     Description = trackDto.Description,
                     MaxTeams = trackDto.MaxTeams,
+                    MaxMembers = trackDto.MaxMembers,
                     CreatedAt = DateTime.UtcNow,
                     IsDeleted = false
                 };
@@ -245,10 +246,22 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException($"Không tìm thấy Event với ID {id}");
             }
 
-            if (string.Equals(existingEvent.Status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(newStatus, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
-                throw new BadRequestException(ErrorMessages.Event.CannotReturnToRegistration);
+            var statusOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { EventConstants.Status.Draft, 0 },
+                { EventConstants.Status.Registration, 1 },
+                { EventConstants.Status.Active, 2 },
+                { EventConstants.Status.Completed, 3 }
+            };
 
+            if (statusOrder.TryGetValue(existingEvent.Status, out int currentOrder) && 
+                statusOrder.TryGetValue(newStatus, out int newOrder))
+            {
+                if (newOrder < currentOrder)
+                {
+                    throw new BadRequestException("Không thể lùi trạng thái của giải đấu (Event) về trạng thái trước đó.");
+                }
+            }
             await EnsureNoOtherCurrentEventAsync(newStatus, id);
 
             bool isActivating = (newStatus == EventConstants.Status.Active && existingEvent.Status != EventConstants.Status.Active);

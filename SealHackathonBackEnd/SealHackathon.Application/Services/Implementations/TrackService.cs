@@ -43,6 +43,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = t.Name,
                 Description = t.Description,
                 MaxTeams = t.MaxTeams, // Số đội tối đa được phép thi ở bảng này
+                MaxMembers = t.MaxMembers,
                 IsDeleted = t.IsDeleted
             }).ToList();
 
@@ -63,6 +64,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = request.Name,
                 Description = request.Description,
                 MaxTeams = request.MaxTeams,
+                MaxMembers = request.MaxMembers,
                 CreatedAt = DateTime.UtcNow, // Lấy thời gian hệ thống
                 IsDeleted = false
             };
@@ -79,6 +81,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = newTrack.Name,
                 Description = newTrack.Description,
                 MaxTeams = newTrack.MaxTeams,
+                MaxMembers = newTrack.MaxMembers,
                 IsDeleted = newTrack.IsDeleted
             };
 
@@ -96,6 +99,7 @@ namespace SealHackathon.Application.Services.Implementations
             existingTrack.Name = request.Name;
             existingTrack.Description = request.Description;
             existingTrack.MaxTeams = request.MaxTeams;
+            existingTrack.MaxMembers = request.MaxMembers;
             existingTrack.UpdatedAt = DateTime.UtcNow; // Ghi nhận thời điểm bị sửa
 
             // Bước 3: Ghi nhận sự thay đổi và lưu vào DB
@@ -109,6 +113,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = existingTrack.Name,
                 Description = existingTrack.Description,
                 MaxTeams = existingTrack.MaxTeams,
+                MaxMembers = existingTrack.MaxMembers,
                 IsDeleted = existingTrack.IsDeleted
             };
 
