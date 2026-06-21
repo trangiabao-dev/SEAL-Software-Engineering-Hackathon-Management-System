@@ -269,7 +269,6 @@ namespace SealHackathon.Application.Services.Implementations
                 scoreRecord.CriterionId,
                 scoreRecord.Score,
                 scoreRecord.Comment,
-                scoreRecord.IsCalibration
             };
         }
 
