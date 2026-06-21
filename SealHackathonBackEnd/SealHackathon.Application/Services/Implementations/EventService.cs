@@ -144,7 +144,7 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<EventResponse>.SuccessResult(response, "Tạo Event thành công.");
         }
 
-        public async Task<ApiResponse<EventResponse>> CreateFullEventAsync(CreateFullEventRequest request)
+        public async Task<ApiResponse<FullEventResponse>> CreateFullEventAsync(CreateFullEventRequest request)
         {
             await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Registration);
 
@@ -163,6 +163,10 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.GetRepository<Event>().AddAsync(newEvent);
             await _uow.SaveChangesAsync(); // Cần lưu để lấy EventId
 
+            var tracksList = new List<Track>();
+            var roundsList = new List<Round>();
+            var topicsList = new List<Topic>();
+
             // 2. Lặp qua các Track
             foreach (var trackDto in request.Tracks)
             {
@@ -179,6 +183,7 @@ namespace SealHackathon.Application.Services.Implementations
 
                 await _uow.GetRepository<Track>().AddAsync(newTrack);
                 await _uow.SaveChangesAsync(); // Cần lưu để lấy TrackId
+                tracksList.Add(newTrack);
 
                 // 3. Lặp qua các Round
                 int roundOrder = 1;
@@ -199,6 +204,7 @@ namespace SealHackathon.Application.Services.Implementations
 
                     await _uow.GetRepository<Round>().AddAsync(newRound);
                     await _uow.SaveChangesAsync(); // Cần lưu để lấy RoundId
+                    roundsList.Add(newRound);
 
                     // 4. Lặp qua các Topic
                     foreach (var topicDto in roundDto.Topics)
@@ -214,13 +220,14 @@ namespace SealHackathon.Application.Services.Implementations
                         };
 
                         await _uow.GetRepository<Topic>().AddAsync(newTopic);
+                        topicsList.Add(newTopic);
                     }
                 }
             }
 
             await _uow.SaveChangesAsync(); // Lưu toàn bộ Topic cuối cùng
 
-            var response = new EventResponse
+            var response = new FullEventResponse
             {
                 Id = newEvent.Id,
                 Name = newEvent.Name,
@@ -228,10 +235,39 @@ namespace SealHackathon.Application.Services.Implementations
                 StartDate = newEvent.StartDate,
                 EndDate = newEvent.EndDate,
                 Status = newEvent.Status,
-                IsDeleted = newEvent.IsDeleted
+                IsDeleted = newEvent.IsDeleted,
+                Tracks = tracksList.Select(tr => new FullTrackResponse
+                {
+                    Id = tr.Id,
+                    EventId = tr.EventId,
+                    Name = tr.Name,
+                    Description = tr.Description,
+                    MaxTeams = tr.MaxTeams,
+                    MaxMembers = tr.MaxMembers,
+                    Rounds = roundsList.Where(r => r.TrackId == tr.Id).Select(r => new FullRoundResponse
+                    {
+                        Id = r.Id,
+                        TrackId = r.TrackId,
+                        Name = r.Name,
+                        OrderIndex = r.OrderIndex,
+                        StartTime = r.StartTime,
+                        EndTime = r.EndTime,
+                        AdvancingSlots = r.AdvancingSlots,
+                        Status = r.Status,
+                        Topics = topicsList.Where(tp => tp.RoundId == r.Id).Select(tp => new FullTopicResponse
+                        {
+                            Id = tp.Id,
+                            RoundId = tp.RoundId,
+                            Title = tp.Title,
+                            Description = tp.Description,
+                            Requirements = tp.Requirements,
+                            AttachmentUrl = tp.AttachmentUrl
+                        }).ToList()
+                    }).ToList()
+                }).ToList()
             };
 
-            return ApiResponse<EventResponse>.SuccessResult(response, "Tạo cấu trúc Event thành công.");
+            return ApiResponse<FullEventResponse>.SuccessResult(response, "Tạo cấu trúc Event thành công.");
         }
 
         // Hàm SỬA thông tin một giải đấu đã có
@@ -381,6 +417,131 @@ namespace SealHackathon.Application.Services.Implementations
         {
             return string.Equals(status, EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<ApiResponse<EventResponse>> CloneEventAsync(int id, CloneEventRequest request)
+        {
+            var oldEvent = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
+
+            if (oldEvent is null)
+                throw new NotFoundException($"Không tìm thấy Event với ID {id}");
+
+            var eventRepo = _uow.GetRepository<Event>();
+
+            var isNameTaken = await eventRepo
+                .GetFirstOrDefaultAsync(e => e.Name == request.NewName && !e.IsDeleted);
+
+            if (isNameTaken is not null)
+                throw new ConflictException("Tên giải đấu này đã tồn tại trong hệ thống.");
+
+            // Bắt đầu clone với trạng thái mặc định là Draft
+            var newStatus = EventConstants.Status.Draft;
+
+            var newEvent = new Event
+            {
+                Name = request.NewName,
+                Description = oldEvent.Description,
+                StartDate = request.NewStartDate,
+                EndDate = request.NewEndDate,
+                Status = newStatus,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await eventRepo.AddAsync(newEvent);
+            await _uow.SaveChangesAsync(); // Lưu để có ID của newEvent
+
+            // Tính toán độ lệch thời gian (Offset) bằng TimeSpan
+            var timeOffset = request.NewStartDate.Subtract(oldEvent.StartDate);
+
+            // Clone Tracks
+            var tracks = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => t.EventId == id && !t.IsDeleted);
+
+            var trackRepo = _uow.GetRepository<Track>();
+            var roundRepo = _uow.GetRepository<Round>();
+            var criteriaRepo = _uow.GetRepository<Criterion>();
+
+            foreach (var oldTrack in tracks)
+            {
+                var newTrack = new Track
+                {
+                    EventId = newEvent.Id,
+                    Name = oldTrack.Name,
+                    Description = oldTrack.Description,
+                    MaxMembers = oldTrack.MaxMembers,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await trackRepo.AddAsync(newTrack);
+                await _uow.SaveChangesAsync(); // Lưu để có ID của newTrack
+
+                // Clone Rounds của Track cũ
+                var oldRounds = await roundRepo
+                    .GetAllAsync(r => r.TrackId == oldTrack.Id);
+
+                foreach (var oldRound in oldRounds)
+                {
+                    var newRound = new Round
+                    {
+                        TrackId = newTrack.Id,
+                        Name = oldRound.Name,
+                        StartTime = oldRound.StartTime.Add(timeOffset),
+                        EndTime = oldRound.EndTime.Add(timeOffset),
+                        OrderIndex = oldRound.OrderIndex,
+                        AdvancingSlots = oldRound.AdvancingSlots,
+                        Status = RoundConstants.Status.Upcoming,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    await roundRepo.AddAsync(newRound);
+                    await _uow.SaveChangesAsync(); // Lưu để có ID của newRound
+
+                    // Clone Criteria của Round cũ
+                    var oldCriterias = await criteriaRepo
+                        .GetAllAsync(c => c.RoundId == oldRound.Id);
+
+                    foreach (var oldCriteria in oldCriterias)
+                    {
+                        var newCriteria = new Criterion
+                        {
+                            RoundId = newRound.Id,
+                            Name = oldCriteria.Name,
+                            MaxScore = oldCriteria.MaxScore,
+                            Weight = oldCriteria.Weight,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        await criteriaRepo.AddAsync(newCriteria);
+                    }
+                    
+                    // LƯU Ý QUAN TRỌNG: KHÔNG CLONE TOPIC!
+                    // Đề thi (Topics) sẽ được Ban tổ chức tạo mới sau để đảm bảo tính bảo mật.
+                }
+            }
+
+            await _uow.SaveChangesAsync(); // Lưu nốt Criteria
+
+            var responseDto = new EventResponse
+            {
+                Id = newEvent.Id,
+                Name = newEvent.Name,
+                Description = newEvent.Description,
+                StartDate = newEvent.StartDate,
+                EndDate = newEvent.EndDate,
+                Status = newEvent.Status,
+                IsDeleted = newEvent.IsDeleted
+            };
+
+            return ApiResponse<EventResponse>.SuccessResult(
+                responseDto,
+                "Nhân bản giải đấu thành công! Trạng thái hiện tại: Bản nháp (Draft)."
+            );
         }
     }
 }

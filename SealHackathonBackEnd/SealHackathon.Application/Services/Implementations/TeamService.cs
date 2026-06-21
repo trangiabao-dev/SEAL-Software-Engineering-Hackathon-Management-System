@@ -291,7 +291,6 @@ namespace SealHackathon.Application.Services.Implementations
                 Topic = MapToTopicDto(topic)
             };
         }
-
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
         {
             await CheckLeaderAccountActiveAsync(leaderId);
@@ -411,6 +410,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             return result;
         }
+
+
 
         // =======================================================
         //                      COORDINATOR 
