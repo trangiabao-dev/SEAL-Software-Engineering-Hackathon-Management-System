@@ -21,11 +21,13 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<PaginatedResponse<TeamListDto>> GetAllTeamsAsync(int pageNumber, int pageSize, string? status, int? trackId, int? eventId);
         Task<PaginatedResponse<ParticipantDto>> GetParticipantsAsync(int pageNumber, int pageSize, int? eventId, string? search);
         Task ApproveTeamAsync(Guid teamId, Guid coordinatorId);
+        Task RejectTeamAsync(Guid teamId, RejectTeamRequest request, Guid coordinatorId);
         Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId);
         Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId);
         Task<TeamGroupedByStatusDto> GetTeamsGroupedByStatusAsync(int eventId, int? trackId);
 
         // Mentor
         Task<List<TeamDetailDto>> GetMyMentorTeamsAsync(Guid mentorId);
+
     }
 }

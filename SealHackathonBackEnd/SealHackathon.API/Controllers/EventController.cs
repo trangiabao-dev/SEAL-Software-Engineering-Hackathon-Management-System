@@ -70,5 +70,15 @@ namespace SealHackathon.API.Controllers
             var result = await _eventService.DeleteEventAsync(id);
             return Ok(result);
         }
+
+        [HttpPost("{id}/clone")]
+        public async Task<IActionResult> CloneEvent(int id, [FromBody] CloneEventRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _eventService.CloneEventAsync(id, request);
+            return Ok(result);
+        }
     }
 }

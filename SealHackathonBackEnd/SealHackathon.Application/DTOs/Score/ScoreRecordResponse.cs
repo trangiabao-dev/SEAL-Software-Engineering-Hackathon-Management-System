@@ -13,7 +13,6 @@ namespace SealHackathon.Application.DTOs.Score
         public string CriterionName { get; set; } = string.Empty;
         public double Score { get; set; }
         public string? Comment { get; set; }
-        public bool IsCalibration { get; set; }
         public DateTime ScoredAt { get; set; }
     }
 }

@@ -205,8 +205,8 @@ namespace SealHackathon.Application.Services.Implementations
             // Active: Event đang thi, Leader vẫn cần xem team của mình.
             var currentEvents = await _uow.GetRepository<Event>()
                 .GetAllAsync(e => !e.IsDeleted
-                               && (e.Status == EventConstants.Status.Registration
-                                || e.Status == EventConstants.Status.Active));
+                        && (e.Status == EventConstants.Status.Registration
+                            || e.Status == EventConstants.Status.Active));
 
             if (!currentEvents.Any())
                 return null;
@@ -291,7 +291,6 @@ namespace SealHackathon.Application.Services.Implementations
                 Topic = MapToTopicDto(topic)
             };
         }
-
         public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid leaderId)
         {
             await CheckLeaderAccountActiveAsync(leaderId);
@@ -310,12 +309,26 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
+            if (team.Status == TeamConstants.Status.Rejected)
+                throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
+
             // Kiểm tra nếu team đã được duyệt thì chỉ được phép cập nhật Link Github và không được đổi gì khác
             if (team.Status == TeamConstants.Status.Approved)
             {
                 if (!string.Equals(team.TeamName, request.TeamName, StringComparison.OrdinalIgnoreCase)
                  || !string.Equals(team.University, request.University, StringComparison.OrdinalIgnoreCase))
                     throw new BadRequestException(ErrorMessages.Team.ApprovedOnlyGithubCanChange);
+
+                if (string.IsNullOrWhiteSpace(request.GithubRepoLink))
+                {
+                    var existingSubmission = await _uow.GetRepository<Submission>()
+                        .GetFirstOrDefaultAsync(submission => submission.TeamId == teamId);
+
+                    if (existingSubmission is not null)
+                    {
+                        throw new BadRequestException(ErrorMessages.Team.CannotRemoveGithubAfterSubmission);
+                    }
+                }
 
                 team.GithubRepoLink = request.GithubRepoLink;
             }
@@ -382,11 +395,23 @@ namespace SealHackathon.Application.Services.Implementations
             var membersByTeamId = members.GroupBy(member => member.TeamId)
                 .ToDictionary(group => group.Key, group => group.ToList());
 
-            return teams.OrderBy(team => team.TeamName)
-                .Select(team => MapToDto(team, membersByTeamId
-                .GetValueOrDefault(team.Id, new List<TeamMember>())))
-                .ToList();
+            var topicsByTeamId = await GetLatestTopicsForTeamsAsync(teamIds);
+            var result = new List<TeamDetailDto>();
+
+            foreach (var team in teams.OrderBy(team => team.TeamName))
+            {
+                membersByTeamId.TryGetValue(team.Id, out var teamMembers);
+                topicsByTeamId.TryGetValue(team.Id, out var topic);
+
+                teamMembers ??= new List<TeamMember>();
+
+                result.Add(MapToDto(team, teamMembers, topic));
+            }
+
+            return result;
         }
+
+
 
         // =======================================================
         //                      COORDINATOR 
@@ -422,10 +447,28 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task<PaginatedResponse<ParticipantDto>> GetParticipantsAsync(int pageNumber, int pageSize, int? eventId, string? search)
         {
-            Expression<Func<TeamMember, bool>> predicate = m => 
-                !m.Team.IsDeleted &&
-                (eventId == null || m.Team.Track.EventId == eventId) &&
-                (string.IsNullOrEmpty(search) || m.FullName.Contains(search) || m.StudentCode.Contains(search) || m.Email.Contains(search));
+            if (pageNumber < 1)
+                throw new BadRequestException(
+                    ErrorMessages.Common.InvalidPageNumber);
+
+            if (pageSize < 1 || pageSize > PaginationRequest.MaxPageSize)
+            {
+                throw new BadRequestException(
+                    $"PageSize phải nằm trong khoảng 1 đến {PaginationRequest.MaxPageSize}.");
+            }
+
+            if (eventId.HasValue && eventId.Value <= 0)
+                throw new BadRequestException(
+                    ErrorMessages.Common.InvalidEventId);
+
+            var searchTerm = search?.Trim();
+
+            Expression<Func<TeamMember, bool>> predicate = member => !member.Team.IsDeleted
+                && (eventId == null || member.Team.Track.EventId == eventId)
+                && (string.IsNullOrEmpty(searchTerm)
+                    || member.FullName.Contains(searchTerm)
+                    || member.StudentCode.Contains(searchTerm)
+                    || member.Email.Contains(searchTerm));
 
             var totalRecords = await _uow.GetRepository<TeamMember>().CountAsync(predicate);
 
@@ -469,22 +512,22 @@ namespace SealHackathon.Application.Services.Implementations
             var teamDtos = await BuildTeamListDtosAsync(teams);
 
             var pending = teamDtos
-                .Where(t => string.Equals(t.Status, 
+                .Where(t => string.Equals(t.Status,
                 TeamConstants.Status.Pending, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var approved = teamDtos
-                .Where(t => string.Equals(t.Status, 
+                .Where(t => string.Equals(t.Status,
                 TeamConstants.Status.Approved, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var rejected = teamDtos
-                .Where(t => string.Equals(t.Status, 
+                .Where(t => string.Equals(t.Status,
                 TeamConstants.Status.Rejected, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var disqualified = teamDtos
-                .Where(t => string.Equals(t.Status, 
+                .Where(t => string.Equals(t.Status,
                 TeamConstants.Status.Disqualified, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -540,6 +583,41 @@ namespace SealHackathon.Application.Services.Implementations
             });
         }
 
+        public async Task RejectTeamAsync(
+            Guid teamId, RejectTeamRequest request, Guid coordinatorId)
+        {
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
+
+            if (team is null)
+                throw new NotFoundException(ErrorMessages.Team.NotFound);
+
+            if (team.Status != TeamConstants.Status.Pending)
+                throw new BadRequestException(ErrorMessages.Team.OnlyPendingCanReject);
+
+            var reason = request.Reason.Trim();
+            var now = DateTime.UtcNow;
+
+            team.Status = TeamConstants.Status.Rejected;
+            team.RejectedReason = reason;
+            team.UpdatedAt = now;
+            team.UpdatedBy = coordinatorId;
+
+            // Lưu Notification cùng lần SaveChanges để trạng thái Reject và thông báo
+            // cùng thành công hoặc cùng thất bại.
+            await _uow.GetRepository<Notification>().AddAsync(new Notification
+            {
+                AccountId = team.LeaderId,
+                Title = "Đội thi đã bị từ chối",
+                Message = $"Đội thi {team.TeamName} đã bị từ chối. Lý do: {reason}",
+                Type = "TEAM_REJECTED",
+                IsRead = false,
+                CreatedAt = now
+            });
+
+            await _uow.SaveChangesAsync();
+        }
+
         public async Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId)
         {
             var teamRepo = _uow.GetRepository<Team>();
@@ -551,6 +629,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+
+            if (team.Status == TeamConstants.Status.Rejected)
+                throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
 
             var reason = request.Reason.Trim();
             var now = DateTime.UtcNow;
@@ -598,6 +679,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
 
+            if (team.Status != TeamConstants.Status.Approved)
+                throw new BadRequestException(ErrorMessages.Team.OnlyApprovedCanAssignMentor);
+
             var track = await GetTrackOrThrowAsync(team.TrackId);
 
             var mentor = await _uow.GetRepository<Account>()
@@ -621,14 +705,6 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (mentorAssign is null)
                 throw new BadRequestException(ErrorMessages.Team.MentorNotAssignedToTrack);
-
-            var currentTeamCount = await teamRepo
-                .CountAsync(t => t.Id != teamId && t.MentorId == request.MentorId
-                    && t.TrackId == team.TrackId
-                    && !t.IsDeleted);
-
-            if (currentTeamCount >= TeamConstants.Rules.MaxTeamsPerMentor)
-                throw new BadRequestException(ErrorMessages.Team.MentorMaxTeamsReached);
 
             team.MentorId = request.MentorId;
             team.UpdatedAt = DateTime.UtcNow;
@@ -781,6 +857,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
+
+            if (team.Status == TeamConstants.Status.Rejected)
+                throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
 
             return team;
         }
@@ -984,6 +1063,59 @@ namespace SealHackathon.Application.Services.Implementations
             return leaderAccounts.ToDictionary(account => account.Id, account => account);
         }
 
+        /// <summary>
+        /// Lấy Topic mới nhất được giao cho từng Team từ bảng RoundTeam.
+        /// </summary>
+        private async Task<Dictionary<Guid, Topic>> GetLatestTopicsForTeamsAsync(
+            List<Guid> teamIds)
+        {
+            // Bước 1: Lấy tất cả lần giao đề của các Team.
+            var roundTeams = await _uow.GetRepository<RoundTeam>()
+                .GetAllAsync(roundTeam =>
+                    teamIds.Contains(roundTeam.TeamId)
+                    && roundTeam.TopicId != null
+                    && roundTeam.Round.Status != RoundConstants.Status.Upcoming);
+
+            // Bước 2: Giữ lại lần giao đề mới nhất của từng Team.
+            var latestAssignmentByTeamId = new Dictionary<Guid, RoundTeam>();
+
+            foreach (var assignment in roundTeams.OrderByDescending(x => x.AssignedAt))
+            {
+                if (!latestAssignmentByTeamId.ContainsKey(assignment.TeamId))
+                {
+                    latestAssignmentByTeamId.Add(assignment.TeamId, assignment);
+                }
+            }
+
+            // Bước 3: Lấy các Topic liên quan trong một lần truy vấn.
+            var topicIds = latestAssignmentByTeamId.Values
+                .Select(assignment => assignment.TopicId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (topicIds.Count == 0)
+                return new Dictionary<Guid, Topic>();
+
+            var topics = await _uow.GetRepository<Topic>()
+                .GetAllAsync(topic => topicIds.Contains(topic.Id));
+
+            var topicsById = topics.ToDictionary(topic => topic.Id);
+            var topicsByTeamId = new Dictionary<Guid, Topic>();
+
+            // Bước 4: Ghép Topic với Team tương ứng.
+            foreach (var assignment in latestAssignmentByTeamId.Values)
+            {
+                var topicId = assignment.TopicId!.Value;
+
+                if (topicsById.TryGetValue(topicId, out var topic))
+                {
+                    topicsByTeamId.Add(assignment.TeamId, topic);
+                }
+            }
+
+            return topicsByTeamId;
+        }
+
         // =============== Mapping helpers ===============
         private TeamDetailDto MapToDto(Team team, List<TeamMember>? members = null, Topic? topic = null)
         {
@@ -1000,6 +1132,7 @@ namespace SealHackathon.Application.Services.Implementations
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
                 DisqualifyReason = team.DisqualifyReason,
+                RejectedReason = team.RejectedReason,
                 Members = members?.Select(MapToMemberDto).ToList() ?? new List<TeamMemberDto>()
             };
         }
@@ -1057,7 +1190,8 @@ namespace SealHackathon.Application.Services.Implementations
                 GithubRepoLink = team.GithubRepoLink,
                 Status = team.Status,
                 MemberCount = memberCount,
-                DisqualifyReason = team.DisqualifyReason
+                DisqualifyReason = team.DisqualifyReason,
+                RejectedReason = team.RejectedReason
             };
         }
     }

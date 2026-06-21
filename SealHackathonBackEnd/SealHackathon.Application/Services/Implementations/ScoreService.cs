@@ -96,7 +96,6 @@ namespace SealHackathon.Application.Services.Implementations
                 CriterionId = request.CriterionId,
                 Score = request.Score,
                 Comment = request.Comment,
-                IsCalibration = request.IsCalibration,
                 ScoredAt = DateTime.UtcNow
             };
 
@@ -439,7 +438,6 @@ namespace SealHackathon.Application.Services.Implementations
                 scoreRecord.CriterionId,
                 scoreRecord.Score,
                 scoreRecord.Comment,
-                scoreRecord.IsCalibration
             };
         }
 
@@ -533,7 +531,6 @@ namespace SealHackathon.Application.Services.Implementations
                 CriterionName = criterionName,
                 Score = scoreRecord.Score,
                 Comment = scoreRecord.Comment,
-                IsCalibration = scoreRecord.IsCalibration,
                 ScoredAt = scoreRecord.ScoredAt
             };
         }

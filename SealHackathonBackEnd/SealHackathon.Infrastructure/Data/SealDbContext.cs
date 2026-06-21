@@ -476,6 +476,7 @@ public partial class SealDbContext : DbContext
                 .HasDefaultValue("Pending");
 
             entity.Property(e => e.DisqualifyReason).HasMaxLength(500);
+            entity.Property(e => e.RejectedReason).HasMaxLength(500);
 
             entity.Property(e => e.TeamName).HasMaxLength(255);
             entity.Property(e => e.University).HasMaxLength(255);

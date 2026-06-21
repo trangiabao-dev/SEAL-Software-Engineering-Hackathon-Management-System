@@ -13,8 +13,5 @@ namespace SealHackathon.Application.DTOs.Score
 
         // Nhận xét của Judge — không bắt buộc
         public string? Comment { get; set; }
-
-        // Chấm thử để căn chỉnh — không tính vào điểm thật
-        public bool IsCalibration { get; set; } = false;
     }
 }

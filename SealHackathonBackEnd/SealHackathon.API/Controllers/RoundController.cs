@@ -25,6 +25,14 @@ namespace SealHackathon.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("api/events/{eventId}/rounds")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetRoundsByEventId(int eventId)
+        {
+            var result = await _roundService.GetRoundsForSelectionByEventAsync(eventId);
+            return Ok(result);
+        }
+
         [HttpPost("api/rounds")]
         [Authorize(Roles = RoleConstants.Coordinator)]
         public async Task<IActionResult> CreateRound([FromBody] CreateRoundRequest request)

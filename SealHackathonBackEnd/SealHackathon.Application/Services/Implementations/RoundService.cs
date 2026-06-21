@@ -38,6 +38,30 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<List<RoundResponse>>.SuccessResult(response);
         }
 
+        public async Task<ApiResponse<List<RoundSelectionResponse>>> GetRoundsForSelectionByEventAsync(int eventId)
+        {
+            var eventExists = await _uow.GetRepository<Event>().GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
+            if (eventExists == null) throw new NotFoundException("Không tìm thấy sự kiện.");
+
+            var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == eventId && !t.IsDeleted);
+            var trackIds = tracks.Select(t => t.Id).ToList();
+
+            var rounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
+
+            var result = rounds.Select(r => new { r, trackName = tracks.First(t => t.Id == r.TrackId).Name })
+                               .OrderBy(x => x.trackName)
+                               .ThenBy(x => x.r.OrderIndex)
+                               .Select(x => new RoundSelectionResponse
+            {
+                Id = x.r.Id,
+                Name = x.r.Name,
+                TrackId = x.r.TrackId,
+                TrackName = x.trackName
+            }).ToList();
+
+            return ApiResponse<List<RoundSelectionResponse>>.SuccessResult(result, "Lấy danh sách Round thành công.");
+        }
+
         // Hàm TẠO MỚI một Vòng thi
         public async Task<ApiResponse<RoundResponse>> CreateRoundAsync(CreateRoundRequest request)
         {

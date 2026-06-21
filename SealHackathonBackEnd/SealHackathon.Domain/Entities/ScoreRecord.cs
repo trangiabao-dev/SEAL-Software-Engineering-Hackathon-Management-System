@@ -17,8 +17,6 @@ public partial class ScoreRecord
 
     public string? Comment { get; set; }
 
-    public bool IsCalibration { get; set; }
-
     public DateTime ScoredAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

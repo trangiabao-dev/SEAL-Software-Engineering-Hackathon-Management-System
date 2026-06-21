@@ -429,6 +429,7 @@ FodyWeavers.xsd
 *.msp
 
 # Local development config
+.codex-tmp/
 SealHackathonBackEnd/.vs/
 SealHackathonBackEnd/**/bin/
 SealHackathonBackEnd/**/obj/

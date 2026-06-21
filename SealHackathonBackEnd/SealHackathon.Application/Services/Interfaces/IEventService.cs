@@ -12,8 +12,9 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<ApiResponse<EventResponse>> GetEventByIdAsync(int id);
         Task<ApiResponse<EventResponse>> GetActiveEventAsync();
         Task<ApiResponse<EventResponse>> CreateEventAsync(CreateEventRequest request);
-        Task<ApiResponse<EventResponse>> CreateFullEventAsync(CreateFullEventRequest request);
+        Task<ApiResponse<FullEventResponse>> CreateFullEventAsync(CreateFullEventRequest request);
         Task<ApiResponse<EventResponse>> UpdateEventAsync(int id, UpdateEventRequest request);
         Task<ApiResponse<bool>> DeleteEventAsync(int id); // Xóa mềm (Soft-delete)
+        Task<ApiResponse<FullEventResponse>> CloneEventAsync(int id, CloneEventRequest request);
     }
 }

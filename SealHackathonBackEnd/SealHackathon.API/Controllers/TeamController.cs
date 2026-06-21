@@ -147,6 +147,18 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã duyệt đội thi thành công."));
         }
 
+        // PUT api/teams/{id}/reject - Coordinator từ chối team đang chờ duyệt
+        [HttpPut("{id:guid}/reject")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> RejectTeam(Guid id, [FromBody] RejectTeamRequest request)
+        {
+            var coordinatorId = GetCurrentAccountId();
+
+            await _teamService.RejectTeamAsync(id, request, coordinatorId);
+
+            return Ok(ApiResponse<object>.SuccessResult(null!, "Đã từ chối đội thi."));
+        }
+
         // PUT api/teams/{id}/disqualify — Coordinator loại team
         [HttpPut("{id:guid}/disqualify")]
         [Authorize(Roles = RoleConstants.Coordinator)]
@@ -194,5 +206,7 @@ namespace SealHackathon.API.Controllers
 
             return Ok(ApiResponse<List<TeamDetailDto>>.SuccessResult(result));
         }
+
+
     }
 }
