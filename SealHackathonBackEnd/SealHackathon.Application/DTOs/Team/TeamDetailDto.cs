@@ -16,5 +16,6 @@ namespace SealHackathon.Application.DTOs.Team
         public string Status { get; set; } = null!;
         public List<TeamMemberDto> Members { get; set; } = new();
         public string? DisqualifyReason { get; set; }
+        public string? RejectedReason { get; set; }
     }
 }

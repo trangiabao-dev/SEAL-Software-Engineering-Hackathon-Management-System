@@ -17,14 +17,16 @@ namespace SealHackathon.Domain.Constants
             public const string ApprovedOnlyGithubCanChange = "Đội thi đã được duyệt. Bạn chỉ được phép cập nhật Link Github.";
             public const string NameAlreadyUsed = "Tên đội này đã có người đăng ký. Vui lòng chọn tên khác.";
             public const string OnlyPendingCanApprove = "Chỉ có thể duyệt team đang ở trạng thái Pending.";
+            public const string OnlyPendingCanReject = "Chỉ có thể từ chối team đang ở trạng thái Pending.";
+            public const string RejectedCannotModify = "Đội đã bị từ chối và không thể chỉnh sửa trong Event này.";
             public const string AlreadyDisqualified = "Đội thi này đã bị loại trước đó.";
             public const string MentorNotInEvent = "Tài khoản được chọn chưa được phân quyền Mentor trong Event này.";
             public const string MentorNotAssignedToTrack = "Mentor này chưa được phân công vào Track của đội thi.";
-            public const string MentorMaxTeamsReached = "Mentor này đã hướng dẫn tối đa số đội cho phép.";
             public const string TeamIdsRequired = "Cần chọn ít nhất một đội để phân công Mentor.";
             public const string TeamNotInTrack = "Một hoặc nhiều đội được chọn không thuộc Track này.";
             public const string OnlyApprovedCanAssignMentor = "Chỉ có thể phân Mentor cho đội đã được duyệt.";
             public const string NoViewPermission = "Bạn không có quyền xem thông tin đội này.";
+            public const string CannotRemoveGithubAfterSubmission = "Không thể xóa link GitHub vì đội đã có bài nộp.";
         }
 
         public static class TeamMember

@@ -92,9 +92,8 @@ namespace SealHackathon.Application.Services.Implementations
             // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn và điểm của judge không được assign.
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
-                .GetAllAsync(sr => submissionIds.Contains(sr.SubmissionId)
-                                   && assignedJudgeIds.Contains(sr.JudgeId)
-                                   && !sr.IsCalibration);
+                .GetAllAsync(scoreRecord => submissionIds.Contains(scoreRecord.SubmissionId) 
+                                && assignedJudgeIds.Contains(scoreRecord.JudgeId));
 
             // Backend vẫn phải kiểm đủ điểm để tránh FE lỗi hoặc API bị gọi trực tiếp.
             EnsureAllRequiredScoresExist(

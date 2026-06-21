@@ -20,7 +20,6 @@
         {
             public const int MinMembersPerTeam = 3;
             public const int MaxMembersPerTeam = 5;
-            public const int MaxTeamsPerMentor = 3;
         }
     }
 }

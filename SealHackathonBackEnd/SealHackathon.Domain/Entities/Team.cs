@@ -35,6 +35,8 @@ public partial class Team
 
     public string? DisqualifyReason { get; set; }
 
+    public string? RejectedReason { get; set; }
+
     public virtual Account? CreatedByNavigation { get; set; }
 
     public virtual Account Leader { get; set; } = null!;
