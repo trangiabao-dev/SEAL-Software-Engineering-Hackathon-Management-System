@@ -13,10 +13,17 @@ namespace SealHackathon.Application.Services.Implementations
     public class ScoreService : IScoreService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IAuditLogService _auditLogService;
 
-        public ScoreService(IUnitOfWork unitOfWork)
+        /// <summary>
+        /// Khởi tạo service xử lý chấm điểm và ghi lịch sử thay đổi điểm.
+        /// </summary>
+        public ScoreService(
+            IUnitOfWork unitOfWork,
+            IAuditLogService auditLogService)
         {
             _unitOfWork = unitOfWork;
+            _auditLogService = auditLogService;
         }
 
         /// <summary>
@@ -90,6 +97,15 @@ namespace SealHackathon.Application.Services.Implementations
             };
 
             await _unitOfWork.GetRepository<ScoreRecord>().AddAsync(scoreRecord);
+
+            // Đưa ScoreRecord và AuditLog vào cùng Unit of Work để hai bản ghi được lưu nguyên tử.
+            await _auditLogService.AddAsync(
+                judgeId,
+                AuditActionConstants.ScoreAudit.Create,
+                nameof(ScoreRecord),
+                scoreRecord.Id.ToString(),
+                newValues: CreateScoreAuditValues(scoreRecord));
+
             await _unitOfWork.SaveChangesAsync();
 
             // Trả kết quả cho FE.
@@ -213,12 +229,25 @@ namespace SealHackathon.Application.Services.Implementations
             if (request.UpdatedScore < 0 || request.UpdatedScore > criterion.MaxScore)
                 throw new BadRequestException(ErrorMessages.Score.InvalidScoreRange);
 
+            // Chụp dữ liệu cũ trước khi thay đổi để lịch sử phản ánh đúng trạng thái ban đầu.
+            var oldValues = CreateScoreAuditValues(scoreRecord);
+
             // Cập nhật điểm.
             scoreRecord.Score = request.UpdatedScore;
             scoreRecord.Comment = request.UpdatedComment;
             scoreRecord.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.GetRepository<ScoreRecord>().Update(scoreRecord);
+
+            // ScoreRecord và AuditLog phải thành công hoặc thất bại cùng nhau.
+            await _auditLogService.AddAsync(
+                judgeId,
+                AuditActionConstants.ScoreAudit.Update,
+                nameof(ScoreRecord),
+                scoreRecord.Id.ToString(),
+                oldValues,
+                CreateScoreAuditValues(scoreRecord));
+
             await _unitOfWork.SaveChangesAsync();
 
             // Trả kết quả đã cập nhật cho FE.
@@ -226,6 +255,23 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Tạo bản chụp dữ liệu chấm điểm cần lưu vào AuditLog.
+        /// Chỉ lấy thuộc tính cần thiết để tránh serialize navigation property.
+        /// </summary>
+        private static object CreateScoreAuditValues(ScoreRecord scoreRecord)
+        {
+            return new
+            {
+                scoreRecord.SubmissionId,
+                scoreRecord.JudgeId,
+                scoreRecord.CriterionId,
+                scoreRecord.Score,
+                scoreRecord.Comment,
+                scoreRecord.IsCalibration
+            };
+        }
 
         /// <summary>
         /// Lớp bảo vệ thứ hai (defense in depth): kiểm tra Team có bị Disqualified không.
