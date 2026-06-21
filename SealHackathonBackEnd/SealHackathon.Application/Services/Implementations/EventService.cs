@@ -419,7 +419,7 @@ namespace SealHackathon.Application.Services.Implementations
                 || string.Equals(status, EventConstants.Status.Active, StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<ApiResponse<EventResponse>> CloneEventAsync(int id, CloneEventRequest request)
+        public async Task<ApiResponse<FullEventResponse>> CloneEventAsync(int id, CloneEventRequest request)
         {
             var oldEvent = await _uow.GetRepository<Event>()
                 .GetFirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
@@ -464,6 +464,9 @@ namespace SealHackathon.Application.Services.Implementations
             var roundRepo = _uow.GetRepository<Round>();
             var criteriaRepo = _uow.GetRepository<Criterion>();
 
+            var tracksList = new List<Track>();
+            var roundsList = new List<Round>();
+
             foreach (var oldTrack in tracks)
             {
                 var newTrack = new Track
@@ -472,6 +475,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = oldTrack.Name,
                     Description = oldTrack.Description,
                     MaxMembers = oldTrack.MaxMembers,
+                    MaxTeams = oldTrack.MaxTeams, // Đã bổ sung clone cả MaxTeams
                     IsDeleted = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -479,6 +483,7 @@ namespace SealHackathon.Application.Services.Implementations
 
                 await trackRepo.AddAsync(newTrack);
                 await _uow.SaveChangesAsync(); // Lưu để có ID của newTrack
+                tracksList.Add(newTrack);
 
                 // Clone Rounds của Track cũ
                 var oldRounds = await roundRepo
@@ -501,6 +506,7 @@ namespace SealHackathon.Application.Services.Implementations
 
                     await roundRepo.AddAsync(newRound);
                     await _uow.SaveChangesAsync(); // Lưu để có ID của newRound
+                    roundsList.Add(newRound);
 
                     // Clone Criteria của Round cũ
                     var oldCriterias = await criteriaRepo
@@ -527,7 +533,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _uow.SaveChangesAsync(); // Lưu nốt Criteria
 
-            var responseDto = new EventResponse
+            var responseDto = new FullEventResponse
             {
                 Id = newEvent.Id,
                 Name = newEvent.Name,
@@ -535,10 +541,31 @@ namespace SealHackathon.Application.Services.Implementations
                 StartDate = newEvent.StartDate,
                 EndDate = newEvent.EndDate,
                 Status = newEvent.Status,
-                IsDeleted = newEvent.IsDeleted
+                IsDeleted = newEvent.IsDeleted,
+                Tracks = tracksList.Select(tr => new FullTrackResponse
+                {
+                    Id = tr.Id,
+                    EventId = tr.EventId,
+                    Name = tr.Name,
+                    Description = tr.Description,
+                    MaxTeams = tr.MaxTeams,
+                    MaxMembers = tr.MaxMembers,
+                    Rounds = roundsList.Where(r => r.TrackId == tr.Id).Select(r => new FullRoundResponse
+                    {
+                        Id = r.Id,
+                        TrackId = r.TrackId,
+                        Name = r.Name,
+                        OrderIndex = r.OrderIndex,
+                        StartTime = r.StartTime,
+                        EndTime = r.EndTime,
+                        AdvancingSlots = r.AdvancingSlots,
+                        Status = r.Status,
+                        Topics = new List<FullTopicResponse>() // Trống vì tính năng clone không copy topic
+                    }).ToList()
+                }).ToList()
             };
 
-            return ApiResponse<EventResponse>.SuccessResult(
+            return ApiResponse<FullEventResponse>.SuccessResult(
                 responseDto,
                 "Nhân bản giải đấu thành công! Trạng thái hiện tại: Bản nháp (Draft)."
             );
