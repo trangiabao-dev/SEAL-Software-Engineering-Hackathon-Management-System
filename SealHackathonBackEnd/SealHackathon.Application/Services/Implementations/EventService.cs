@@ -435,8 +435,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (isNameTaken is not null)
                 throw new ConflictException("Tên giải đấu này đã tồn tại trong hệ thống.");
 
-            // Bắt đầu clone với trạng thái mặc định là Draft
-            var newStatus = EventConstants.Status.Draft;
+            // Bắt đầu clone với trạng thái mặc định là Registration 
+            var newStatus = EventConstants.Status.Registration;
 
             var newEvent = new Event
             {
@@ -567,7 +567,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             return ApiResponse<FullEventResponse>.SuccessResult(
                 responseDto,
-                "Nhân bản giải đấu thành công! Trạng thái hiện tại: Bản nháp (Draft)."
+                "Nhân bản giải đấu thành công! Trạng thái hiện tại: Mở đăng ký (Registration)."
             );
         }
     }
