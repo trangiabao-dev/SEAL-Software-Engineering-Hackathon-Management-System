@@ -7,6 +7,8 @@ namespace SealHackathon.Application.DTOs.Team
         public string University { get; set; } = null!;
         public int TrackId { get; set; }
         public Guid LeaderId { get; set; }
+        public string? LeaderUsername { get; set; }
+        public string? LeaderEmail { get; set; }
         public Guid? MentorId { get; set; }
         public string? MentorName { get; set; }
         public int? TopicId { get; set; }

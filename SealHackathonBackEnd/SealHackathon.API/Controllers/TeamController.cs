@@ -35,9 +35,14 @@ namespace SealHackathon.API.Controllers
 
         // GET api/teams/{id} — Lấy thông tin team
         [HttpGet("{id:guid}")]
+        [Authorize(Roles = $"{RoleConstants.Coordinator},{RoleConstants.Leader},{RoleConstants.Mentor}")]
         public async Task<IActionResult> GetByIdTeam(Guid id)
         {
-            var result = await _teamService.GetByIdAsync(id);
+            var currentAccountId = GetCurrentAccountId();
+
+            var result = await _teamService.GetByIdAsync(id, currentAccountId,
+                User.IsInRole(RoleConstants.Coordinator),
+                User.IsInRole(RoleConstants.Mentor));
             return Ok(ApiResponse<TeamDetailDto>.SuccessResult(result));
         }
 
@@ -164,6 +169,7 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã phân công Mentor thành công."));
         }
 
+
         // GET /api/admin/participants — Coordinator xem tất cả các thí sinh (từ bảng TeamMember)
         [HttpGet("/api/admin/participants")]
         [Authorize(Roles = RoleConstants.Coordinator)]
@@ -175,6 +181,18 @@ namespace SealHackathon.API.Controllers
         {
             var result = await _teamService.GetParticipantsAsync(pageNumber, pageSize, eventId, search);
             return Ok(ApiResponse<PaginatedResponse<ParticipantDto>>.SuccessResult(result));
+        }
+
+        // GET /api/mentor/teams - Mentor lấy các Team mình đang phụ trách.
+        [HttpGet("/api/mentor/teams")]
+        [Authorize(Roles = RoleConstants.Mentor)]
+        public async Task<IActionResult> GetMyMentorTeams()
+        {
+            var mentorId = GetCurrentAccountId();
+
+            var result = await _teamService.GetMyMentorTeamsAsync(mentorId);
+
+            return Ok(ApiResponse<List<TeamDetailDto>>.SuccessResult(result));
         }
     }
 }
