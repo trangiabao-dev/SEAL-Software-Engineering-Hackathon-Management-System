@@ -1,3 +1,4 @@
+using SealHackathon.Application.Common.Calculations;
 using SealHackathon.Application.DTOs.Ranking;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -63,6 +64,18 @@ namespace SealHackathon.Application.Services.Implementations
             if (!criteria.Any())
                 throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoCriteria);
 
+            // Weight được lưu theo thang 0-1; Ranking chỉ được tính khi tổng bằng 100%.
+            var totalWeight = criteria.Sum(criterion => criterion.Weight);
+
+            // Dùng độ lệch nhỏ để tránh báo lỗi do sai số của kiểu double.
+            // Tổng Weight phải bằng 1.0, tương đương 100%.
+            // Math.Abs tính độ lệch tuyệt đối giữa tổng Weight và 1.0.
+            // Nếu độ lệch lớn hơn 0.0001, tổng Weight không hợp lệ.
+            // Khi đó hệ thống trả lỗi 400 và dừng tính Ranking.
+            // Nếu độ lệch bằng 0 hoặc rất nhỏ, hệ thống tiếp tục tính Ranking.
+            if (Math.Abs(totalWeight - 1.0) > 0.0001)
+                throw new BadRequestException(ErrorMessages.Ranking.CriteriaWeightTotalInvalid);
+
             var criterionScoreConfigDict = criteria.ToDictionary(
                 c => c.Id,
                 c => new
@@ -125,9 +138,11 @@ namespace SealHackathon.Application.Services.Implementations
                             }
 
                             var avgScore = criterionGroup.Average(sr => sr.Score);
-                            var normalizedScore = avgScore / criterionConfig.MaxScore;
 
-                            return normalizedScore * criterionConfig.Weight * 100;
+                            return ScoreCalculation.CalculateWeightedCriterionScore(
+                                avgScore,
+                                criterionConfig.MaxScore,
+                                criterionConfig.Weight);
                         })
                 })
                 .OrderByDescending(ts => ts.TotalScore)

@@ -1,3 +1,6 @@
+using SealHackathon.Application.Common.Calculations;
+using SealHackathon.Application.Common.Requests;
+using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Score;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -140,10 +143,12 @@ namespace SealHackathon.Application.Services.Implementations
                 await EnsureJudgeCanScoreRoundAsync(currentAccountId, round);
             }
 
-            // Lấy toàn bộ ScoreRecord của bài nộp.
+            // Judge chỉ xem điểm của mình; Coordinator vẫn xem toàn bộ điểm của Submission.
             var scoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
-                .GetAllAsync(sr => sr.SubmissionId == submissionId);
+                .GetAllAsync(scoreRecord =>
+                    scoreRecord.SubmissionId == submissionId
+                    && (isCoordinator || scoreRecord.JudgeId == currentAccountId));
 
             if (!scoreRecords.Any())
                 return new List<ScoreRecordResponse>();
@@ -172,6 +177,69 @@ namespace SealHackathon.Application.Services.Implementations
                 .ToList();
 
             return result;
+        }
+
+        /// <summary>
+        /// Lấy lịch sử chấm bài có phân trang của Judge hiện tại.
+        /// </summary>
+        public async Task<PaginatedResponse<JudgeScoreHistoryResponse>> GetMyScoreHistoryAsync(
+            Guid judgeId,
+            int pageNumber,
+            int pageSize)
+        {
+            ValidatePagination(pageNumber, pageSize);
+
+            // Include dữ liệu liên quan một lần để tránh query riêng từng Submission.
+            var scoreRecords = await _unitOfWork
+                .GetRepository<ScoreRecord>()
+                .GetAllWithIncludeAsync(
+                    scoreRecord =>
+                        scoreRecord.JudgeId == judgeId
+                        && !scoreRecord.IsCalibration,
+                    scoreRecord => scoreRecord.Submission.Team,
+                    scoreRecord => scoreRecord.Submission.Round.Criteria);
+
+            var scoreGroups = scoreRecords
+                .GroupBy(scoreRecord => scoreRecord.SubmissionId)
+                .OrderByDescending(group =>
+                    group.Max(scoreRecord => scoreRecord.UpdatedAt ?? scoreRecord.ScoredAt))
+                .ToList();
+
+            var pagedScoreGroups = scoreGroups
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            if (pagedScoreGroups.Count == 0)
+            {
+                return new PaginatedResponse<JudgeScoreHistoryResponse>(
+                    new List<JudgeScoreHistoryResponse>(),
+                    scoreGroups.Count,
+                    pageNumber,
+                    pageSize);
+            }
+
+            var roundIds = pagedScoreGroups
+                .Select(group => group.First().Submission.RoundId)
+                .Distinct()
+                .ToList();
+
+            // Ranking chỉ cần query theo các Round xuất hiện trong trang hiện tại.
+            var rankedRoundIds = (await _unitOfWork
+                    .GetRepository<Ranking>()
+                    .GetAllAsync(ranking => roundIds.Contains(ranking.RoundId)))
+                .Select(ranking => ranking.RoundId)
+                .ToHashSet();
+
+            var items = pagedScoreGroups
+                .Select(group => MapToJudgeScoreHistoryResponse(group, rankedRoundIds))
+                .ToList();
+
+            return new PaginatedResponse<JudgeScoreHistoryResponse>(
+                items,
+                scoreGroups.Count,
+                pageNumber,
+                pageSize);
         }
 
         /// <summary>
@@ -256,6 +324,107 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Kiểm tra tham số phân trang trước khi query dữ liệu.
+        /// </summary>
+        private static void ValidatePagination(int pageNumber, int pageSize)
+        {
+            if (pageNumber < 1)
+                throw new BadRequestException(ErrorMessages.Common.InvalidPageNumber);
+
+            if (pageSize < 1 || pageSize > PaginationRequest.MaxPageSize)
+                throw new BadRequestException(ErrorMessages.Common.InvalidPageSize);
+        }
+
+        /// <summary>
+        /// Chuyển một nhóm ScoreRecord của cùng Submission thành một dòng lịch sử.
+        /// </summary>
+        private static JudgeScoreHistoryResponse MapToJudgeScoreHistoryResponse(
+            IGrouping<Guid, ScoreRecord> scoreGroup,
+            HashSet<int> rankedRoundIds)
+        {
+            var scoreRecords = scoreGroup.ToList();
+            var submission = scoreRecords[0].Submission;
+            var round = submission.Round;
+            var team = submission.Team;
+            var criteria = round.Criteria.ToList();
+            var scoreByCriterionId = scoreRecords.ToDictionary(
+                scoreRecord => scoreRecord.CriterionId);
+
+            var scoredCriteriaCount = criteria.Count(
+                criterion => scoreByCriterionId.ContainsKey(criterion.Id));
+            var isCompleted = criteria.Count > 0
+                && scoredCriteriaCount == criteria.Count;
+
+            double? myScore = isCompleted
+                ? CalculateMyScore(scoreByCriterionId, criteria)
+                : null;
+
+            return new JudgeScoreHistoryResponse
+            {
+                SubmissionId = submission.Id,
+                TeamId = team.Id,
+                TeamName = team.TeamName,
+                University = team.University,
+                RoundId = round.Id,
+                RoundName = round.Name,
+                SubmittedAt = submission.CreatedAt,
+                LastScoredAt = scoreRecords.Max(scoreRecord =>
+                    scoreRecord.UpdatedAt ?? scoreRecord.ScoredAt),
+                MyScore = myScore,
+                ScoredCriteriaCount = scoredCriteriaCount,
+                TotalCriteriaCount = criteria.Count,
+                Status = ResolveScoreHistoryStatus(
+                    submission,
+                    round,
+                    rankedRoundIds.Contains(round.Id),
+                    isCompleted)
+            };
+        }
+
+        /// <summary>
+        /// Tính điểm tổng có trọng số của Judge từ các Criterion đã chấm đủ.
+        /// </summary>
+        private static double CalculateMyScore(
+            IReadOnlyDictionary<int, ScoreRecord> scoreByCriterionId,
+            IReadOnlyCollection<Criterion> criteria)
+        {
+            var myScore = criteria.Sum(criterion =>
+                ScoreCalculation.CalculateWeightedCriterionScore(
+                    scoreByCriterionId[criterion.Id].Score,
+                    criterion.MaxScore,
+                    criterion.Weight));
+
+            return Math.Round(myScore, 2);
+        }
+
+        /// <summary>
+        /// Xác định trạng thái hiển thị của một dòng lịch sử chấm bài.
+        /// </summary>
+        private static string ResolveScoreHistoryStatus(
+            Submission submission,
+            Round round,
+            bool hasRanking,
+            bool isCompleted)
+        {
+            if (submission.IsDisqualified)
+                return ScoreHistoryConstants.Status.Disqualified;
+
+            // ScoreService chỉ cho sửa khi Round đang Scoring và chưa có Ranking.
+            if (hasRanking
+                || !string.Equals(
+                    round.Status,
+                    RoundConstants.Status.Scoring,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return ScoreHistoryConstants.Status.Locked;
+            }
+
+            return isCompleted
+                ? ScoreHistoryConstants.Status.Completed
+                : ScoreHistoryConstants.Status.InProgress;
+        }
 
         /// <summary>
         /// Tạo bản chụp dữ liệu chấm điểm cần lưu vào AuditLog.
