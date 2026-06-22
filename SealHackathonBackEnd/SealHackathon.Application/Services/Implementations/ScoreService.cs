@@ -193,8 +193,8 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetRepository<ScoreRecord>()
                 .GetAllWithIncludeAsync(
                     scoreRecord =>
-                        scoreRecord.JudgeId == judgeId
-                        && !scoreRecord.IsCalibration,
+                        scoreRecord.JudgeId == judgeId,
+                      
                     scoreRecord => scoreRecord.Submission.Team,
                     scoreRecord => scoreRecord.Submission.Round.Criteria);
 
