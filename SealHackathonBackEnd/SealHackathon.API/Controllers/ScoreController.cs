@@ -54,6 +54,26 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
+        /// Lấy lịch sử các Submission mà Judge hiện tại đã chấm.
+        /// </summary>
+        [HttpGet("history")]
+        [Authorize(Roles = RoleConstants.Judge)]
+        public async Task<IActionResult> GetMyScoreHistory(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var judgeId = GetCurrentAccountId();
+            var result = await _scoreService.GetMyScoreHistoryAsync(
+                judgeId,
+                pageNumber,
+                pageSize);
+
+            return Ok(
+                ApiResponse<PaginatedResponse<JudgeScoreHistoryResponse>>
+                    .SuccessResult(result, "Lấy lịch sử chấm bài thành công."));
+        }
+
+        /// <summary>
         /// Judge sửa điểm đã chấm — PUT api/scores/{UpdateScoreRecordId}
         /// </summary>
         [HttpPut("{UpdateScoreRecordId}")]

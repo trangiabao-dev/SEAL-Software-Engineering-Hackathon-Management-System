@@ -140,6 +140,7 @@ namespace SealHackathon.Domain.Constants
             public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
             public const string RoundStatusInvalidForCalculation = "Chỉ được tính ranking khi Round đang ở trạng thái Scoring hoặc Closed.";
             public const string RoundHasNoCriteria = "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.";
+            public const string CriteriaWeightTotalInvalid = "Tổng trọng số của các tiêu chí phải bằng 100% trước khi tính ranking.";
             public const string RoundHasNoValidSubmissions = "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.";
             public const string CriterionConfigNotFound = "Không tìm thấy cấu hình tiêu chí chấm điểm khi tính xếp hạng.";
             public const string CriterionMaxScoreInvalid = Criterion.MaxScoreInvalid;
