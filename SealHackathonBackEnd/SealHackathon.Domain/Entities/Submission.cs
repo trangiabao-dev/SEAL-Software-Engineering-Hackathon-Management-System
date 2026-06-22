@@ -13,8 +13,6 @@ public partial class Submission
 
     public string PresentationUrl { get; set; } = null!;
 
-    public string? AiEvaluation { get; set; }
-
     public bool IsDisqualified { get; set; }
 
     public string? DisqualifyReason { get; set; }

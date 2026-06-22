@@ -4,10 +4,6 @@ using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
 using SealHackathon.Domain.Interfaces.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SealHackathon.Application.Services.Implementations
 {
