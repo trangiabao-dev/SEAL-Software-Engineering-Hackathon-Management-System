@@ -26,19 +26,23 @@ namespace SealHackathon.Application.Services.Implementations
         /// <summary>
         /// Tính hoặc tính lại bảng xếp hạng cho một Round, sau đó lưu kết quả xuống database.
         /// </summary>
-        public async Task<RankingLeaderboardResponse> CalculateRankingAsync(int roundId)
+        public Task<RankingLeaderboardResponse> CalculateRankingAsync(int roundId)
         {
-            var rankingLock = RoundRankingLocks.GetOrAdd(roundId, _ => new SemaphoreSlim(1, 1));
+            return ExecuteWithRoundRankingLockAsync(
+                roundId,
+                () => CalculateRankingCoreAsync(roundId));
+        }
 
-            await rankingLock.WaitAsync();
-            try
-            {
-                return await CalculateRankingCoreAsync(roundId);
-            }
-            finally
-            {
-                rankingLock.Release();
-            }
+        /// <summary>
+        /// Lưu thứ tự chính thức của nhóm đồng hạng sau khi Judge xét tiêu chí phụ.
+        /// </summary>
+        public Task<RankingLeaderboardResponse> ResolveTieAsync(
+            int roundId,
+            ResolveRankingTieRequest request)
+        {
+            return ExecuteWithRoundRankingLockAsync(
+                roundId,
+                () => ResolveTieCoreAsync(roundId, request));
         }
 
         /// <summary>
@@ -99,13 +103,18 @@ namespace SealHackathon.Application.Services.Implementations
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
 
+            // Dùng lần nộp cuối để tránh đội tạo bài tạm sớm nhằm chiếm ưu thế tie-break.
+            var submittedAtByTeamId = submissions.ToDictionary(
+                submission => submission.TeamId,
+                submission => submission.UpdatedAt ?? submission.CreatedAt);
+
             // Ranking chỉ tính điểm từ judge được assign và còn quyền Judge hợp lệ trong Event.
             var assignedJudgeIds = await GetActiveAssignedJudgeIdsAsync(round);
 
             // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn và điểm của judge không được assign.
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
-                .GetAllAsync(scoreRecord => submissionIds.Contains(scoreRecord.SubmissionId) 
+                .GetAllAsync(scoreRecord => submissionIds.Contains(scoreRecord.SubmissionId)
                                 && assignedJudgeIds.Contains(scoreRecord.JudgeId));
 
             // Backend vẫn phải kiểm đủ điểm để tránh FE lỗi hoặc API bị gọi trực tiếp.
@@ -144,7 +153,6 @@ namespace SealHackathon.Application.Services.Implementations
                                 criterionConfig.Weight);
                         })
                 })
-                .OrderByDescending(ts => ts.TotalScore)
                 .ToList();
 
             // Bước 5b: Thêm các team có Submission nhưng chưa có điểm (TotalScore = 0)
@@ -155,36 +163,51 @@ namespace SealHackathon.Application.Services.Implementations
                 .Where(tid => !teamIdsWithScores.Contains(tid))
                 .ToList();
 
+            // Làm tròn trước khi so sánh để điểm xếp hạng khớp điểm lưu trong database.
             var allTeamScores = teamScores
-                .Select(ts => (ts.TeamId, ts.TotalScore))
-                .Concat(teamIdsWithoutScores.Select(tid => (TeamId: tid, TotalScore: 0.0)))
+                .Select(teamScore => (
+                    TeamId: teamScore.TeamId,
+                    TotalScore: Math.Round(teamScore.TotalScore, 4),
+                    SubmittedAt: submittedAtByTeamId[teamScore.TeamId]))
+                .Concat(teamIdsWithoutScores.Select(teamId => (
+                    TeamId: teamId,
+                    TotalScore: 0.0,
+                    SubmittedAt: submittedAtByTeamId[teamId])))
+                .OrderByDescending(team => team.TotalScore)
+                .ThenBy(team => team.SubmittedAt)
                 .ToList();
 
-            // Bước 6: Xếp hạng team, các team bằng điểm sẽ cùng hạng.
-            // Ví dụ: điểm [9.5, 8.0, 8.0, 7.0] sẽ có hạng [1, 2, 2, 4].
+            // Bước 6: Xếp điểm giảm dần và dùng thời gian nộp cuối làm tie-break tự động.
             var rankedTeams = new List<(Guid TeamId, double TotalScore, int Rank)>();
-            for (int i = 0; i < allTeamScores.Count; i++)
+            for (var index = 0; index < allTeamScores.Count; index++)
             {
-                int rank;
-                if (i == 0)
+                var rank = index + 1;
+
+                if (index > 0)
                 {
-                    rank = 1;
+                    var currentTeam = allTeamScores[index];
+                    var previousTeam = allTeamScores[index - 1];
+
+                    // Chỉ giữ đồng hạng khi cả điểm và thời gian nộp cuối đều bằng nhau.
+                    if (currentTeam.TotalScore == previousTeam.TotalScore
+                        && currentTeam.SubmittedAt == previousTeam.SubmittedAt)
+                    {
+                        rank = rankedTeams[index - 1].Rank;
+                    }
                 }
-                else if (Math.Abs(allTeamScores[i].TotalScore - allTeamScores[i - 1].TotalScore) < 0.0001)
-                {
-                    rank = rankedTeams[i - 1].Rank;
-                }
-                else
-                {
-                    rank = i + 1;
-                }
-                rankedTeams.Add((allTeamScores[i].TeamId, allTeamScores[i].TotalScore, rank));
+
+                rankedTeams.Add((
+                    allTeamScores[index].TeamId,
+                    allTeamScores[index].TotalScore,
+                    rank));
             }
 
             // Bước 7: Xác định đội được vào vòng tiếp theo.
-            // Nếu Round chưa cấu hình AdvancingSlots, tạm thời "hardcode" lấy Top 10 đội theo yêu cầu.
-            var advancingSlots = round.AdvancingSlots ?? 10;
-            int currentAdvancingCount = 0;
+            // AdvancingSlots null đánh dấu vòng chung kết nên không có đội đi tiếp.
+            var advancingSlots = round.AdvancingSlots;
+            var unresolvedAdvancingRank = GetUnresolvedAdvancingRank(
+                rankedTeams,
+                advancingSlots);
 
             var now = DateTime.UtcNow;
 
@@ -201,21 +224,17 @@ namespace SealHackathon.Application.Services.Implementations
             var newRankings = new List<Domain.Entities.Ranking>();
             foreach (var team in rankedTeams)
             {
-                // Rào cứng: Bất kể có đồng hạng hay không, chỉ lấy đúng tối đa AdvancingSlots (hoặc 10) đội đi tiếp.
-                // Các đội đồng hạng sẽ được "bốc" theo thứ tự sắp xếp ngẫu nhiên trước đó cho đến khi đủ chỉ tiêu.
-                var isAdvancing = false;
-                if (currentAdvancingCount < advancingSlots)
-                {
-                    isAdvancing = true;
-                    currentAdvancingCount++;
-                }
+                // Khi tie tại cutoff chưa được xử lý, chưa đội nào được đi tiếp để RoundService chặn mở vòng sau.
+                var isAdvancing = advancingSlots.HasValue
+                    && !unresolvedAdvancingRank.HasValue
+                    && team.Rank <= advancingSlots.Value;
 
                 var ranking = new Domain.Entities.Ranking
                 {
                     Id = Guid.NewGuid(),
                     TeamId = team.TeamId,
                     RoundId = roundId,
-                    TotalScore = Math.Round(team.TotalScore, 4),
+                    TotalScore = team.TotalScore,
                     RankPosition = team.Rank,
                     IsAdvancing = isAdvancing,
                     CalculatedAt = now
@@ -252,7 +271,112 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Lấy bảng xếp hạng đã tính của 1 round — đọc từ DB, không tính lại
+        /// Cập nhật RankPosition và IsAdvancing của nhóm đồng hạng theo thứ tự đã được xác nhận.
+        /// </summary>
+        private async Task<RankingLeaderboardResponse> ResolveTieCoreAsync(
+            int roundId,
+            ResolveRankingTieRequest request)
+        {
+            if (request.OrderedTeamIds.Count < 2)
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.TieBreakRequiresMultipleTeams);
+            }
+
+            if (request.OrderedTeamIds.Distinct().Count()
+                != request.OrderedTeamIds.Count)
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.TieBreakTeamDuplicated);
+            }
+
+            var round = await _unitOfWork
+                .GetRepository<Round>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == roundId);
+
+            if (round is null)
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            var rankingRepository =
+                _unitOfWork.GetRepository<Domain.Entities.Ranking>();
+
+            // GetAllAsync trả entity no-tracking nên phải gọi Update trước SaveChangesAsync.
+            var rankings = await rankingRepository
+                .GetAllAsync(ranking => ranking.RoundId == roundId);
+
+            if (!rankings.Any())
+                throw new NotFoundException(ErrorMessages.Ranking.NotFound);
+
+            var requestedTeamIdSet = request.OrderedTeamIds.ToHashSet();
+            var selectedRankings = rankings
+                .Where(ranking => requestedTeamIdSet.Contains(ranking.TeamId))
+                .ToList();
+
+            if (selectedRankings.Count != request.OrderedTeamIds.Count)
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.TieBreakTeamNotInRanking);
+            }
+
+            var tiedRankPosition = selectedRankings[0].RankPosition;
+
+            if (selectedRankings.Any(
+                    ranking => ranking.RankPosition != tiedRankPosition))
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.TieBreakTeamsNotSameRank);
+            }
+
+            var completeTieTeamIdSet = rankings
+                .Where(ranking => ranking.RankPosition == tiedRankPosition)
+                .Select(ranking => ranking.TeamId)
+                .ToHashSet();
+
+            // Bắt buộc gửi đủ nhóm tie để tránh chỉ xử lý một phần và làm sai thứ hạng.
+            if (!completeTieTeamIdSet.SetEquals(requestedTeamIdSet))
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.TieBreakGroupIncomplete);
+            }
+
+            var rankingByTeamId = selectedRankings.ToDictionary(
+                ranking => ranking.TeamId);
+
+            for (var index = 0; index < request.OrderedTeamIds.Count; index++)
+            {
+                var teamId = request.OrderedTeamIds[index];
+                rankingByTeamId[teamId].RankPosition = tiedRankPosition + index;
+            }
+
+            var orderedRankings = rankings
+                .OrderBy(ranking => ranking.RankPosition)
+                .Select(ranking => (
+                    ranking.TeamId,
+                    ranking.TotalScore,
+                    Rank: ranking.RankPosition))
+                .ToList();
+
+            var unresolvedAdvancingRank = GetUnresolvedAdvancingRank(
+                orderedRankings,
+                round.AdvancingSlots);
+
+            foreach (var ranking in rankings)
+            {
+                // Nếu vẫn còn tie tại cutoff, toàn bộ đội phải chờ trước khi Round tiếp theo được mở.
+                ranking.IsAdvancing = round.AdvancingSlots.HasValue
+                    && !unresolvedAdvancingRank.HasValue
+                    && ranking.RankPosition <= round.AdvancingSlots.Value;
+
+                rankingRepository.Update(ranking);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return await GetLeaderboardByRoundAsync(roundId);
+        }
+
+        /// <summary>
+        /// Lấy bảng xếp hạng đã tính của 1 round từ database, không tính lại.
         /// </summary>
         public async Task<RankingLeaderboardResponse> GetLeaderboardByRoundAsync(int roundId)
         {
@@ -347,16 +471,64 @@ namespace SealHackathon.Application.Services.Implementations
         // =============== Private helpers ===============
 
         /// <summary>
-        /// Đảm bảo chỉ tính ranking khi Round đang ở giai đoạn chấm điểm hoặc đã đóng.
+        /// Ngăn calculate Ranking và xử lý tie-break chạy đồng thời trên cùng một Round.
+        /// </summary>
+        private static async Task<T> ExecuteWithRoundRankingLockAsync<T>(
+            int roundId,
+            Func<Task<T>> action)
+        {
+            var rankingLock = RoundRankingLocks.GetOrAdd(
+                roundId,
+                _ => new SemaphoreSlim(1, 1));
+
+            await rankingLock.WaitAsync();
+
+            try
+            {
+                return await action();
+            }
+            finally
+            {
+                rankingLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Tìm hạng đồng hạng đang nằm đúng tại ranh giới chọn đội đi tiếp.
+        /// </summary>
+        private static int? GetUnresolvedAdvancingRank(
+            IReadOnlyList<(Guid TeamId, double TotalScore, int Rank)> rankedTeams,
+            int? advancingSlots)
+        {
+            if (!advancingSlots.HasValue)
+                return null;
+
+            var cutoff = advancingSlots.Value;
+
+            if (cutoff <= 0 || cutoff >= rankedTeams.Count)
+                return null;
+
+            var lastSelectedTeam = rankedTeams[cutoff - 1];
+            var firstExcludedTeam = rankedTeams[cutoff];
+
+            return lastSelectedTeam.Rank == firstExcludedTeam.Rank
+                ? lastSelectedTeam.Rank
+                : null;
+        }
+
+        /// <summary>
+        /// Đảm bảo chỉ tính ranking khi Round đang ở giai đoạn chấm điểm.
         /// </summary>
         private static void EnsureRoundCanCalculateRanking(Round round)
         {
-            var canCalculate =
-                string.Equals(round.Status, RoundConstants.Status.Scoring, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(round.Status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase);
-
-            if (!canCalculate)
-                throw new BadRequestException(ErrorMessages.Ranking.RoundStatusInvalidForCalculation);
+            if (!string.Equals(
+                    round.Status,
+                    RoundConstants.Status.Scoring,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(
+                    ErrorMessages.Ranking.RoundStatusInvalidForCalculation);
+            }
         }
 
         /// <summary>

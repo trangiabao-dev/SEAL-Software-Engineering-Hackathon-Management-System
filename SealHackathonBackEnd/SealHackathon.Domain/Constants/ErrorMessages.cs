@@ -138,7 +138,7 @@ namespace SealHackathon.Domain.Constants
         public static class Ranking
         {
             public const string NotFound = "Không tìm thấy kết quả xếp hạng.";
-            public const string RoundStatusInvalidForCalculation = "Chỉ được tính ranking khi Round đang ở trạng thái Scoring hoặc Closed.";
+            public const string RoundStatusInvalidForCalculation = "Chỉ được tính ranking khi Round đang ở trạng thái Scoring .";
             public const string RoundHasNoCriteria = "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.";
             public const string CriteriaWeightTotalInvalid = "Tổng trọng số của các tiêu chí phải bằng 100% trước khi tính ranking.";
             public const string RoundHasNoValidSubmissions = "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.";
@@ -146,6 +146,11 @@ namespace SealHackathon.Domain.Constants
             public const string CriterionMaxScoreInvalid = Criterion.MaxScoreInvalid;
             public const string NoAssignedJudges = "Round này chưa có giám khảo hợp lệ được phân công để tính xếp hạng.";
             public const string ScoresNotCompleted = "Chưa đủ điểm chấm cho tất cả giám khảo, tiêu chí và bài nộp hợp lệ. Không thể tính xếp hạng.";
+            public const string TieBreakRequiresMultipleTeams = "Phải có ít nhất hai đội để xử lý đồng hạng.";
+            public const string TieBreakTeamDuplicated = "Danh sách xử lý đồng hạng chứa TeamId bị trùng.";
+            public const string TieBreakTeamNotInRanking = "Có đội không thuộc bảng xếp hạng của Round.";
+            public const string TieBreakTeamsNotSameRank = "Các đội được chọn không thuộc cùng một nhóm đồng hạng.";
+            public const string TieBreakGroupIncomplete = "Phải gửi đầy đủ tất cả đội trong cùng nhóm đồng hạng.";
         }
 
         public static class Prize

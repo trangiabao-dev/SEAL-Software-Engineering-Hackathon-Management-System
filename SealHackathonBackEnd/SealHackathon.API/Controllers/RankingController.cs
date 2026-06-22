@@ -35,7 +35,23 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Lấy bảng xếp hạng đã tính của 1 vòng thi — đọc từ DB, không tính lại
+        /// Coordinator ghi nhận thứ tự tie-break đã được hội đồng Judge thống nhất.
+        /// </summary>
+        [HttpPut("rounds/{roundId}/tie-break")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ResolveTie(
+            int roundId,
+            [FromBody] ResolveRankingTieRequest request)
+        {
+            var result = await _rankingService.ResolveTieAsync(roundId, request);
+
+            return Ok(ApiResponse<RankingLeaderboardResponse>.SuccessResult(
+                result,
+                "Xử lý đồng hạng thành công."));
+        }
+
+        /// <summary>
+        /// Lấy bảng xếp hạng đã tính của 1 vòng thi — đọc từ DB, không tính lại.
         /// </summary>
         [HttpGet("rounds/{roundId}")]
         [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
