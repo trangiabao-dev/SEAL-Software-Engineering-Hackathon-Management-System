@@ -37,12 +37,13 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetFirstOrDefaultAsync(e => e.Id == track.EventId && !e.IsDeleted);
 
             if (eventOfTrack is null)
-                throw new NotFoundException("Không tìm thấy Event của Track.");
+                throw new NotFoundException(ErrorMessages.Event.TrackEventNotFound);
 
             if (!string.Equals(eventOfTrack.Status,
                 EventConstants.Status.Registration, StringComparison.OrdinalIgnoreCase))
             {
-                throw new BadRequestException("Chỉ được tạo đội khi Event đang mở đăng ký.");
+                throw new BadRequestException(ErrorMessages.Event.TeamRegistrationNotOpen);
+
             }
 
             // Không cho tạo thêm Team khi Track đã đủ số lượng.
@@ -212,7 +213,7 @@ namespace SealHackathon.Application.Services.Implementations
                 return null;
 
             if (currentEvents.Count > 1)
-                throw new ConflictException("Hệ thống đang có nhiều hơn một Event đang mở hoặc đang diễn ra.");
+                throw new ConflictException(ErrorMessages.Event.MultipleCurrentEvents);
 
             var currentEvent = currentEvents.First();
 
@@ -244,7 +245,7 @@ namespace SealHackathon.Application.Services.Implementations
                 return null;
 
             if (currentEvents.Count > 1)
-                throw new ConflictException("Hệ thống đang có nhiều hơn một Event đang diễn ra.");
+                throw new ConflictException(ErrorMessages.Event.MultipleActiveEvents);
 
             var currentEvent = currentEvents.First();
 

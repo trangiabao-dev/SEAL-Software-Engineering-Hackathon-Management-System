@@ -179,21 +179,48 @@ namespace SealHackathon.Application.Services.Implementations
             DisqualifySubmissionRequest request, Guid coordinatorId)
         {
             if (submissionId == Guid.Empty)
-                throw new BadRequestException(ErrorMessages.Common.InvalidSubmissionId);
+                throw new BadRequestException(
+                    ErrorMessages.Common.InvalidSubmissionId);
 
             var submission = await _uow.GetRepository<Submission>()
-                .GetFirstOrDefaultTrackingAsync(s => s.Id == submissionId);
+                .GetFirstOrDefaultTrackingAsync(
+                    s => s.Id == submissionId);
 
             if (submission is null)
-                throw new NotFoundException(ErrorMessages.Submission.NotFound);
+                throw new NotFoundException(
+                    ErrorMessages.Submission.NotFound);
 
             if (submission.IsDisqualified)
-                throw new BadRequestException(ErrorMessages.Submission.AlreadyDisqualified);
+                throw new BadRequestException(
+                    ErrorMessages.Submission.AlreadyDisqualified);
+
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultAsync(t => t.Id == submission.TeamId && !t.IsDeleted);
+
+            if (team is null)
+                throw new NotFoundException(
+                    ErrorMessages.Submission.TeamNotFound);
+
+            var reason = request.Reason.Trim();
+            var now = DateTime.UtcNow;
 
             submission.IsDisqualified = true;
-            submission.DisqualifyReason = request.Reason;
-            submission.DisqualifiedAt = DateTime.UtcNow;
+            submission.DisqualifyReason = reason;
+            submission.DisqualifiedAt = now;
             submission.DisqualifiedBy = coordinatorId;
+
+            // Notification được thêm trước SaveChanges để việc loại bài
+            // và tạo thông báo cùng thành công hoặc cùng thất bại.
+            await _uow.GetRepository<Notification>().AddAsync(
+                new Notification
+                {
+                    AccountId = team.LeaderId,
+                    Title = "Bài nộp đã bị loại",
+                    Message = $"Bài nộp của đội {team.TeamName} đã bị loại. Lý do: {reason}",
+                    Type = "SUBMISSION_DISQUALIFIED",
+                    IsRead = false,
+                    CreatedAt = now
+                });
 
             await _uow.SaveChangesAsync();
         }
@@ -348,7 +375,6 @@ namespace SealHackathon.Application.Services.Implementations
                 TeamId = submission.TeamId,
                 RoundId = submission.RoundId,
                 PresentationUrl = submission.PresentationUrl,
-                AiEvaluation = submission.AiEvaluation,
                 IsDisqualified = submission.IsDisqualified,
                 DisqualifyReason = submission.DisqualifyReason,
                 DisqualifiedAt = submission.DisqualifiedAt,

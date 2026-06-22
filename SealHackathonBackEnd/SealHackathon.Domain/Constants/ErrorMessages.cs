@@ -98,6 +98,10 @@ namespace SealHackathon.Domain.Constants
             public const string CannotReturnToRegistration = "Event đã Active thì không thể chuyển lại Registration.";
             public const string OnlyOneCurrentEventAllowed = "Chỉ được có một Event đang Registration hoặc Active tại một thời điểm.";
             public const string CurrentEventNotFound = "Hiện tại không có Event nào đang mở đăng ký hoặc đang diễn ra.";
+            public const string TrackEventNotFound = "Không tìm thấy Event của Track.";
+            public const string TeamRegistrationNotOpen = "Chỉ được tạo đội khi Event đang mở đăng ký.";
+            public const string MultipleCurrentEvents = "Hệ thống đang có nhiều hơn một Event đang mở hoặc đang diễn ra.";
+            public const string MultipleActiveEvents = "Hệ thống đang có nhiều hơn một Event đang diễn ra.";
         }
 
         public static class Criterion

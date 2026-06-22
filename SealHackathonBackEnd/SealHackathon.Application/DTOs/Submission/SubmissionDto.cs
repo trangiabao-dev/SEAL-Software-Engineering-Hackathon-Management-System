@@ -9,7 +9,6 @@
         public Guid TeamId { get; set; }
         public int RoundId { get; set; }
         public string PresentationUrl { get; set; } = null!;
-        public string? AiEvaluation { get; set; }
         public bool IsDisqualified { get; set; }
         public string? DisqualifyReason { get; set; }
         public DateTime? DisqualifiedAt { get; set; }
