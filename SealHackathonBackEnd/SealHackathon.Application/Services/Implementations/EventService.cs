@@ -302,6 +302,28 @@ namespace SealHackathon.Application.Services.Implementations
             // Bước 3: Đánh dấu entity này đã bị sửa đổi trong Repository
             _uow.GetRepository<Event>().Update(existingEvent);
 
+            if (isActivating)
+            {
+                // Tìm tất cả các Track của Event
+                var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == existingEvent.Id && !t.IsDeleted);
+                var trackIds = tracks.Select(t => t.Id).ToList();
+
+                // Lấy tất cả Round thuộc các Track này
+                var rounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
+                foreach (var round in rounds)
+                {
+                    if (round.OrderIndex == 1)
+                    {
+                        round.Status = RoundConstants.Status.Active;
+                    }
+                    else
+                    {
+                        round.Status = RoundConstants.Status.Upcoming;
+                    }
+                    _uow.GetRepository<Round>().Update(round);
+                }
+            }
+
             // Lưu xuống DB
             await _uow.SaveChangesAsync();
 
