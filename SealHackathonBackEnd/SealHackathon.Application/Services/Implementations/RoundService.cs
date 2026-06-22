@@ -69,6 +69,11 @@ namespace SealHackathon.Application.Services.Implementations
             var trackExists = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(x => x.Id == request.TrackId && !x.IsDeleted);
             if (trackExists == null) throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
 
+            if (request.AdvancingSlots.HasValue && request.AdvancingSlots.Value <= 0)
+            {
+                throw new BadRequestException("Số lượng đội đi tiếp phải là số dương hoặc để trống (vòng chung kết).");
+            }
+
             // Khởi tạo Entity Vòng thi
             var newRound = new Round
             {
@@ -97,6 +102,11 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var existingRound = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == id);
             if (existingRound == null) throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            if (request.AdvancingSlots.HasValue && request.AdvancingSlots.Value <= 0)
+            {
+                throw new BadRequestException("Số lượng đội đi tiếp phải là số dương hoặc để trống (vòng chung kết).");
+            }
 
             // Đè thông tin mới
             existingRound.Name = request.Name;
@@ -153,7 +163,100 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     throw new BadRequestException("Không thể lùi trạng thái của vòng thi về trạng thái trước đó.");
                 }
+                
+                if (newOrder - currentOrder > 1)
+                {
+                    throw new BadRequestException("Không thể nhảy cóc trạng thái của vòng thi.");
+                }
             }
+
+            if (string.Equals(newStatus, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase))
+            {
+                var rankings = await _uow.GetRepository<Domain.Entities.Ranking>().GetAllAsync(r => r.RoundId == id);
+                if (!rankings.Any())
+                {
+                    throw new BadRequestException("Không thể đóng vòng thi khi chưa có bảng xếp hạng (Ranking).");
+                }
+
+                var orderedRankings = rankings.OrderBy(r => r.RankPosition).ToList();
+
+                if (existingRound.AdvancingSlots.HasValue)
+                {
+                    var cutoff = existingRound.AdvancingSlots.Value;
+                    if (cutoff > 0 && cutoff < orderedRankings.Count)
+                    {
+                        var lastSelectedTeam = orderedRankings[cutoff - 1];
+                        var firstExcludedTeam = orderedRankings[cutoff];
+                        if (lastSelectedTeam.RankPosition == firstExcludedTeam.RankPosition)
+                        {
+                            throw new BadRequestException("Vẫn còn đồng hạng tại ranh giới đi tiếp chưa được giải quyết (Tie-break). Không thể đóng vòng thi.");
+                        }
+                    }
+                }
+                else
+                {
+                    var top3Rankings = orderedRankings.Where(r => r.RankPosition <= 3).ToList();
+                    var duplicates = top3Rankings.GroupBy(r => r.RankPosition).Where(g => g.Count() > 1).ToList();
+                    if (duplicates.Any())
+                    {
+                        throw new BadRequestException("Vẫn còn đồng hạng trong Top 3 (nhóm đạt giải) chưa được giải quyết. Không thể đóng vòng thi chung kết.");
+                    }
+                }
+
+                // Gửi thông báo cho Leader của các đội
+                var teamIds = orderedRankings.Select(r => r.TeamId).Distinct().ToList();
+                var teams = await _uow.GetRepository<Team>().GetAllAsync(t => teamIds.Contains(t.Id));
+                var teamDict = teams.ToDictionary(t => t.Id, t => t);
+
+                var now = DateTime.UtcNow;
+                foreach (var ranking in orderedRankings)
+                {
+                    if (teamDict.TryGetValue(ranking.TeamId, out var team))
+                    {
+                        string message;
+                        string type;
+                        
+                        if (existingRound.AdvancingSlots.HasValue)
+                        {
+                            if (ranking.IsAdvancing)
+                            {
+                                message = $"Chúc mừng đội thi {team.TeamName} đã vượt qua vòng {existingRound.Name} và tiến vào vòng tiếp theo!";
+                                type = "ROUND_ADVANCED";
+                            }
+                            else
+                            {
+                                message = $"Rất tiếc, đội thi {team.TeamName} đã dừng bước tại vòng {existingRound.Name}. Cảm ơn các bạn đã tham gia!";
+                                type = "ROUND_ELIMINATED";
+                            }
+                        }
+                        else
+                        {
+                            // Vòng chung kết
+                            if (ranking.RankPosition <= 3)
+                            {
+                                message = $"Chúc mừng đội thi {team.TeamName} đã xuất sắc đạt Hạng {ranking.RankPosition} tại vòng chung kết {existingRound.Name}!";
+                                type = "FINAL_WINNER";
+                            }
+                            else
+                            {
+                                message = $"Đội thi {team.TeamName} đã hoàn thành vòng chung kết {existingRound.Name} với thứ hạng {ranking.RankPosition}. Cảm ơn các bạn đã tham gia!";
+                                type = "FINAL_COMPLETED";
+                            }
+                        }
+
+                        await _uow.GetRepository<Notification>().AddAsync(new Notification
+                        {
+                            AccountId = team.LeaderId,
+                            Title = "Kết quả vòng thi: " + existingRound.Name,
+                            Message = message,
+                            Type = type,
+                            IsRead = false,
+                            CreatedAt = now
+                        });
+                    }
+                }
+            }
+
 
             // Quy tắc: Chỉ khi chuyển Round sang Active thì mới gán đề cho team.
             // Các trạng thái khác như Scoring, Closed chỉ đổi status, không random topic.

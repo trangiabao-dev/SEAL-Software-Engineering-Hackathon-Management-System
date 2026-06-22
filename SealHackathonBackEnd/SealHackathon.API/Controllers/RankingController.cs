@@ -54,7 +54,7 @@ namespace SealHackathon.API.Controllers
         /// Lấy bảng xếp hạng đã tính của 1 vòng thi — đọc từ DB, không tính lại.
         /// </summary>
         [HttpGet("rounds/{roundId}")]
-        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
         public async Task<IActionResult> GetLeaderboard(int roundId)
         {
             var result = await _rankingService.GetLeaderboardByRoundAsync(roundId);
@@ -66,7 +66,7 @@ namespace SealHackathon.API.Controllers
         /// Lấy ranking của 1 team cụ thể trong 1 vòng thi
         /// </summary>
         [HttpGet("rounds/{roundId}/teams/{teamId}")]
-        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge)]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
         public async Task<IActionResult> GetTeamRanking(int roundId, Guid teamId)
         {
             var result = await _rankingService.GetTeamRankingAsync(roundId, teamId);

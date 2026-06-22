@@ -46,6 +46,9 @@ namespace SealHackathon.Application.Services.Implementations
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
+            if (!string.Equals(round.Status, RoundConstants.Status.Upcoming, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException("Không thể thêm, sửa hoặc xóa tiêu chí khi vòng thi không ở trạng thái Sắp diễn ra (Upcoming).");
+
             ValidateCriterionInput(request.Name, request.MaxScore, request.Weight);
 
             var criterionRepo = _uow.GetRepository<Criterion>();
@@ -87,6 +90,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            if (!string.Equals(round.Status, RoundConstants.Status.Upcoming, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException("Không thể thêm, sửa hoặc xóa tiêu chí khi vòng thi không ở trạng thái Sắp diễn ra (Upcoming).");
 
             var templateItems = await _uow.GetRepository<CriterionTemplateItem>()
                 .GetAllAsync(i => i.TemplateId == request.TemplateId);
@@ -148,6 +154,11 @@ namespace SealHackathon.Application.Services.Implementations
             if (criterion.RoundId != roundId)
                 throw new BadRequestException(ErrorMessages.Criterion.NotBelongToRound);
 
+            var round = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == roundId);
+            if (round != null && !string.Equals(round.Status, RoundConstants.Status.Upcoming, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException("Không thể thêm, sửa hoặc xóa tiêu chí khi vòng thi không ở trạng thái Sắp diễn ra (Upcoming).");
+
             await EnsureCriterionNotUsedByScoreAsync(criterionId);
 
             ValidateCriterionInput(request.Name, request.MaxScore, request.Weight);
@@ -191,6 +202,11 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (criterion.RoundId != roundId)
                 throw new BadRequestException(ErrorMessages.Criterion.NotBelongToRound);
+
+            var round = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == roundId);
+            if (round != null && !string.Equals(round.Status, RoundConstants.Status.Upcoming, StringComparison.OrdinalIgnoreCase))
+                throw new BadRequestException("Không thể thêm, sửa hoặc xóa tiêu chí khi vòng thi không ở trạng thái Sắp diễn ra (Upcoming).");
 
             await EnsureCriterionNotUsedByScoreAsync(criterionId);
 
