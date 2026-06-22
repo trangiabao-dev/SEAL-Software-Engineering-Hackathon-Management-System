@@ -367,33 +367,62 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var roundTeamRepo = _uow.GetRepository<RoundTeam>();
 
+            // Nếu đã gán rồi thì bỏ qua không gán lại để tránh đè dữ liệu.
             var existingRoundTeams = await roundTeamRepo.GetAllAsync(rt => rt.RoundId == round.Id);
             if (existingRoundTeams.Any())
                 return;
 
+            // Lấy danh sách các đội hợp lệ để thi đấu vòng này.
             var teams = await GetTeamsQualifiedForRoundAsync(round);
             if (!teams.Any())
                 throw new BadRequestException(ErrorMessages.Round.NoTeamQualifiedForRound);
 
-            var topic = await ResolveTopicForRoundAsync(round, teams);
+            // Lấy danh sách đề tài của vòng thi này.
+            var roundTopics = await _uow.GetRepository<Topic>().GetAllAsync(t => t.RoundId == round.Id);
+            
+            var hasNewTopics = roundTopics.Any();
+            // Xáo trộn danh sách đề tài để chia ngẫu nhiên
+            var topicQueue = hasNewTopics ? new Queue<Topic>(roundTopics.OrderBy(_ => Random.Shared.Next())) : null;
 
             var now = DateTime.UtcNow;
             var teamRepo = _uow.GetRepository<Team>();
 
             foreach (var team in teams)
             {
+                Topic? assignedTopic = null;
+
+                if (hasNewTopics)
+                {
+                    // Lấy topic từ Queue ra (Round Robin) và nhét lại vào cuối Queue để chia đều cho các đội
+                    assignedTopic = topicQueue!.Dequeue();
+                    topicQueue.Enqueue(assignedTopic);
+                }
+                else
+                {
+                    // Nếu vòng này không có Topic nào mới, dùng lại Topic cũ của vòng trước (nếu có)
+                    if (team.TopicId.HasValue)
+                    {
+                        assignedTopic = await _uow.GetRepository<Topic>().GetFirstOrDefaultAsync(t => t.Id == team.TopicId.Value);
+                    }
+                }
+
+                if (assignedTopic == null)
+                    throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
+
+                // Lưu vào lịch sử gán Topic của vòng thi
                 await roundTeamRepo.AddAsync(new RoundTeam
                 {
                     Id = Guid.NewGuid(),
                     RoundId = round.Id,
                     TeamId = team.Id,
-                    TopicId = topic.Id,
+                    TopicId = assignedTopic.Id,
                     AssignedAt = now,
                     CreatedAt = now,
                     UpdatedAt = now
                 });
 
-                team.TopicId = topic.Id;
+                // Cập nhật Topic hiện tại của Team
+                team.TopicId = assignedTopic.Id;
                 team.UpdatedAt = now;
                 teamRepo.Update(team);
             }
@@ -440,32 +469,6 @@ namespace SealHackathon.Application.Services.Implementations
             return rounds
                 .OrderByDescending(r => r.OrderIndex)
                 .FirstOrDefault();
-        }
-
-        private async Task<Topic> ResolveTopicForRoundAsync(Round round, List<Team> teams)
-        {
-            var roundTopics = await _uow.GetRepository<Topic>()
-                .GetAllAsync(t => t.RoundId == round.Id);
-
-            if (roundTopics.Any())
-                return roundTopics.OrderBy(_ => Random.Shared.Next()).First();
-
-            var existingTopicIds = teams
-                .Where(t => t.TopicId.HasValue)
-                .Select(t => t.TopicId!.Value)
-                .Distinct()
-                .ToList();
-
-            if (existingTopicIds.Count == 1)
-            {
-                var existingTopic = await _uow.GetRepository<Topic>()
-                    .GetFirstOrDefaultAsync(t => t.Id == existingTopicIds[0]);
-
-                if (existingTopic is not null)
-                    return existingTopic;
-            }
-
-            throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
         }
 
         public async Task<ApiResponse<List<JudgeAssignedRoundResponse>>> GetAssignedRoundsForJudgeAsync(Guid judgeId)
