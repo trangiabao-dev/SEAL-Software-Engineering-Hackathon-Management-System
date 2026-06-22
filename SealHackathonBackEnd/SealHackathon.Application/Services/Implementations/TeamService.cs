@@ -14,12 +14,10 @@ namespace SealHackathon.Application.Services.Implementations
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _uow;
-        private readonly INotificationService _notificationService;
 
-        public TeamService(IUnitOfWork uow, INotificationService notificationService)
+        public TeamService(IUnitOfWork uow)
         {
             _uow = uow;
-            _notificationService = notificationService;
         }
 
         public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid leaderId)
@@ -58,8 +56,10 @@ namespace SealHackathon.Application.Services.Implementations
 
             var teamRepo = _uow.GetRepository<Team>();
 
+            var normalizedTeamName = request.TeamName.Trim();
+
             var isNameTaken = await teamRepo.GetFirstOrDefaultAsync(
-                t => t.TeamName == request.TeamName && !t.IsDeleted);
+                team => team.TeamName == normalizedTeamName && !team.IsDeleted);
 
             if (isNameTaken is not null)
                 throw new ConflictException(ErrorMessages.Team.NameAlreadyUsed);
@@ -89,7 +89,7 @@ namespace SealHackathon.Application.Services.Implementations
             var newTeam = new Team
             {
                 Id = Guid.NewGuid(),
-                TeamName = request.TeamName,
+                TeamName = normalizedTeamName,
                 University = request.University,
                 TrackId = request.TrackId,
                 LeaderId = leaderId,
@@ -313,10 +313,12 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Rejected)
                 throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
 
+            var normalizedTeamName = request.TeamName.Trim();
+
             // Kiểm tra nếu team đã được duyệt thì chỉ được phép cập nhật Link Github và không được đổi gì khác
             if (team.Status == TeamConstants.Status.Approved)
             {
-                if (!string.Equals(team.TeamName, request.TeamName, StringComparison.OrdinalIgnoreCase)
+                if (!string.Equals(team.TeamName, normalizedTeamName, StringComparison.OrdinalIgnoreCase)
                  || !string.Equals(team.University, request.University, StringComparison.OrdinalIgnoreCase))
                     throw new BadRequestException(ErrorMessages.Team.ApprovedOnlyGithubCanChange);
 
@@ -335,17 +337,17 @@ namespace SealHackathon.Application.Services.Implementations
             }
             else
             {
-                if (!string.Equals(team.TeamName, request.TeamName, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(team.TeamName, normalizedTeamName, StringComparison.OrdinalIgnoreCase))  // ← đổi
                 {
                     var isNameTaken = await repo
-                        .GetFirstOrDefaultAsync(t => t.TeamName == request.TeamName
+                        .GetFirstOrDefaultAsync(t => t.TeamName == normalizedTeamName
                                                   && t.Id != teamId
                                                   && !t.IsDeleted);
 
                     if (isNameTaken is not null)
                         throw new ConflictException(ErrorMessages.Team.NameAlreadyUsed);
 
-                    team.TeamName = request.TeamName;
+                    team.TeamName = normalizedTeamName;
                 }
 
                 team.University = request.University;
@@ -551,37 +553,46 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task ApproveTeamAsync(Guid teamId, Guid coordinatorId)
         {
-            var repo = _uow.GetRepository<Team>();
-
-            var team = await repo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultTrackingAsync(team => team.Id == teamId && !team.IsDeleted);
 
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
 
             if (team.Status != TeamConstants.Status.Pending)
-                throw new BadRequestException(ErrorMessages.Team.OnlyPendingCanApprove);
+                throw new BadRequestException(
+                    ErrorMessages.Team.OnlyPendingCanApprove);
 
-            // Kiểm tra team có đủ 3 thành viên không
             var memberCount = await _uow.GetRepository<TeamMember>()
-                .CountAsync(m => m.TeamId == teamId);
+                .CountAsync(member => member.TeamId == teamId);
 
             if (memberCount < TeamConstants.Rules.MinMembersPerTeam)
-                throw new BadRequestException($"Đội thi phải có ít nhất {TeamConstants.Rules.MinMembersPerTeam} thành viên mới đủ điều kiện duyệt.");
+            {
+                throw new BadRequestException(
+                    $"Đội thi phải có ít nhất " +
+                    $"{TeamConstants.Rules.MinMembersPerTeam} thành viên mới đủ điều kiện duyệt.");
+            }
+
+            var now = DateTime.UtcNow;
 
             team.Status = TeamConstants.Status.Approved;
-            team.UpdatedAt = DateTime.UtcNow;
+            team.UpdatedAt = now;
             team.UpdatedBy = coordinatorId;
 
-            await _uow.SaveChangesAsync();
+            await _uow.GetRepository<Notification>()
+                .AddAsync(new Notification
+                {
+                    AccountId = team.LeaderId,
+                    Title = "Đội thi đã được duyệt",
+                    Message =
+                        $"Đội thi {team.TeamName} của bạn đã được duyệt để tham gia sự kiện.",
+                    Type = "TEAM_APPROVED",
+                    IsRead = false,
+                    CreatedAt = now
+                });
 
-            // Khi Coordinator bấm duyệt, hệ thống tự động đưa Notification "TEAM_APPROVED" cho Leader.
-            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
-            {
-                AccountId = team.LeaderId,
-                Title = "Đội thi đã được duyệt",
-                Message = $"Đội thi {team.TeamName} của bạn đã được duyệt để tham gia sự kiện.",
-                Type = "TEAM_APPROVED"
-            });
+            // Trạng thái Team và Notification được lưu cùng một lần.
+            await _uow.SaveChangesAsync();
         }
 
         public async Task RejectTeamAsync(
@@ -621,9 +632,8 @@ namespace SealHackathon.Application.Services.Implementations
 
         public async Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId)
         {
-            var teamRepo = _uow.GetRepository<Team>();
-
-            var team = await teamRepo.GetFirstOrDefaultTrackingAsync(t => t.Id == teamId && !t.IsDeleted);
+            var team = await _uow.GetRepository<Team>()
+                .GetFirstOrDefaultTrackingAsync(team => team.Id == teamId && !team.IsDeleted);
 
             if (team is null)
                 throw new NotFoundException(ErrorMessages.Team.NotFound);
@@ -631,8 +641,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Disqualified)
                 throw new BadRequestException(ErrorMessages.Team.AlreadyDisqualified);
 
-            if (team.Status == TeamConstants.Status.Rejected)
-                throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
+            if (team.Status != TeamConstants.Status.Approved)
+                throw new BadRequestException(ErrorMessages.Team.OnlyApprovedCanDisqualify);
 
             var reason = request.Reason.Trim();
             var now = DateTime.UtcNow;
@@ -644,8 +654,9 @@ namespace SealHackathon.Application.Services.Implementations
 
             var submissionRepo = _uow.GetRepository<Submission>();
 
-            var submissions = await submissionRepo
-                .GetAllAsync(s => s.TeamId == teamId && !s.IsDisqualified);
+            var submissions = await submissionRepo.GetAllAsync(
+                submission => submission.TeamId == teamId
+                              && !submission.IsDisqualified);
 
             foreach (var submission in submissions)
             {
@@ -653,19 +664,24 @@ namespace SealHackathon.Application.Services.Implementations
                 submission.DisqualifyReason = reason;
                 submission.DisqualifiedAt = now;
                 submission.DisqualifiedBy = coordinatorId;
+
                 submissionRepo.Update(submission);
             }
 
-            await _uow.SaveChangesAsync();
+            await _uow.GetRepository<Notification>()
+                .AddAsync(new Notification
+                {
+                    AccountId = team.LeaderId,
+                    Title = "Đội thi đã bị loại",
+                    Message =
+                        $"Đội thi {team.TeamName} của bạn đã bị loại. Lý do: {reason}",
+                    Type = "TEAM_DISQUALIFIED",
+                    IsRead = false,
+                    CreatedAt = now
+                });
 
-            // Khi Coordinator bấm loại, hệ thống tự động đưa Notification "TEAM_DISQUALIFIED" kèm lý do cho Leader.
-            await _notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
-            {
-                AccountId = team.LeaderId,
-                Title = "Đội thi đã bị loại",
-                Message = $"Đội thi {team.TeamName} của bạn đã bị loại. Lý do: {reason}",
-                Type = "TEAM_DISQUALIFIED"
-            });
+            // Team, các Submission và Notification cùng được lưu.
+            await _uow.SaveChangesAsync();
         }
 
         public async Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId)

@@ -27,6 +27,7 @@ namespace SealHackathon.Domain.Constants
             public const string OnlyApprovedCanAssignMentor = "Chỉ có thể phân Mentor cho đội đã được duyệt.";
             public const string NoViewPermission = "Bạn không có quyền xem thông tin đội này.";
             public const string CannotRemoveGithubAfterSubmission = "Không thể xóa link GitHub vì đội đã có bài nộp.";
+            public const string OnlyApprovedCanDisqualify = "Chỉ có thể loại đội đã được duyệt.";
         }
 
         public static class TeamMember
