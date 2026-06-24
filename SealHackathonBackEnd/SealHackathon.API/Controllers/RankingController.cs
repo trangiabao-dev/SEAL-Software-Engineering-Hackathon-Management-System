@@ -63,6 +63,64 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
+        /// Lấy bảng xếp hạng chính thức của vòng chung kết thuộc một Track.
+        /// </summary>
+        [HttpGet("tracks/{trackId:int}")]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
+        public async Task<IActionResult> GetTrackLeaderboard(int trackId)
+        {
+            var result = await _rankingService.GetLeaderboardByTrackAsync(trackId);
+
+            return Ok(ApiResponse<TrackFinalRankingResponse>.SuccessResult(
+                result, "Lấy bảng xếp hạng Track thành công."));
+        }
+
+        /// <summary>
+        /// Lấy bảng xếp hạng chung kết của tất cả Track trong Event đã hoàn thành.
+        /// </summary>
+        [HttpGet("events/{eventId:int}")]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
+        public async Task<IActionResult> GetEventLeaderboard(int eventId)
+        {
+            var result = await _rankingService.GetLeaderboardByEventAsync(eventId);
+
+            return Ok(ApiResponse<EventRankingResponse>.SuccessResult(
+                result, "Lấy bảng xếp hạng Event thành công."));
+        }
+
+        /// <summary>
+        /// Xuất bảng xếp hạng của một Round đã đóng ra file XLSX.
+        /// </summary>
+        [HttpGet("rounds/{roundId:int}/export")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ExportRoundLeaderboard(int roundId)
+        {
+            var fileBytes = await _rankingService.ExportLeaderboardByRoundAsync(roundId);
+            var fileName = $"ranking-round-{roundId}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        /// <summary>
+        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// </summary>
+        [HttpGet("events/{eventId:int}/export")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ExportEventLeaderboard(int eventId)
+        {
+            var fileBytes = await _rankingService.ExportLeaderboardByEventAsync(eventId);
+            var fileName = $"ranking-event-{eventId}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        /// <summary>
         /// Lấy ranking của 1 team cụ thể trong 1 vòng thi
         /// </summary>
         [HttpGet("rounds/{roundId}/teams/{teamId}")]

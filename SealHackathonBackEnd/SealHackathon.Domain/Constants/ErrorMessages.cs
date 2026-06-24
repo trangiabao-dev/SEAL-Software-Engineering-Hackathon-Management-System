@@ -156,6 +156,15 @@ namespace SealHackathon.Domain.Constants
             public const string TieBreakTeamNotInRanking = "Có đội không thuộc bảng xếp hạng của Round.";
             public const string TieBreakTeamsNotSameRank = "Các đội được chọn không thuộc cùng một nhóm đồng hạng.";
             public const string TieBreakGroupIncomplete = "Phải gửi đầy đủ tất cả đội trong cùng nhóm đồng hạng.";
+            public const string EventNotFound = "Không tìm thấy Event.";
+            public const string EventNotCompleted = "Chỉ được xem Ranking toàn Event khi Event đã hoàn thành.";
+            public const string EventHasNoTracks = "Event chưa có Track để tổng hợp Ranking.";
+            public const string TrackHasNoRounds = "Track chưa cấu hình Round.";
+            public const string FinalRoundConfigurationInvalid = "Track phải có đúng một Round chung kết ở OrderIndex cuối cùng.";
+            public const string FinalRoundNotClosed = "Vòng chung kết phải được đóng trước khi công bố Ranking.";
+            public const string FinalRoundRankingNotFound = "Vòng chung kết chưa có kết quả Ranking.";
+            public const string RoundNotClosedForExport = "Chỉ được xuất báo cáo Ranking sau khi Round đã đóng.";
+            public const string RankingReportNotFound = "Round chưa có dữ liệu Ranking để xuất báo cáo.";
         }
 
         public static class Prize
@@ -170,6 +179,8 @@ namespace SealHackathon.Domain.Constants
             public const string RoundRankingNotFound = "Round chưa có kết quả ranking để xác định giải thưởng.";
             public const string PrizeRankWinnerMissing = "Ranking chưa có đủ hạng 1, 2 và 3 để xác định giải thưởng.";
             public const string PrizeRankTieExists = "Ranking còn đồng hạng trong nhóm giải thưởng. Vui lòng xử lý tie-break trước khi xuất giải.";
+            public const string RoundNotFinal = "Chỉ được xác định giải thưởng từ vòng chung kết.";
+            public const string RoundNotClosed = "Chỉ được xác định giải thưởng sau khi vòng chung kết đã đóng.";
         }
     }
 }

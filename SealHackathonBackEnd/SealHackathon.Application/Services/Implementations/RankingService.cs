@@ -1,4 +1,6 @@
 using SealHackathon.Application.Common.Calculations;
+using SealHackathon.Application.Common.Exports;
+using SealHackathon.Application.Common.Rules;
 using SealHackathon.Application.DTOs.Ranking;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -15,6 +17,30 @@ namespace SealHackathon.Application.Services.Implementations
     public class RankingService : IRankingService
     {
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> RoundRankingLocks = new();
+
+        private static readonly string[] RankingExportHeaders =
+        {
+            "EventId",
+            "EventName",
+            "TrackId",
+            "TrackName",
+            "RoundId",
+            "RoundName",
+            "TeamId",
+            "TeamName",
+            "University",
+            "TotalScore",
+            "RankPosition",
+            "IsAdvancing",
+            "CalculatedAt"
+        };
+
+        private static readonly IReadOnlyDictionary<int, string> RankingExportNumberFormats =
+            new Dictionary<int, string>
+            {
+                [10] = "0.00",
+                [13] = "yyyy-mm-dd hh:mm:ss"
+            };
 
         private readonly IUnitOfWork _unitOfWork;
 
@@ -380,58 +406,221 @@ namespace SealHackathon.Application.Services.Implementations
         /// </summary>
         public async Task<RankingLeaderboardResponse> GetLeaderboardByRoundAsync(int roundId)
         {
-            // Bước 1: Kiểm tra Round có tồn tại.
             var round = await _unitOfWork
                 .GetRepository<Round>()
                 .GetFirstOrDefaultAsync(r => r.Id == roundId);
 
-            if (round == null)
+            if (round is null)
                 throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
-            // Bước 2: Lấy các Ranking hợp lệ đã tính của Round này.
-            // Ranking hợp lệ là ranking của team chưa bị xóa và chưa bị loại.
             var rankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
                 .GetAllAsync(r => r.RoundId == roundId
                                   && !r.Team.IsDeleted
                                   && r.Team.Status != TeamConstants.Status.Disqualified);
 
-            if (!rankings.Any())
+            var teamNameById = new Dictionary<Guid, string>();
+
+            if (rankings.Count > 0)
             {
-                return new RankingLeaderboardResponse
-                {
-                    RoundId = round.Id,
-                    RoundName = round.Name,
-                    AdvancingSlots = round.AdvancingSlots,
-                    TotalTeams = 0,
-                    CalculatedAt = null,
-                    Rankings = new List<RankingResponse>()
-                };
+                var teamIds = rankings
+                    .Select(ranking => ranking.TeamId)
+                    .Distinct()
+                    .ToList();
+
+                var teams = await _unitOfWork
+                    .GetRepository<Team>()
+                    .GetAllAsync(team => teamIds.Contains(team.Id));
+
+                teamNameById = teams.ToDictionary(
+                    team => team.Id,
+                    team => team.TeamName);
             }
 
-            // Bước 3: Lấy tên Team.
-            var teamIds = rankings.Select(r => r.TeamId).Distinct().ToList();
-            var teams = await _unitOfWork
-                .GetRepository<Team>()
-                .GetAllAsync(t => teamIds.Contains(t.Id));
-            var teamNameDict = teams.ToDictionary(t => t.Id, t => t.TeamName);
+            return BuildLeaderboardResponse(round, rankings, teamNameById);
+        }
 
-            // Bước 4: Chuyển dữ liệu sang response DTO.
-            var rankingResponses = rankings
-                .OrderBy(r => r.RankPosition)
-                .Select(r => MapToRankingResponse(
-                    r, round.Name, teamNameDict.GetValueOrDefault(r.TeamId, string.Empty)))
+        /// <summary>
+        /// Lấy Ranking chính thức của vòng chung kết thuộc một Track.
+        /// </summary>
+        public async Task<TrackFinalRankingResponse> GetLeaderboardByTrackAsync(int trackId)
+        {
+            var track = await _unitOfWork
+                .GetRepository<Track>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == trackId && !entity.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            var rounds = await _unitOfWork
+                .GetRepository<Round>()
+                .GetAllAsync(round => round.TrackId == track.Id);
+
+            var finalRound = FinalRoundRules.GetFinalRound(track.Id, rounds);
+            EnsureFinalRoundClosed(finalRound);
+
+            var leaderboard = await GetLeaderboardByRoundAsync(finalRound.Id);
+            EnsureLeaderboardCalculated(leaderboard);
+
+            return new TrackFinalRankingResponse
+            {
+                TrackId = track.Id,
+                TrackName = track.Name,
+                FinalRoundRanking = leaderboard
+            };
+        }
+
+        /// <summary>
+        /// Tổng hợp Ranking chung kết của tất cả Track trong Event đã hoàn thành.
+        /// </summary>
+        public async Task<EventRankingResponse> GetLeaderboardByEventAsync(int eventId)
+        {
+            var eventEntity = await _unitOfWork
+                .GetRepository<Event>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == eventId && !entity.IsDeleted);
+
+            if (eventEntity is null)
+                throw new NotFoundException(ErrorMessages.Ranking.EventNotFound);
+
+            EnsureEventCompleted(eventEntity);
+
+            var tracks = await _unitOfWork
+                .GetRepository<Track>()
+                .GetAllAsync(track => track.EventId == eventEntity.Id && !track.IsDeleted);
+
+            if (tracks.Count == 0)
+                throw new BadRequestException(ErrorMessages.Ranking.EventHasNoTracks);
+
+            var trackIds = tracks.Select(track => track.Id).ToList();
+            var rounds = await _unitOfWork
+                .GetRepository<Round>()
+                .GetAllAsync(round => trackIds.Contains(round.TrackId));
+
+            var finalRoundByTrackId = new Dictionary<int, Round>();
+            foreach (var track in tracks)
+            {
+                var finalRound = FinalRoundRules.GetFinalRound(track.Id, rounds);
+                EnsureFinalRoundClosed(finalRound);
+                finalRoundByTrackId.Add(track.Id, finalRound);
+            }
+
+            var finalRoundIds = finalRoundByTrackId.Values
+                .Select(round => round.Id)
                 .ToList();
 
-            return new RankingLeaderboardResponse
+            // Lấy Ranking của mọi Final Round trong một query để tránh N+1.
+            var rankings = await _unitOfWork
+                .GetRepository<Domain.Entities.Ranking>()
+                .GetAllAsync(ranking => finalRoundIds.Contains(ranking.RoundId)
+                                        && !ranking.Team.IsDeleted
+                                        && ranking.Team.Status != TeamConstants.Status.Disqualified);
+
+            var rankingsByRoundId = rankings
+                .GroupBy(ranking => ranking.RoundId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            if (finalRoundIds.Any(finalRoundId => !rankingsByRoundId.ContainsKey(finalRoundId)))
+                throw new BadRequestException(ErrorMessages.Ranking.FinalRoundRankingNotFound);
+
+            var teamIds = rankings.Select(ranking => ranking.TeamId).Distinct().ToList();
+            var teams = await _unitOfWork
+                .GetRepository<Team>()
+                .GetAllAsync(team => teamIds.Contains(team.Id));
+
+            var teamNameById = teams.ToDictionary(team => team.Id, team => team.TeamName);
+            var trackRankings = tracks
+                .OrderBy(track => track.Name)
+                .Select(track =>
+                {
+                    var finalRound = finalRoundByTrackId[track.Id];
+
+                    return new TrackFinalRankingResponse
+                    {
+                        TrackId = track.Id,
+                        TrackName = track.Name,
+                        FinalRoundRanking = BuildLeaderboardResponse(
+                            finalRound,
+                            rankingsByRoundId[finalRound.Id],
+                            teamNameById)
+                    };
+                })
+                .ToList();
+
+            return new EventRankingResponse
             {
-                RoundId = round.Id,
-                RoundName = round.Name,
-                AdvancingSlots = round.AdvancingSlots,
-                TotalTeams = rankingResponses.Count,
-                CalculatedAt = rankings.Max(r => r.CalculatedAt),
-                Rankings = rankingResponses
+                EventId = eventEntity.Id,
+                EventName = eventEntity.Name,
+                TotalTracks = trackRankings.Count,
+                TrackRankings = trackRankings
             };
+        }
+
+        /// <summary>
+        /// Xuất bảng xếp hạng của một Round đã đóng ra file XLSX.
+        /// </summary>
+        public async Task<byte[]> ExportLeaderboardByRoundAsync(int roundId)
+        {
+            var round = await _unitOfWork
+                .GetRepository<Round>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == roundId);
+
+            if (round is null)
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            EnsureRoundClosedForExport(round);
+
+            var leaderboard = await GetLeaderboardByRoundAsync(round.Id);
+            EnsureRankingReportAvailable(leaderboard);
+
+            var track = await _unitOfWork
+                .GetRepository<Track>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == round.TrackId && !entity.IsDeleted);
+
+            if (track is null)
+                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+
+            var eventEntity = await _unitOfWork
+                .GetRepository<Event>()
+                .GetFirstOrDefaultAsync(entity => entity.Id == track.EventId && !entity.IsDeleted);
+
+            if (eventEntity is null)
+                throw new NotFoundException(ErrorMessages.Ranking.EventNotFound);
+
+            var teamById = await GetTeamsForExportAsync(leaderboard.Rankings);
+            var rows = MapRankingExportRows(
+                eventEntity.Id,
+                eventEntity.Name,
+                track.Id,
+                track.Name,
+                leaderboard,
+                teamById);
+
+            return CreateRankingWorkbook("Round Ranking", rows);
+        }
+
+        /// <summary>
+        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// </summary>
+        public async Task<byte[]> ExportLeaderboardByEventAsync(int eventId)
+        {
+            var eventRanking = await GetLeaderboardByEventAsync(eventId);
+            var rankingResponses = eventRanking.TrackRankings
+                .SelectMany(trackRanking => trackRanking.FinalRoundRanking.Rankings)
+                .ToList();
+
+            var teamById = await GetTeamsForExportAsync(rankingResponses);
+            var rows = eventRanking.TrackRankings
+                .OrderBy(trackRanking => trackRanking.TrackName)
+                .SelectMany(trackRanking => MapRankingExportRows(
+                    eventRanking.EventId,
+                    eventRanking.EventName,
+                    trackRanking.TrackId,
+                    trackRanking.TrackName,
+                    trackRanking.FinalRoundRanking,
+                    teamById))
+                .ToList();
+
+            return CreateRankingWorkbook("Event Rankings", rows);
         }
 
         /// <summary>
@@ -469,6 +658,156 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Kiểm tra Round đã đóng trước khi xuất báo cáo Ranking chính thức.
+        /// </summary>
+        private static void EnsureRoundClosedForExport(Round round)
+        {
+            if (!string.Equals(
+                    round.Status,
+                    RoundConstants.Status.Closed,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(ErrorMessages.Ranking.RoundNotClosedForExport);
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra bảng xếp hạng có dữ liệu để xuất báo cáo.
+        /// </summary>
+        private static void EnsureRankingReportAvailable(RankingLeaderboardResponse leaderboard)
+        {
+            if (leaderboard.Rankings.Count == 0)
+                throw new BadRequestException(ErrorMessages.Ranking.RankingReportNotFound);
+        }
+
+        /// <summary>
+        /// Lấy thông tin Team của toàn bộ dòng Ranking bằng một truy vấn.
+        /// </summary>
+        private async Task<Dictionary<Guid, Team>> GetTeamsForExportAsync(
+            IEnumerable<RankingResponse> rankings)
+        {
+            var teamIds = rankings
+                .Select(ranking => ranking.TeamId)
+                .Distinct()
+                .ToList();
+
+            var teams = await _unitOfWork
+                .GetRepository<Team>()
+                .GetAllAsync(team => teamIds.Contains(team.Id));
+
+            return teams.ToDictionary(team => team.Id, team => team);
+        }
+
+        /// <summary>
+        /// Chuyển bảng xếp hạng của một Round thành các dòng báo cáo XLSX.
+        /// </summary>
+        private static List<RankingExportRow> MapRankingExportRows(
+            int eventId,
+            string eventName,
+            int trackId,
+            string trackName,
+            RankingLeaderboardResponse leaderboard,
+            IReadOnlyDictionary<Guid, Team> teamById)
+        {
+            var rows = new List<RankingExportRow>();
+
+            foreach (var ranking in leaderboard.Rankings.OrderBy(item => item.RankPosition))
+            {
+                if (!teamById.TryGetValue(ranking.TeamId, out var team))
+                    throw new NotFoundException(ErrorMessages.Team.NotFound);
+
+                rows.Add(new RankingExportRow
+                {
+                    EventId = eventId,
+                    EventName = eventName,
+                    TrackId = trackId,
+                    TrackName = trackName,
+                    RoundId = leaderboard.RoundId,
+                    RoundName = leaderboard.RoundName,
+                    TeamId = ranking.TeamId,
+                    TeamName = ranking.TeamName,
+                    University = team.University,
+                    TotalScore = ranking.TotalScore,
+                    RankPosition = ranking.RankPosition,
+                    IsAdvancing = ranking.IsAdvancing,
+                    CalculatedAt = ranking.CalculatedAt
+                });
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Tạo file Ranking XLSX từ các dòng báo cáo đã chuẩn hóa.
+        /// </summary>
+        private static byte[] CreateRankingWorkbook(
+            string sheetName,
+            IReadOnlyCollection<RankingExportRow> rankingRows)
+        {
+            var rows = rankingRows
+                .Select(row => new object?[]
+                {
+                    row.EventId,
+                    row.EventName,
+                    row.TrackId,
+                    row.TrackName,
+                    row.RoundId,
+                    row.RoundName,
+                    row.TeamId,
+                    row.TeamName,
+                    row.University,
+                    row.TotalScore,
+                    row.RankPosition,
+                    row.IsAdvancing,
+                    row.CalculatedAt
+                })
+                .ToList();
+
+            return ExcelExportHelper.CreateWorkbook(
+                sheetName,
+                RankingExportHeaders,
+                rows,
+                RankingExportNumberFormats);
+        }
+
+        /// <summary>
+        /// Kiểm tra vòng chung kết đã được đóng trước khi công bố Ranking.
+        /// </summary>
+        private static void EnsureFinalRoundClosed(Round finalRound)
+        {
+            if (!string.Equals(
+                    finalRound.Status,
+                    RoundConstants.Status.Closed,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(ErrorMessages.Ranking.FinalRoundNotClosed);
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra Final Round đã có dữ liệu Ranking.
+        /// </summary>
+        private static void EnsureLeaderboardCalculated(RankingLeaderboardResponse leaderboard)
+        {
+            if (leaderboard.Rankings.Count == 0)
+                throw new BadRequestException(ErrorMessages.Ranking.FinalRoundRankingNotFound);
+        }
+
+        /// <summary>
+        /// Chỉ cho tổng hợp Ranking chính thức khi Event đã hoàn thành.
+        /// </summary>
+        private static void EnsureEventCompleted(Event eventEntity)
+        {
+            if (!string.Equals(
+                    eventEntity.Status,
+                    EventConstants.Status.Completed,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(ErrorMessages.Ranking.EventNotCompleted);
+            }
+        }
 
         /// <summary>
         /// Ngăn calculate Ranking và xử lý tie-break chạy đồng thời trên cùng một Round.
@@ -601,6 +940,48 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Mapping helpers ===============
+
+        /// <summary>
+        /// Chuyển Ranking entities thành response bảng xếp hạng dùng chung.
+        /// </summary>
+        private static RankingLeaderboardResponse BuildLeaderboardResponse(
+            Round round,
+            IReadOnlyCollection<Domain.Entities.Ranking> rankings,
+            IReadOnlyDictionary<Guid, string> teamNameById)
+        {
+            if (rankings.Count == 0)
+            {
+                return new RankingLeaderboardResponse
+                {
+                    RoundId = round.Id,
+                    RoundName = round.Name,
+                    AdvancingSlots = round.AdvancingSlots,
+                    TotalTeams = 0,
+                    CalculatedAt = null,
+                    Rankings = new List<RankingResponse>()
+                };
+            }
+
+            var responses = rankings
+                .OrderBy(ranking => ranking.RankPosition)
+                .Select(ranking => MapToRankingResponse(
+                    ranking,
+                    round.Name,
+                    teamNameById.TryGetValue(ranking.TeamId, out var teamName)
+                        ? teamName
+                        : string.Empty))
+                .ToList();
+
+            return new RankingLeaderboardResponse
+            {
+                RoundId = round.Id,
+                RoundName = round.Name,
+                AdvancingSlots = round.AdvancingSlots,
+                TotalTeams = responses.Count,
+                CalculatedAt = rankings.Max(ranking => ranking.CalculatedAt),
+                Rankings = responses
+            };
+        }
 
         /// <summary>
         /// Chuyển entity Ranking sang DTO trả về cho client.

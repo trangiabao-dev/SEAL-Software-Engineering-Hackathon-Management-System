@@ -1,4 +1,5 @@
-using ClosedXML.Excel;
+using SealHackathon.Application.Common.Exports;
+using SealHackathon.Application.Common.Rules;
 using SealHackathon.Application.DTOs.Prize;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -123,6 +124,8 @@ namespace SealHackathon.Application.Services.Implementations
             var round = await GetRoundOrThrowAsync(roundId);
             var track = await GetTrackOrThrowAsync(round.TrackId);
 
+            await EnsureRoundCanDeterminePrizesAsync(round, track.Id);
+
             var prizes = await GetConfiguredPrizesOrThrowAsync(track.Id);
             var rankings = await GetPrizeRankingsOrThrowAsync(round.Id);
 
@@ -157,10 +160,6 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<byte[]> ExportWinnersByRoundAsync(int roundId)
         {
             var winners = await GetWinnersByRoundAsync(roundId);
-
-            using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("Prize Winners");
-
             var headers = new[]
             {
                 "PrizeId",
@@ -179,18 +178,9 @@ namespace SealHackathon.Application.Services.Implementations
                 "CalculatedAt"
             };
 
-            for (var column = 0; column < headers.Length; column++)
-            {
-                worksheet.Cell(1, column + 1).Value = headers[column];
-            }
-
-            for (var i = 0; i < winners.Count; i++)
-            {
-                var winner = winners[i];
-                var row = i + 2;
-
-                // Export theo DTO PrizeWinnerResponse để file Excel khớp dữ liệu FE nhìn thấy.
-                var values = new object?[]
+            // Export theo DTO PrizeWinnerResponse để file Excel khớp dữ liệu FE nhìn thấy.
+            var rows = winners
+                .Select(winner => new object?[]
                 {
                     winner.PrizeId,
                     winner.PrizeName,
@@ -206,35 +196,47 @@ namespace SealHackathon.Application.Services.Implementations
                     winner.University,
                     winner.TotalScore,
                     winner.CalculatedAt
-                };
+                })
+                .ToList();
 
-                for (var column = 0; column < values.Length; column++)
-                {
-                    SetCellValue(worksheet, row, column + 1, values[column]);
-                }
-            }
+            var numberFormats = new Dictionary<int, string>
+            {
+                [5] = "#,##0",
+                [13] = "0.00",
+                [14] = "yyyy-mm-dd hh:mm:ss"
+            };
 
-            var usedRange = worksheet.Range(1, 1, winners.Count + 1, headers.Length);
-            usedRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-            usedRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-
-            var headerRange = worksheet.Range(1, 1, 1, headers.Length);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.DarkBlue;
-            headerRange.Style.Font.FontColor = XLColor.White;
-
-            worksheet.Column(5).Style.NumberFormat.Format = "#,##0";
-            worksheet.Column(13).Style.NumberFormat.Format = "0.00";
-            worksheet.Column(14).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
-            worksheet.Columns().AdjustToContents();
-
-            using var stream = new MemoryStream();
-            workbook.SaveAs(stream);
-
-            return stream.ToArray();
+            return ExcelExportHelper.CreateWorkbook(
+                "Prize Winners",
+                headers,
+                rows,
+                numberFormats);
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Đảm bảo chỉ Final Round đã đóng mới được xác định và xuất giải thưởng.
+        /// </summary>
+        private async Task EnsureRoundCanDeterminePrizesAsync(Round round, int trackId)
+        {
+            var trackRounds = await _unitOfWork
+                .GetRepository<Round>()
+                .GetAllAsync(item => item.TrackId == trackId);
+
+            var finalRound = FinalRoundRules.GetFinalRound(trackId, trackRounds);
+
+            if (round.Id != finalRound.Id)
+                throw new BadRequestException(ErrorMessages.Prize.RoundNotFinal);
+
+            if (!string.Equals(
+                    round.Status,
+                    RoundConstants.Status.Closed,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(ErrorMessages.Prize.RoundNotClosed);
+            }
+        }
 
         /// <summary>
         /// Kiểm tra Track tồn tại và chưa bị xóa.
@@ -382,39 +384,6 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (AwardRankPositions.Any(rank => !rankingRanks.Contains(rank)))
                 throw new BadRequestException(ErrorMessages.Prize.PrizeRankWinnerMissing);
-        }
-
-        /// <summary>
-        /// Ghi giá trị vào cell theo kiểu dữ liệu phù hợp với ClosedXML.
-        /// </summary>
-        private static void SetCellValue(IXLWorksheet worksheet, int row, int column, object? value)
-        {
-            var cell = worksheet.Cell(row, column);
-
-            switch (value)
-            {
-                case null:
-                    cell.Value = string.Empty;
-                    break;
-                case Guid guidValue:
-                    cell.Value = guidValue.ToString();
-                    break;
-                case decimal decimalValue:
-                    cell.Value = decimalValue;
-                    break;
-                case double doubleValue:
-                    cell.Value = doubleValue;
-                    break;
-                case int intValue:
-                    cell.Value = intValue;
-                    break;
-                case DateTime dateTimeValue:
-                    cell.Value = dateTimeValue;
-                    break;
-                default:
-                    cell.Value = value.ToString();
-                    break;
-            }
         }
 
         /// <summary>

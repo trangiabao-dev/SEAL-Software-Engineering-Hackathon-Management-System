@@ -22,6 +22,26 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<RankingLeaderboardResponse> GetLeaderboardByRoundAsync(int roundId);
 
         /// <summary>
+        /// Lấy bảng xếp hạng chính thức của vòng chung kết thuộc một Track.
+        /// </summary>
+        Task<TrackFinalRankingResponse> GetLeaderboardByTrackAsync(int trackId);
+
+        /// <summary>
+        /// Tổng hợp bảng xếp hạng chung kết của tất cả Track trong Event đã hoàn thành.
+        /// </summary>
+        Task<EventRankingResponse> GetLeaderboardByEventAsync(int eventId);
+
+        /// <summary>
+        /// Xuất bảng xếp hạng của một Round đã đóng ra file XLSX.
+        /// </summary>
+        Task<byte[]> ExportLeaderboardByRoundAsync(int roundId);
+
+        /// <summary>
+        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// </summary>
+        Task<byte[]> ExportLeaderboardByEventAsync(int eventId);
+
+        /// <summary>
         /// Lấy ranking của 1 team cụ thể trong 1 round
         /// </summary>
         Task<RankingResponse> GetTeamRankingAsync(int roundId, Guid teamId);
