@@ -99,6 +99,9 @@ namespace SealHackathon.Application.Services.Implementations
             var round = await GetRoundOrThrowAsync(submission.RoundId);
             ValidateRoundAcceptsSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
 
+            // Bổ sung kiểm tra RoundTeam khi Update Submission theo yêu cầu (cho Thịnh)
+            await EnsureTeamCanSubmitRoundAsync(submission.TeamId, submission.RoundId);
+
             submission.PresentationUrl = request.PresentationUrl;
             submission.UpdatedAt = DateTime.UtcNow;
 
