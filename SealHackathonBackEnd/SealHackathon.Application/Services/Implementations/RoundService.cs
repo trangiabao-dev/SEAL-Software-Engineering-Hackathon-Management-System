@@ -543,6 +543,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             var now = DateTime.UtcNow;
             var teamRepo = _uow.GetRepository<Team>();
+            var submissionRepo = _uow.GetRepository<Submission>();
+            var previousRound = await GetPreviousRoundAsync(round);
 
             foreach (var team in teams)
             {
@@ -582,6 +584,28 @@ namespace SealHackathon.Application.Services.Implementations
                 team.TopicId = assignedTopic.Id;
                 team.UpdatedAt = now;
                 teamRepo.Update(team);
+
+                // Bê Submission từ vòng trước qua vòng này (nếu có)
+                if (previousRound != null)
+                {
+                    var oldSubmission = await submissionRepo.GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == previousRound.Id);
+                    if (oldSubmission != null)
+                    {
+                        var newSubmission = await submissionRepo.GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == round.Id);
+                        if (newSubmission == null)
+                        {
+                            await submissionRepo.AddAsync(new Submission
+                            {
+                                Id = Guid.NewGuid(),
+                                TeamId = team.Id,
+                                RoundId = round.Id,
+                                PresentationUrl = oldSubmission.PresentationUrl,
+                                CreatedAt = now,
+                                IsDisqualified = false
+                            });
+                        }
+                    }
+                }
             }
         }
 
