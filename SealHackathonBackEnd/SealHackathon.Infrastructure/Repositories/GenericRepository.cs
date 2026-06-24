@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SealHackathon.Domain.Interfaces.Repositories;
 using SealHackathon.Infrastructure.Data;
 using System.Linq.Expressions;

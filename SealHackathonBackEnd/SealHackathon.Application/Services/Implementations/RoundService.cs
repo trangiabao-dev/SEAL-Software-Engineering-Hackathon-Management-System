@@ -65,6 +65,9 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm TẠO MỚI một Vòng thi
         public async Task<ApiResponse<RoundResponse>> CreateRoundAsync(CreateRoundRequest request)
         {
+            if (request.OrderIndex <= 0)
+                throw new BadRequestException("Thứ tự vòng thi (OrderIndex) phải lớn hơn 0.");
+
             // Kiểm tra tính hợp lệ của Track cha
             var trackExists = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(x => x.Id == request.TrackId && !x.IsDeleted);
             if (trackExists == null) throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
@@ -72,6 +75,25 @@ namespace SealHackathon.Application.Services.Implementations
             if (request.AdvancingSlots.HasValue && request.AdvancingSlots.Value <= 0)
             {
                 throw new BadRequestException("Số lượng đội đi tiếp phải là số dương hoặc để trống (vòng chung kết).");
+            }
+
+            // Kiểm tra trùng lặp OrderIndex trong cùng một Track
+            var existingRoundWithSameOrder = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(x => x.TrackId == request.TrackId && x.OrderIndex == request.OrderIndex);
+            if (existingRoundWithSameOrder != null)
+            {
+                throw new BadRequestException("Thứ tự vòng thi (OrderIndex) đã tồn tại trong bảng đấu này.");
+            }
+
+            // Kiểm tra mỗi Track chỉ có tối đa 1 vòng chung kết (AdvancingSlots rỗng)
+            if (!request.AdvancingSlots.HasValue)
+            {
+                var existingFinalRound = await _uow.GetRepository<Round>()
+                    .GetFirstOrDefaultAsync(x => x.TrackId == request.TrackId && x.AdvancingSlots == null);
+                if (existingFinalRound != null)
+                {
+                    throw new BadRequestException("Mỗi bảng đấu chỉ được phép có tối đa 1 vòng chung kết (để trống số lượng đi tiếp).");
+                }
             }
 
             // Khởi tạo Entity Vòng thi
@@ -100,12 +122,34 @@ namespace SealHackathon.Application.Services.Implementations
         // Hàm CẬP NHẬT thông tin Vòng thi (Chỉ đổi Tên, Thời gian, Số slot đi tiếp...)
         public async Task<ApiResponse<RoundResponse>> UpdateRoundAsync(int id, UpdateRoundRequest request)
         {
+            if (request.OrderIndex <= 0)
+                throw new BadRequestException("Thứ tự vòng thi (OrderIndex) phải lớn hơn 0.");
+
             var existingRound = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(x => x.Id == id);
             if (existingRound == null) throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
 
             if (request.AdvancingSlots.HasValue && request.AdvancingSlots.Value <= 0)
             {
                 throw new BadRequestException("Số lượng đội đi tiếp phải là số dương hoặc để trống (vòng chung kết).");
+            }
+
+            // Kiểm tra trùng lặp OrderIndex
+            var existingRoundWithSameOrder = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(x => x.TrackId == existingRound.TrackId && x.OrderIndex == request.OrderIndex && x.Id != id);
+            if (existingRoundWithSameOrder != null)
+            {
+                throw new BadRequestException("Thứ tự vòng thi (OrderIndex) đã tồn tại trong bảng đấu này.");
+            }
+
+            // Kiểm tra mỗi Track chỉ có tối đa 1 vòng chung kết
+            if (!request.AdvancingSlots.HasValue)
+            {
+                var existingFinalRound = await _uow.GetRepository<Round>()
+                    .GetFirstOrDefaultAsync(x => x.TrackId == existingRound.TrackId && x.AdvancingSlots == null && x.Id != id);
+                if (existingFinalRound != null)
+                {
+                    throw new BadRequestException("Mỗi bảng đấu chỉ được phép có tối đa 1 vòng chung kết (để trống số lượng đi tiếp).");
+                }
             }
 
             // Đè thông tin mới
@@ -470,15 +514,25 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var roundTeamRepo = _uow.GetRepository<RoundTeam>();
 
-            // Nếu đã gán rồi thì bỏ qua không gán lại để tránh đè dữ liệu.
-            var existingRoundTeams = await roundTeamRepo.GetAllAsync(rt => rt.RoundId == round.Id);
-            if (existingRoundTeams.Any())
-                return;
-
             // Lấy danh sách các đội hợp lệ để thi đấu vòng này.
             var teams = await GetTeamsQualifiedForRoundAsync(round);
             if (!teams.Any())
                 throw new BadRequestException(ErrorMessages.Round.NoTeamQualifiedForRound);
+
+            // Nếu đã gán rồi thì kiểm tra xem danh sách cũ có khớp với đội được đi tiếp hay không.
+            var existingRoundTeams = await roundTeamRepo.GetAllAsync(rt => rt.RoundId == round.Id);
+            if (existingRoundTeams.Any())
+            {
+                var existingTeamIds = existingRoundTeams.Select(rt => rt.TeamId).ToHashSet();
+                var qualifiedTeamIds = teams.Select(t => t.Id).ToHashSet();
+
+                if (!existingTeamIds.SetEquals(qualifiedTeamIds))
+                {
+                    throw new BadRequestException("Dữ liệu phân công đề tài cũ không khớp với danh sách các đội được đi tiếp. Vui lòng kiểm tra lại dữ liệu.");
+                }
+
+                return; // Nếu dữ liệu khớp thì bỏ qua không chia lại đề để tránh đè dữ liệu.
+            }
 
             // Lấy danh sách đề tài của vòng thi này.
             var roundTopics = await _uow.GetRepository<Topic>().GetAllAsync(t => t.RoundId == round.Id);

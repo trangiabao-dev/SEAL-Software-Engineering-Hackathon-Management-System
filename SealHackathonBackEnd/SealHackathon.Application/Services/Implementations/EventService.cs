@@ -1,5 +1,6 @@
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Event;
+using SealHackathon.Application.DTOs.Round;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Entities;
 using SealHackathon.Domain.Exceptions;
@@ -19,11 +20,13 @@ namespace SealHackathon.Application.Services.Implementations
         // Khai báo biến _uow (Unit Of Work) để giao tiếp với Database
         // Unit of Work giúp đảm bảo tính toàn vẹn dữ liệu (Transaction) khi làm việc với nhiều bảng
         private readonly IUnitOfWork _uow;
+        private readonly IServiceProvider _serviceProvider;
 
         // Constructor tiêm (inject) IUnitOfWork vào service này
-        public EventService(IUnitOfWork uow)
+        public EventService(IUnitOfWork uow, IServiceProvider serviceProvider)
         {
             _uow = uow;
+            _serviceProvider = serviceProvider;
         }
 
         // Hàm lấy danh sách TẤT CẢ các giải đấu
@@ -287,6 +290,43 @@ namespace SealHackathon.Application.Services.Implementations
                     throw new BadRequestException("Không thể lùi trạng thái của giải đấu (Event) về trạng thái trước đó.");
                 }
             }
+
+            if (newStatus == EventConstants.Status.Completed)
+            {
+                // Kiểm tra xem tất cả các Track đã hoàn thành chưa (Có vòng chung kết Closed và có Ranking)
+                var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == id && !t.IsDeleted);
+                if (tracks.Any())
+                {
+                    var trackIds = tracks.Select(t => t.Id).ToList();
+                    var allRounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
+                    var rankingsRepo = _uow.GetRepository<Domain.Entities.Ranking>();
+
+                    foreach (var track in tracks)
+                    {
+                        var finalRound = allRounds
+                            .Where(r => r.TrackId == track.Id && r.AdvancingSlots == null)
+                            .OrderByDescending(r => r.OrderIndex)
+                            .FirstOrDefault();
+
+                        if (finalRound == null)
+                        {
+                            throw new BadRequestException($"Track '{track.Name}' chưa có vòng chung kết (Final Round). Không thể kết thúc sự kiện.");
+                        }
+
+                        if (finalRound.Status != RoundConstants.Status.Closed)
+                        {
+                            throw new BadRequestException($"Vòng chung kết của Track '{track.Name}' chưa được đóng (Closed). Vui lòng chốt kết quả và đóng vòng thi trước.");
+                        }
+
+                        var rankings = await rankingsRepo.GetAllAsync(r => r.RoundId == finalRound.Id);
+                        if (!rankings.Any())
+                        {
+                            throw new BadRequestException($"Vòng chung kết của Track '{track.Name}' chưa có bảng xếp hạng. Vui lòng tính điểm và xếp hạng trước khi đóng sự kiện.");
+                        }
+                    }
+                }
+            }
+
             await EnsureNoOtherCurrentEventAsync(newStatus, id);
 
             bool isActivating = (newStatus == EventConstants.Status.Active && existingEvent.Status != EventConstants.Status.Active);
@@ -304,6 +344,12 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (isActivating)
             {
+                // Lưu Event thành Active trước để thỏa mãn điều kiện EnsureEventIsActive của RoundService
+                await _uow.SaveChangesAsync();
+
+                // Lấy IRoundService thông qua IServiceProvider để tránh Circular Dependency
+                var roundService = (IRoundService)_serviceProvider.GetService(typeof(IRoundService))!;
+
                 // Tìm tất cả các Track của Event
                 var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == existingEvent.Id && !t.IsDeleted);
                 var trackIds = tracks.Select(t => t.Id).ToList();
@@ -314,17 +360,18 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     if (round.OrderIndex == 1)
                     {
-                        round.Status = RoundConstants.Status.Active;
+                        // Gọi logic chuẩn của RoundService để kích hoạt vòng 1 (bao gồm phát đề và check tiêu chí)
+                        await roundService.UpdateRoundStatusAsync(round.Id, new UpdateRoundStatusRequest { Status = RoundConstants.Status.Active });
                     }
                     else
                     {
                         round.Status = RoundConstants.Status.Upcoming;
+                        _uow.GetRepository<Round>().Update(round);
                     }
-                    _uow.GetRepository<Round>().Update(round);
                 }
             }
 
-            // Lưu xuống DB
+            // Lưu xuống DB (Cho các Upcoming rounds, nếu có)
             await _uow.SaveChangesAsync();
 
             // Đóng gói trả về
