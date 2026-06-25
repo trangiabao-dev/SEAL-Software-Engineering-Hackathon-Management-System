@@ -299,13 +299,15 @@ public partial class SealDbContext : DbContext
 
             entity.ToTable("Prize");
 
+            entity.HasIndex(e => new { e.EventId, e.RankPosition }, "UQ_Prize_Event_RankPosition").IsUnique();
+
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Name).HasMaxLength(255);
 
-            entity.HasOne(d => d.Track).WithMany(p => p.Prizes)
-                .HasForeignKey(d => d.TrackId)
+            entity.HasOne(d => d.Event).WithMany(p => p.Prizes)
+                .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Prize__TrackId__4CA06362");
+                .HasConstraintName("FK_Prize_Event");
         });
 
         modelBuilder.Entity<Ranking>(entity =>

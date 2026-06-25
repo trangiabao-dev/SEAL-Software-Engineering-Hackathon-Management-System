@@ -7,7 +7,7 @@ public partial class Prize
 {
     public int Id { get; set; }
 
-    public int TrackId { get; set; }
+    public int EventId { get; set; }
 
     public string Name { get; set; } = null!;
 
@@ -17,5 +17,5 @@ public partial class Prize
 
     public decimal? Amount { get; set; }
 
-    public virtual Track Track { get; set; } = null!;
+    public virtual Event Event { get; set; } = null!;
 }

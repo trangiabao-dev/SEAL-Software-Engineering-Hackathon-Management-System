@@ -8,14 +8,14 @@ namespace SealHackathon.Application.Services.Interfaces
     public interface IPrizeService
     {
         /// <summary>
-        /// Lấy danh sách cấu hình giải thưởng của một Track.
+        /// Lấy danh sách cấu hình giải thưởng của một Event.
         /// </summary>
-        Task<List<PrizeResponse>> GetPrizesByTrackAsync(int trackId);
+        Task<List<PrizeResponse>> GetPrizesByEventAsync(int eventId);
 
         /// <summary>
-        /// Tạo cấu hình giải thưởng cho một Track.
+        /// Tạo cấu hình giải thưởng cho một Event.
         /// </summary>
-        Task<PrizeResponse> CreatePrizeAsync(int trackId, CreatePrizeRequest request);
+        Task<PrizeResponse> CreatePrizeAsync(int eventId, CreatePrizeRequest request);
 
         /// <summary>
         /// Cập nhật cấu hình giải thưởng.

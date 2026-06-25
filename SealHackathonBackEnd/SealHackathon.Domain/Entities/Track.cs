@@ -33,8 +33,6 @@ public partial class Track
 
     public virtual ICollection<MentorAssign> MentorAssigns { get; set; } = new List<MentorAssign>();
 
-    public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();
-
     public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
 
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
