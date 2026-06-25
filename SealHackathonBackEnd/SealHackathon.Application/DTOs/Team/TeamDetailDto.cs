@@ -1,4 +1,4 @@
-﻿using SealHackathon.Application.DTOs.Topic;
+using SealHackathon.Application.DTOs.Topic;
 
 namespace SealHackathon.Application.DTOs.Team
 {
@@ -17,5 +17,6 @@ namespace SealHackathon.Application.DTOs.Team
         public List<TeamMemberDto> Members { get; set; } = new();
         public string? DisqualifyReason { get; set; }
         public string? RejectedReason { get; set; }
+        public bool IsEliminated { get; set; }
     }
 }
