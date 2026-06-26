@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SealHackathon.Domain.Entities;
@@ -12,6 +12,8 @@ public partial class Submission
     public int RoundId { get; set; }
 
     public string PresentationUrl { get; set; } = null!;
+
+    public bool CanEdit { get; set; }
 
     public bool IsDisqualified { get; set; }
 

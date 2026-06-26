@@ -237,6 +237,25 @@ namespace SealHackathon.Application.Services.Implementations
 
             var now = DateTime.UtcNow;
 
+            if (unresolvedAdvancingRank.HasValue || (!advancingSlots.HasValue && rankedTeams.Where(r => r.Rank <= 3).GroupBy(r => r.Rank).Any(g => g.Count() > 1)))
+            {
+                var judgeAssigns = await _unitOfWork.GetRepository<JudgeAssign>().GetAllAsync(ja => ja.RoundId == roundId);
+                var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).Distinct().ToList();
+                
+                foreach (var judgeId in judgeIds)
+                {
+                    await _unitOfWork.GetRepository<Notification>().AddAsync(new Notification
+                    {
+                        AccountId = judgeId,
+                        Title = "Xử lý đồng hạng",
+                        Message = $"Có đội đồng hạng tại ranh giới đi tiếp hoặc Top 3 ở vòng thi '{round.Name}'. Vui lòng xem xét giải quyết Tie-break.",
+                        Type = "TIE_BREAK_REQUIRED",
+                        IsRead = false,
+                        CreatedAt = now
+                    });
+                }
+            }
+
             // Bước 8: Xóa ranking cũ và thêm ranking mới.
             var existingRankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
@@ -546,12 +565,32 @@ namespace SealHackathon.Application.Services.Implementations
                 })
                 .ToList();
 
+            var eventTop3 = trackRankings
+                .SelectMany(tr => tr.FinalRoundRanking.Rankings)
+                .OrderByDescending(r => r.TotalScore)
+                .Take(3)
+                .ToList();
+
+            // Sửa lại thứ hạng (RankPosition) của Top 3 Event
+            for (int i = 0; i < eventTop3.Count; i++)
+            {
+                if (i > 0 && eventTop3[i].TotalScore == eventTop3[i - 1].TotalScore)
+                {
+                    eventTop3[i].RankPosition = eventTop3[i - 1].RankPosition;
+                }
+                else
+                {
+                    eventTop3[i].RankPosition = i + 1;
+                }
+            }
+
             return new EventRankingResponse
             {
                 EventId = eventEntity.Id,
                 EventName = eventEntity.Name,
                 TotalTracks = trackRankings.Count,
-                TrackRankings = trackRankings
+                TrackRankings = trackRankings,
+                EventTop3 = eventTop3
             };
         }
 

@@ -12,5 +12,7 @@ namespace SealHackathon.Application.DTOs.Ranking
         public int TotalTracks { get; set; }
 
         public List<TrackFinalRankingResponse> TrackRankings { get; set; } = new();
+
+        public List<RankingResponse> EventTop3 { get; set; } = new();
     }
 }

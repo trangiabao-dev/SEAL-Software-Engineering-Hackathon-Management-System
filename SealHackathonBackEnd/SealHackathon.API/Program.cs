@@ -150,6 +150,7 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Đăng ký Background Service - chạy ngầm
 builder.Services.AddHostedService<SealHackathon.API.BackgroundServices.UnverifiedAccountCleanupService>();
+builder.Services.AddHostedService<SealHackathon.API.BackgroundServices.AutomatedStateTransitionService>();
 
 var app = builder.Build();
 

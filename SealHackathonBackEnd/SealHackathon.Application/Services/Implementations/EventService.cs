@@ -194,15 +194,15 @@ namespace SealHackathon.Application.Services.Implementations
                         Topics = new List<Topic>()
                     };
 
-                    // 4. Lặp qua các Topic
-                    foreach (var topicDto in roundDto.Topics)
+                    // 4. Gán 1 Topic chung cho vòng thi đầu tiên (Round 1) của Track
+                    if (newRound.OrderIndex == 1)
                     {
                         var newTopic = new Topic
                         {
-                            Title = topicDto.Name,
-                            Description = topicDto.Description,
-                            Requirements = topicDto.Requirements,
-                            AttachmentUrl = topicDto.AttachmentUrl,
+                            Title = request.Topic.Name,
+                            Description = request.Topic.Description,
+                            Requirements = request.Topic.Requirements,
+                            AttachmentUrl = request.Topic.AttachmentUrl,
                             CreatedAt = DateTime.UtcNow
                         };
                         newRound.Topics.Add(newTopic);
@@ -330,6 +330,53 @@ namespace SealHackathon.Application.Services.Implementations
             await EnsureNoOtherCurrentEventAsync(newStatus, id);
 
             bool isActivating = (newStatus == EventConstants.Status.Active && existingEvent.Status != EventConstants.Status.Active);
+            bool isTimeChanged = existingEvent.StartDate != request.StartDate || existingEvent.EndDate != request.EndDate;
+
+            if (isActivating)
+            {
+                // Kiểm tra Mentor
+                var approvedTeams = await _uow.GetRepository<Team>().GetAllAsync(t => t.Track.EventId == id && t.Status == TeamConstants.Status.Approved && !t.IsDeleted);
+                if (approvedTeams.Any(t => t.MentorId == null))
+                    throw new BadRequestException("Không thể kích hoạt sự kiện. Tất cả các đội được duyệt phải được gán Mentor.");
+
+                // Kiểm tra Judge cho từng Round
+                var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == id && !t.IsDeleted);
+                var trackIds = tracks.Select(t => t.Id).ToList();
+                var rounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
+                var judgeAssigns = await _uow.GetRepository<JudgeAssign>().GetAllAsync(ja => rounds.Select(r => r.Id).Contains(ja.RoundId));
+                
+                foreach (var round in rounds)
+                {
+                    if (!judgeAssigns.Any(ja => ja.RoundId == round.Id))
+                    {
+                        throw new BadRequestException($"Không thể kích hoạt sự kiện. Vòng thi '{round.Name}' chưa có giám khảo nào được phân công.");
+                    }
+                }
+            }
+
+            if (isTimeChanged)
+            {
+                var notificationService = (INotificationService)_serviceProvider.GetService(typeof(INotificationService))!;
+                
+                var teams = await _uow.GetRepository<Team>().GetAllAsync(t => t.Track.EventId == id && !t.IsDeleted && t.Status != TeamConstants.Status.Disqualified && t.Status != TeamConstants.Status.Rejected);
+                var leaderIds = teams.Select(t => t.LeaderId).Distinct().ToList();
+
+                var eventAccounts = await _uow.GetRepository<EventAccount>().GetAllAsync(ea => ea.EventId == id && ea.Status == EventAccountConstants.Status.Approved);
+                var staffIds = eventAccounts.Select(ea => ea.AccountId).Distinct().ToList();
+
+                var allTargetIds = leaderIds.Union(staffIds).ToList();
+
+                foreach (var accountId in allTargetIds)
+                {
+                    await notificationService.SendNotificationAsync(new Application.DTOs.Notification.CreateNotificationRequest
+                    {
+                        AccountId = accountId,
+                        Title = "Thông báo dời lịch sự kiện",
+                        Message = $"Lịch trình của sự kiện '{existingEvent.Name}' đã thay đổi. Vui lòng kiểm tra lại thời gian mới.",
+                        Type = "EVENT_POSTPONED"
+                    });
+                }
+            }
 
             // Bước 2: Đè dữ liệu mới (từ request) lên dữ liệu cũ (trong DB)
             existingEvent.Name = request.Name;
@@ -341,37 +388,6 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Bước 3: Đánh dấu entity này đã bị sửa đổi trong Repository
             _uow.GetRepository<Event>().Update(existingEvent);
-
-            if (isActivating)
-            {
-                // Lưu Event thành Active trước để thỏa mãn điều kiện EnsureEventIsActive của RoundService
-                await _uow.SaveChangesAsync();
-
-                // Lấy IRoundService thông qua IServiceProvider để tránh Circular Dependency
-                var roundService = (IRoundService)_serviceProvider.GetService(typeof(IRoundService))!;
-
-                // Tìm tất cả các Track của Event
-                var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == existingEvent.Id && !t.IsDeleted);
-                var trackIds = tracks.Select(t => t.Id).ToList();
-
-                // Lấy tất cả Round thuộc các Track này
-                var rounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
-                foreach (var round in rounds)
-                {
-                    if (round.OrderIndex == 1)
-                    {
-                        // Gọi logic chuẩn của RoundService để kích hoạt vòng 1 (bao gồm phát đề và check tiêu chí)
-                        await roundService.UpdateRoundStatusAsync(round.Id, new UpdateRoundStatusRequest { Status = RoundConstants.Status.Active });
-                    }
-                    else
-                    {
-                        round.Status = RoundConstants.Status.Upcoming;
-                        _uow.GetRepository<Round>().Update(round);
-                    }
-                }
-            }
-
-            // Lưu xuống DB (Cho các Upcoming rounds, nếu có)
             await _uow.SaveChangesAsync();
 
             // Đóng gói trả về

@@ -97,7 +97,10 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(ErrorMessages.Submission.TeamNotApproved);
 
             var round = await GetRoundOrThrowAsync(submission.RoundId);
-            ValidateRoundAcceptsSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
+            if (!submission.CanEdit)
+            {
+                ValidateRoundAcceptsSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
+            }
 
             // Bổ sung kiểm tra RoundTeam khi Update Submission theo yêu cầu (cho Thịnh)
             await EnsureTeamCanSubmitRoundAsync(submission.TeamId, submission.RoundId);

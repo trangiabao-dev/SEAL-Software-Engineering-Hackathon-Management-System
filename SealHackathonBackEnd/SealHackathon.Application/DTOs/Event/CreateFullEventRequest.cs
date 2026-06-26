@@ -19,6 +19,9 @@ namespace SealHackathon.Application.DTOs.Event
         public DateTime EndDate { get; set; }
 
         public List<CreateFullEventTrackDto> Tracks { get; set; } = new();
+
+        [Required]
+        public CreateFullEventTopicDto Topic { get; set; } = null!;
     }
 
     public class CreateFullEventTrackDto
@@ -49,8 +52,6 @@ namespace SealHackathon.Application.DTOs.Event
         public DateTime EndTime { get; set; }
         
         public int? AdvancingSlots { get; set; }
-        
-        public List<CreateFullEventTopicDto> Topics { get; set; } = new();
     }
 
     public class CreateFullEventTopicDto
