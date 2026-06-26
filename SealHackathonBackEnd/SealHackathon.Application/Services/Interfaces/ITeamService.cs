@@ -28,6 +28,6 @@ namespace SealHackathon.Application.Services.Interfaces
 
         // Mentor
         Task<List<TeamDetailDto>> GetMyMentorTeamsAsync(Guid mentorId);
-
+        Task<List<MentorTeamDto>> GetMentorAssignedTeamsDetailAsync(Guid mentorId);
     }
 }

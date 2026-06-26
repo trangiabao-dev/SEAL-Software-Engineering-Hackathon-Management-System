@@ -206,7 +206,5 @@ namespace SealHackathon.API.Controllers
 
             return Ok(ApiResponse<List<TeamDetailDto>>.SuccessResult(result));
         }
-
-
     }
 }
