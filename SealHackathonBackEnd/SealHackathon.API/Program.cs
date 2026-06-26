@@ -141,6 +141,7 @@ builder.Services.AddScoped<ICriterionService, CriterionService>();
 builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IPrizeService, PrizeService>();
+builder.Services.AddScoped<IRblService, RblService>();
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 //=======
@@ -157,13 +158,13 @@ var app = builder.Build();
 // ==========================================
 RunDbUp(builder.Configuration);
 
-if (app.Environment.IsDevelopment())
-{
+// if (app.Environment.IsDevelopment())
+// {
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+// }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 
 
@@ -189,7 +190,7 @@ static void RunDbUp(IConfiguration configuration)
         return;
     }
 
-    EnsureDatabase.For.SqlDatabase(connectionString);
+// EnsureDatabase.For.SqlDatabase(connectionString); // Bỏ comment dòng này trên MonsterASP vì DB đã được tạo sẵn, và không có quyền truy cập master db.
 
     var upgrader = DeployChanges.To
         .SqlDatabase(connectionString)

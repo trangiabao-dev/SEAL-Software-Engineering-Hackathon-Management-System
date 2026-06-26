@@ -1,7 +1,7 @@
 namespace SealHackathon.Application.DTOs.Prize
 {
     /// <summary>
-    /// Dữ liệu tạo cấu hình giải thưởng cho một Track.
+    /// Dữ liệu tạo cấu hình giải thưởng cho một Event.
     /// </summary>
     public class CreatePrizeRequest
     {

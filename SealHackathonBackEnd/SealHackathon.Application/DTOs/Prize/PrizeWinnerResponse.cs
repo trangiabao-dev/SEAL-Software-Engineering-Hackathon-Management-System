@@ -15,6 +15,10 @@ namespace SealHackathon.Application.DTOs.Prize
 
         public decimal? Amount { get; set; }
 
+        public int EventId { get; set; }
+
+        public string EventName { get; set; } = string.Empty;
+
         public int TrackId { get; set; }
 
         public string TrackName { get; set; } = string.Empty;

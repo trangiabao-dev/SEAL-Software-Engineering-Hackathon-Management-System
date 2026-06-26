@@ -173,9 +173,9 @@ namespace SealHackathon.Domain.Constants
             public const string NameRequired = "Tên giải thưởng không được để trống.";
             public const string RankPositionInvalid = "Hạng giải thưởng chỉ được là 1, 2 hoặc 3.";
             public const string AmountInvalid = "Giá trị giải thưởng không được âm.";
-            public const string RankPositionDuplicated = "Hạng giải thưởng này đã được cấu hình trong Track.";
-            public const string PrizeConfigNotFound = "Track chưa cấu hình giải thưởng.";
-            public const string RequiredRanksNotConfigured = "Track phải cấu hình đủ giải hạng 1, 2 và 3.";
+            public const string RankPositionDuplicated = "Hạng giải thưởng này đã được cấu hình trong Event.";
+            public const string PrizeConfigNotFound = "Event chưa cấu hình giải thưởng.";
+            public const string RequiredRanksNotConfigured = "Event phải cấu hình đủ giải hạng 1, 2 và 3.";
             public const string RoundRankingNotFound = "Round chưa có kết quả ranking để xác định giải thưởng.";
             public const string PrizeRankWinnerMissing = "Ranking chưa có đủ hạng 1, 2 và 3 để xác định giải thưởng.";
             public const string PrizeRankTieExists = "Ranking còn đồng hạng trong nhóm giải thưởng. Vui lòng xử lý tie-break trước khi xuất giải.";

@@ -31,6 +31,8 @@ public partial class Event
 
     public virtual ICollection<EventAccount> EventAccounts { get; set; } = new List<EventAccount>();
 
+    public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();
+
     public virtual ICollection<Track> Tracks { get; set; } = new List<Track>();
 
     public virtual Account? UpdatedByNavigation { get; set; }

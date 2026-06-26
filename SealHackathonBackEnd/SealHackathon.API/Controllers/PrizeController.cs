@@ -23,24 +23,24 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Lấy danh sách cấu hình giải thưởng của một Track.
+        /// Lấy danh sách cấu hình giải thưởng của một Event.
         /// </summary>
-        [HttpGet("tracks/{trackId:int}")]
-        public async Task<IActionResult> GetPrizesByTrack(int trackId)
+        [HttpGet("events/{eventId:int}")]
+        public async Task<IActionResult> GetPrizesByEvent(int eventId)
         {
-            var result = await _prizeService.GetPrizesByTrackAsync(trackId);
+            var result = await _prizeService.GetPrizesByEventAsync(eventId);
 
             return Ok(ApiResponse<List<PrizeResponse>>.SuccessResult(
                 result, "Lấy danh sách giải thưởng thành công."));
         }
 
         /// <summary>
-        /// Tạo cấu hình giải thưởng cho một Track.
+        /// Tạo cấu hình giải thưởng cho một Event.
         /// </summary>
-        [HttpPost("tracks/{trackId:int}")]
-        public async Task<IActionResult> CreatePrize(int trackId, [FromBody] CreatePrizeRequest request)
+        [HttpPost("events/{eventId:int}")]
+        public async Task<IActionResult> CreatePrize(int eventId, [FromBody] CreatePrizeRequest request)
         {
-            var result = await _prizeService.CreatePrizeAsync(trackId, request);
+            var result = await _prizeService.CreatePrizeAsync(eventId, request);
 
             return Ok(ApiResponse<PrizeResponse>.SuccessResult(
                 result, "Tạo giải thưởng thành công."));

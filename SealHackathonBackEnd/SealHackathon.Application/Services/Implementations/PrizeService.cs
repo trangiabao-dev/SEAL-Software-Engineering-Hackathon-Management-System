@@ -26,15 +26,15 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Lấy danh sách cấu hình giải thưởng của một Track.
+        /// Lấy danh sách cấu hình giải thưởng của một Event.
         /// </summary>
-        public async Task<List<PrizeResponse>> GetPrizesByTrackAsync(int trackId)
+        public async Task<List<PrizeResponse>> GetPrizesByEventAsync(int eventId)
         {
-            await EnsureTrackExistsAsync(trackId);
+            await EnsureEventExistsAsync(eventId);
 
             var prizes = await _unitOfWork
                 .GetRepository<PrizeEntity>()
-                .GetAllAsync(p => p.TrackId == trackId);
+                .GetAllAsync(p => p.EventId == eventId);
 
             return prizes
                 .OrderBy(p => p.RankPosition)
@@ -43,19 +43,19 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Tạo cấu hình giải thưởng cho một Track.
+        /// Tạo cấu hình giải thưởng cho một Event.
         /// </summary>
-        public async Task<PrizeResponse> CreatePrizeAsync(int trackId, CreatePrizeRequest request)
+        public async Task<PrizeResponse> CreatePrizeAsync(int eventId, CreatePrizeRequest request)
         {
-            await EnsureTrackExistsAsync(trackId);
+            await EnsureEventExistsAsync(eventId);
             ValidatePrizeInput(request.Name, request.RankPosition, request.Amount);
 
-            // Mỗi Track chỉ được có một giải cho từng hạng 1, 2 hoặc 3.
-            await EnsureRankPositionNotDuplicatedAsync(trackId, request.RankPosition);
+            // Mỗi Event chỉ được có một giải cho từng hạng 1, 2 hoặc 3.
+            await EnsureRankPositionNotDuplicatedAsync(eventId, request.RankPosition);
 
             var prize = new PrizeEntity
             {
-                TrackId = trackId,
+                EventId = eventId,
                 Name = request.Name.Trim(),
                 Description = request.Description,
                 RankPosition = request.RankPosition,
@@ -84,7 +84,7 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Khi cập nhật, bỏ qua chính Prize hiện tại để không tự báo trùng hạng.
             await EnsureRankPositionNotDuplicatedAsync(
-                prize.TrackId,
+                prize.EventId,
                 request.RankPosition,
                 prize.Id);
 
@@ -123,10 +123,11 @@ namespace SealHackathon.Application.Services.Implementations
         {
             var round = await GetRoundOrThrowAsync(roundId);
             var track = await GetTrackOrThrowAsync(round.TrackId);
+            var eventEntity = await GetEventOrThrowAsync(track.EventId);
 
             await EnsureRoundCanDeterminePrizesAsync(round, track.Id);
 
-            var prizes = await GetConfiguredPrizesOrThrowAsync(track.Id);
+            var prizes = await GetConfiguredPrizesOrThrowAsync(eventEntity.Id);
             var rankings = await GetPrizeRankingsOrThrowAsync(round.Id);
 
             EnsureNoTieInPrizeRanks(rankings);
@@ -148,7 +149,7 @@ namespace SealHackathon.Application.Services.Implementations
                 if (!teamDict.TryGetValue(ranking.TeamId, out var team))
                     throw new NotFoundException(ErrorMessages.Team.NotFound);
 
-                result.Add(MapToPrizeWinnerResponse(prize, ranking, team, round, track));
+                result.Add(MapToPrizeWinnerResponse(prize, ranking, team, round, track, eventEntity));
             }
 
             return result;
@@ -167,6 +168,8 @@ namespace SealHackathon.Application.Services.Implementations
                 "PrizeDescription",
                 "RankPosition",
                 "Amount",
+                "EventId",
+                "EventName",
                 "TrackId",
                 "TrackName",
                 "RoundId",
@@ -187,6 +190,8 @@ namespace SealHackathon.Application.Services.Implementations
                     winner.PrizeDescription,
                     winner.RankPosition,
                     winner.Amount,
+                    winner.EventId,
+                    winner.EventName,
                     winner.TrackId,
                     winner.TrackName,
                     winner.RoundId,
@@ -202,8 +207,8 @@ namespace SealHackathon.Application.Services.Implementations
             var numberFormats = new Dictionary<int, string>
             {
                 [5] = "#,##0",
-                [13] = "0.00",
-                [14] = "yyyy-mm-dd hh:mm:ss"
+                [15] = "0.00",
+                [16] = "yyyy-mm-dd hh:mm:ss"
             };
 
             return ExcelExportHelper.CreateWorkbook(
@@ -239,16 +244,16 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Kiểm tra Track tồn tại và chưa bị xóa.
+        /// Kiểm tra Event tồn tại và chưa bị xóa.
         /// </summary>
-        private async Task EnsureTrackExistsAsync(int trackId)
+        private async Task EnsureEventExistsAsync(int eventId)
         {
-            var track = await _unitOfWork
-                .GetRepository<Track>()
-                .GetFirstOrDefaultAsync(t => t.Id == trackId && !t.IsDeleted);
+            var eventEntity = await _unitOfWork
+                .GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
 
-            if (track is null)
-                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
+            if (eventEntity is null)
+                throw new NotFoundException(ErrorMessages.Ranking.EventNotFound);
         }
 
         /// <summary>
@@ -282,6 +287,21 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
+        /// Lấy Event hoặc báo lỗi nếu Event không tồn tại.
+        /// </summary>
+        private async Task<Event> GetEventOrThrowAsync(int eventId)
+        {
+            var eventEntity = await _unitOfWork
+                .GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted);
+
+            if (eventEntity is null)
+                throw new NotFoundException(ErrorMessages.Ranking.EventNotFound);
+
+            return eventEntity;
+        }
+
+        /// <summary>
         /// Kiểm tra dữ liệu cấu hình giải thưởng hợp lệ.
         /// </summary>
         private static void ValidatePrizeInput(string name, int rankPosition, decimal? amount)
@@ -297,16 +317,16 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Chặn trùng RankPosition trong cùng Track.
+        /// Chặn trùng RankPosition trong cùng Event.
         /// </summary>
         private async Task EnsureRankPositionNotDuplicatedAsync(
-            int trackId,
+            int eventId,
             int rankPosition,
             int? ignoredPrizeId = null)
         {
             var duplicatedPrize = await _unitOfWork
                 .GetRepository<PrizeEntity>()
-                .GetFirstOrDefaultAsync(p => p.TrackId == trackId
+                .GetFirstOrDefaultAsync(p => p.EventId == eventId
                                              && p.RankPosition == rankPosition
                                              && (!ignoredPrizeId.HasValue || p.Id != ignoredPrizeId.Value));
 
@@ -315,13 +335,13 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Lấy cấu hình Prize hạng 1, 2, 3 của Track.
+        /// Lấy cấu hình Prize hạng 1, 2, 3 của Event.
         /// </summary>
-        private async Task<List<PrizeEntity>> GetConfiguredPrizesOrThrowAsync(int trackId)
+        private async Task<List<PrizeEntity>> GetConfiguredPrizesOrThrowAsync(int eventId)
         {
             var prizes = await _unitOfWork
                 .GetRepository<PrizeEntity>()
-                .GetAllAsync(p => p.TrackId == trackId
+                .GetAllAsync(p => p.EventId == eventId
                                   && AwardRankPositions.Contains(p.RankPosition));
 
             if (!prizes.Any())
@@ -333,7 +353,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Đảm bảo Track đã cấu hình đủ giải hạng 1, 2 và 3.
+        /// Đảm bảo Event đã cấu hình đủ giải hạng 1, 2 và 3.
         /// </summary>
         private static void EnsureRequiredPrizeRanksConfigured(List<PrizeEntity> prizes)
         {
@@ -394,7 +414,7 @@ namespace SealHackathon.Application.Services.Implementations
             return new PrizeResponse
             {
                 Id = prize.Id,
-                TrackId = prize.TrackId,
+                EventId = prize.EventId,
                 Name = prize.Name,
                 Description = prize.Description,
                 RankPosition = prize.RankPosition,
@@ -410,7 +430,8 @@ namespace SealHackathon.Application.Services.Implementations
             RankingEntity ranking,
             Team team,
             Round round,
-            Track track)
+            Track track,
+            Event eventEntity)
         {
             return new PrizeWinnerResponse
             {
@@ -419,6 +440,8 @@ namespace SealHackathon.Application.Services.Implementations
                 PrizeDescription = prize.Description,
                 RankPosition = prize.RankPosition,
                 Amount = prize.Amount,
+                EventId = eventEntity.Id,
+                EventName = eventEntity.Name,
                 TrackId = track.Id,
                 TrackName = track.Name,
                 RoundId = round.Id,

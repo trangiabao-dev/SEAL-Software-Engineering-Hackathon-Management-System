@@ -7,7 +7,7 @@ namespace SealHackathon.Application.DTOs.Prize
     {
         public int Id { get; set; }
 
-        public int TrackId { get; set; }
+        public int EventId { get; set; }
 
         public string Name { get; set; } = string.Empty;
 
