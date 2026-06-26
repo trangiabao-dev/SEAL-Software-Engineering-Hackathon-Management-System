@@ -565,11 +565,28 @@ namespace SealHackathon.Application.Services.Implementations
                 })
                 .ToList();
 
-            var eventTop3 = trackRankings
-                .SelectMany(tr => tr.FinalRoundRanking.Rankings)
-                .OrderByDescending(r => r.TotalScore)
-                .Take(3)
-                .ToList();
+            var finalTrack = trackRankings.FirstOrDefault(t => 
+                t.TrackName.Contains("final", StringComparison.OrdinalIgnoreCase) || 
+                t.TrackName.Contains("chung kết", StringComparison.OrdinalIgnoreCase) ||
+                t.TrackName.Contains("chung ket", StringComparison.OrdinalIgnoreCase));
+
+            List<RankingResponse> eventTop3;
+
+            if (finalTrack != null)
+            {
+                eventTop3 = finalTrack.FinalRoundRanking.Rankings
+                    .OrderByDescending(r => r.TotalScore)
+                    .Take(3)
+                    .ToList();
+            }
+            else
+            {
+                eventTop3 = trackRankings
+                    .SelectMany(tr => tr.FinalRoundRanking.Rankings)
+                    .OrderByDescending(r => r.TotalScore)
+                    .Take(3)
+                    .ToList();
+            }
 
             // Sửa lại thứ hạng (RankPosition) của Top 3 Event
             for (int i = 0; i < eventTop3.Count; i++)

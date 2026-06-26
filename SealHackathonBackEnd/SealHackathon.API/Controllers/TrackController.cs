@@ -16,10 +16,12 @@ namespace SealHackathon.API.Controllers
     public class TrackController : BaseController
     {
         private readonly ITrackService _trackService;
+        private readonly ITeamService _teamService;
 
-        public TrackController(ITrackService trackService)
+        public TrackController(ITrackService trackService, ITeamService teamService)
         {
             _trackService = trackService;
+            _teamService = teamService;
         }
 
         [HttpGet("api/events/{eventId}/tracks")]
@@ -87,6 +89,19 @@ namespace SealHackathon.API.Controllers
         {
             var result = await _trackService.GetAllTracksWithRoundsAsync();
             return Ok(result);
+        }
+
+        [HttpPost("api/tracks/{trackId}/move-teams")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> MoveTeamsToTrack(int trackId, [FromBody] SealHackathon.Application.DTOs.Team.MoveTeamsToTrackRequest request)
+        {
+            var coordinatorId = GetCurrentAccountId();
+            var result = await _teamService.MoveTeamsToTrackAsync(trackId, request, coordinatorId);
+            return Ok(new 
+            { 
+                Message = "Đã chuyển các đội thi vào bảng đấu mới thành công.",
+                MovedTeams = result
+            });
         }
     }
 }
