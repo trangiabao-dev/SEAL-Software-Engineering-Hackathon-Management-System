@@ -585,12 +585,13 @@ namespace SealHackathon.Application.Services.Implementations
                 team.UpdatedAt = now;
                 teamRepo.Update(team);
 
-                // Bê Submission từ vòng trước qua vòng này (nếu có)
-                if (previousRound != null)
+                // Bê Submission từ vòng thi gần nhất qua vòng này (nếu có)
+                var oldSubmission = await submissionRepo
+                    .GetAllAsync(s => s.TeamId == team.Id)
+                    .ContinueWith(t => t.Result.OrderByDescending(s => s.CreatedAt).FirstOrDefault());
+
+                if (oldSubmission != null)
                 {
-                    var oldSubmission = await submissionRepo.GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == previousRound.Id);
-                    if (oldSubmission != null)
-                    {
                         var newSubmission = await submissionRepo.GetFirstOrDefaultAsync(s => s.TeamId == team.Id && s.RoundId == round.Id);
                         if (newSubmission == null)
                         {
@@ -607,30 +608,73 @@ namespace SealHackathon.Application.Services.Implementations
                     }
                 }
             }
-        }
 
         private async Task<List<Team>> GetTeamsQualifiedForRoundAsync(Round round)
         {
-            var teams = await _uow.GetRepository<Team>()
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
+
+            bool isFinalTrack = track != null && 
+                                (track.Name.Contains("final", StringComparison.OrdinalIgnoreCase) || 
+                                 track.Name.Contains("chung kết", StringComparison.OrdinalIgnoreCase));
+
+            if (isFinalTrack)
+            {
+                var otherTracks = await _uow.GetRepository<Track>()
+                    .GetAllAsync(t => t.EventId == track!.EventId && t.Id != track.Id && !t.IsDeleted);
+
+                var qualifiedTeams = new List<Team>();
+
+                foreach (var otherTrack in otherTracks)
+                {
+                    var allRoundsInOtherTrack = await _uow.GetRepository<Round>()
+                        .GetAllAsync(r => r.TrackId == otherTrack.Id);
+                    
+                    var lastRound = allRoundsInOtherTrack.OrderByDescending(r => r.OrderIndex).FirstOrDefault();
+
+                    if (lastRound != null)
+                    {
+                        if (!string.Equals(lastRound.Status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase))
+                            throw new BadRequestException($"Không thể mở vòng Chung kết vì bảng đấu '{otherTrack.Name}' vẫn chưa đóng (Closed).");
+
+                        var advancingRankings = await _uow.GetRepository<Domain.Entities.Ranking>()
+                            .GetAllAsync(r => r.RoundId == lastRound.Id && r.IsAdvancing);
+
+                        if (!advancingRankings.Any())
+                            throw new BadRequestException($"Không thể mở vòng Chung kết vì bảng đấu '{otherTrack.Name}' chưa có đội nào được chốt đi tiếp.");
+
+                        var advancingTeamIds = advancingRankings.Select(r => r.TeamId).ToHashSet();
+                        
+                        var teams = await _uow.GetRepository<Team>()
+                            .GetAllAsync(t => advancingTeamIds.Contains(t.Id) && t.Status == TeamConstants.Status.Approved && !t.IsDeleted);
+
+                        qualifiedTeams.AddRange(teams);
+                    }
+                }
+                return qualifiedTeams;
+            }
+
+            // Luồng thông thường cho các Track vòng loại
+            var normalTeams = await _uow.GetRepository<Team>()
                 .GetAllAsync(t => t.TrackId == round.TrackId
                                && t.Status == TeamConstants.Status.Approved
                                && !t.IsDeleted);
 
             var previousRound = await GetPreviousRoundAsync(round);
             if (previousRound is null)
-                return teams;
+                return normalTeams;
 
             EnsurePreviousRoundClosed(previousRound);
 
-            var advancingRankings = await _uow.GetRepository<RankingEntity>()
+            var normalAdvancingRankings = await _uow.GetRepository<Domain.Entities.Ranking>()
                 .GetAllAsync(r => r.RoundId == previousRound.Id && r.IsAdvancing);
 
-            if (!advancingRankings.Any())
+            if (!normalAdvancingRankings.Any())
                 throw new BadRequestException(ErrorMessages.Round.PreviousRoundRankingRequired);
 
-            var advancingTeamIds = advancingRankings.Select(r => r.TeamId).ToHashSet();
+            var normalAdvancingTeamIds = normalAdvancingRankings.Select(r => r.TeamId).ToHashSet();
 
-            return teams.Where(t => advancingTeamIds.Contains(t.Id)).ToList();
+            return normalTeams.Where(t => normalAdvancingTeamIds.Contains(t.Id)).ToList();
         }
 
         /// <summary>

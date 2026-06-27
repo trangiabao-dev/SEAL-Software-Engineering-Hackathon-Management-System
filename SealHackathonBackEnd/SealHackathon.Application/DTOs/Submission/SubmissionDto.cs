@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Application.DTOs.Submission
+namespace SealHackathon.Application.DTOs.Submission
 {
     /// <summary>
     /// Dữ liệu đã chọn lọc để trả về cho FE hoặc nhận từ FE.
@@ -15,5 +15,6 @@
         public Guid? DisqualifiedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public bool CanEdit { get; set; }
     }
 }

@@ -386,7 +386,8 @@ namespace SealHackathon.Application.Services.Implementations
                 DisqualifiedAt = submission.DisqualifiedAt,
                 DisqualifiedBy = submission.DisqualifiedBy,
                 CreatedAt = submission.CreatedAt,
-                UpdatedAt = submission.UpdatedAt
+                UpdatedAt = submission.UpdatedAt,
+                CanEdit = submission.CanEdit
             };
         }
     }

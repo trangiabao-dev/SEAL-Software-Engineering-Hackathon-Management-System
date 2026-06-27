@@ -1154,37 +1154,6 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
 
-        public async Task<List<TeamDetailDto>> MoveTeamsToTrackAsync(int targetTrackId, MoveTeamsToTrackRequest request, Guid coordinatorId)
-        {
-            if (request.TeamIds == null || request.TeamIds.Count == 0)
-                throw new BadRequestException("Danh sách đội thi không được để trống.");
-
-            var targetTrack = await _uow.GetRepository<Track>()
-                .GetFirstOrDefaultAsync(t => t.Id == targetTrackId && !t.IsDeleted);
-            
-            if (targetTrack == null)
-                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
-
-            var teamRepo = _uow.GetRepository<Team>();
-            var teams = await teamRepo.GetAllAsync(t => request.TeamIds.Contains(t.Id) && !t.IsDeleted);
-
-            if (teams.Count != request.TeamIds.Count)
-                throw new BadRequestException("Một hoặc nhiều đội thi không tồn tại trong hệ thống.");
-
-            var now = DateTime.UtcNow;
-
-            foreach (var team in teams)
-            {
-                team.TrackId = targetTrackId;
-                team.UpdatedAt = now;
-                team.UpdatedBy = coordinatorId;
-                teamRepo.Update(team);
-            }
-
-            await _uow.SaveChangesAsync();
-
-            return teams.Select(t => MapToDto(t)).ToList();
-        }
 
         private static TopicResponse? MapToTopicDto(Topic? topic)
         {

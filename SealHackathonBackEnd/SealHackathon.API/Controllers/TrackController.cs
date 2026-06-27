@@ -91,17 +91,6 @@ namespace SealHackathon.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("api/tracks/{trackId}/move-teams")]
-        [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> MoveTeamsToTrack(int trackId, [FromBody] SealHackathon.Application.DTOs.Team.MoveTeamsToTrackRequest request)
-        {
-            var coordinatorId = GetCurrentAccountId();
-            var result = await _teamService.MoveTeamsToTrackAsync(trackId, request, coordinatorId);
-            return Ok(new 
-            { 
-                Message = "Đã chuyển các đội thi vào bảng đấu mới thành công.",
-                MovedTeams = result
-            });
-        }
+
     }
 }
