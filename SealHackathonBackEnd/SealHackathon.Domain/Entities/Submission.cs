@@ -13,6 +13,7 @@ public partial class Submission
 
     public string PresentationUrl { get; set; } = null!;
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool CanEdit { get; set; }
 
     public bool IsDisqualified { get; set; }

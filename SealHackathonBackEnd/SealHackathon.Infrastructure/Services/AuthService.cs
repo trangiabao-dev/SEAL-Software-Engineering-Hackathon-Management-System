@@ -505,7 +505,7 @@ public class AuthService : IAuthService
             .GetAllAsync(ja => ja.Round.Track.EventId == eventId);
 
         var eventRounds = await _uow.GetRepository<Round>()
-            .GetAllAsync(r => r.Track.EventId == eventId);
+            .GetAllWithIncludeAsync(r => r.Track.EventId == eventId, r => r.Track, r => r.Track.Event);
 
         return eventAccounts
             .Select(ea => MapToEventStaffResponse(ea, mentorTeams, judgeAssignments, eventRounds))
@@ -560,7 +560,9 @@ public class AuthService : IAuthService
                 .Select(r => new StaffRoundDto
                 {
                     Id = r.Id,
-                    Name = r.Name
+                    Name = r.Name,
+                    EventName = r.Track.Event.Name,
+                    TrackName = r.Track.Name
                 })
                 .ToList();
         }
