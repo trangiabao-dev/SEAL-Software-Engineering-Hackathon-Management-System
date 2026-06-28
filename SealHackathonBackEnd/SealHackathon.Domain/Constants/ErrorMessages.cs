@@ -160,6 +160,8 @@ namespace SealHackathon.Domain.Constants
             public const string EventNotFound = "Không tìm thấy Event.";
             public const string EventNotCompleted = "Chỉ được xem Ranking toàn Event khi Event đã hoàn thành.";
             public const string EventHasNoTracks = "Event chưa có Track để tổng hợp Ranking.";
+            public const string EventFinalTrackNotFound = "Event chưa có Track Final để xác định Ranking chung cuộc.";
+            public const string EventFinalTrackDuplicated = "Event chỉ được có một Track Final để xác định Ranking chung cuộc.";
             public const string TrackHasNoRounds = "Track chưa cấu hình Round.";
             public const string FinalRoundConfigurationInvalid = "Track phải có đúng một Round chung kết ở OrderIndex cuối cùng.";
             public const string FinalRoundNotClosed = "Vòng chung kết phải được đóng trước khi công bố Ranking.";

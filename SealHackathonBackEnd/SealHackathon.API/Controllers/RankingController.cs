@@ -76,7 +76,7 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Lấy bảng xếp hạng chung kết của tất cả Track trong Event đã hoàn thành.
+        /// Lấy bảng xếp hạng chung cuộc của Event từ Final Round thuộc Track Final.
         /// </summary>
         [HttpGet("events/{eventId:int}")]
         [AllowAnonymous]
@@ -105,7 +105,7 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// Xuất bảng xếp hạng chung cuộc của Event ra file XLSX.
         /// </summary>
         [HttpGet("events/{eventId:int}/export")]
         [Authorize(Roles = RoleConstants.Coordinator)]

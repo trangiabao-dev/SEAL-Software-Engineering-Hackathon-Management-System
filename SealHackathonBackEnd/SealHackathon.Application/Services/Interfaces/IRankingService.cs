@@ -27,7 +27,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<TrackFinalRankingResponse> GetLeaderboardByTrackAsync(int trackId);
 
         /// <summary>
-        /// Tổng hợp bảng xếp hạng chung kết của tất cả Track trong Event đã hoàn thành.
+        /// Lấy bảng xếp hạng chung cuộc của Event từ Final Round thuộc Track Final.
         /// </summary>
         Task<EventRankingResponse> GetLeaderboardByEventAsync(int eventId);
 
@@ -37,7 +37,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<byte[]> ExportLeaderboardByRoundAsync(int roundId);
 
         /// <summary>
-        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// Xuất bảng xếp hạng chung cuộc của Event ra file XLSX.
         /// </summary>
         Task<byte[]> ExportLeaderboardByEventAsync(int eventId);
 

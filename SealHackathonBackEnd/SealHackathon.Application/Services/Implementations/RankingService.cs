@@ -499,7 +499,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Tổng hợp Ranking chung kết của tất cả Track trong Event đã hoàn thành.
+        /// Lấy Ranking chung cuộc của Event từ Final Round thuộc Track Final.
         /// </summary>
         public async Task<EventRankingResponse> GetLeaderboardByEventAsync(int eventId)
         {
@@ -519,35 +519,23 @@ namespace SealHackathon.Application.Services.Implementations
             if (tracks.Count == 0)
                 throw new BadRequestException(ErrorMessages.Ranking.EventHasNoTracks);
 
-            var trackIds = tracks.Select(track => track.Id).ToList();
+            var finalTrack = GetEventFinalTrack(tracks);
             var rounds = await _unitOfWork
                 .GetRepository<Round>()
-                .GetAllAsync(round => trackIds.Contains(round.TrackId));
+                .GetAllAsync(round => round.TrackId == finalTrack.Id);
 
-            var finalRoundByTrackId = new Dictionary<int, Round>();
-            foreach (var track in tracks)
-            {
-                var finalRound = FinalRoundRules.GetFinalRound(track.Id, rounds);
-                EnsureFinalRoundClosed(finalRound);
-                finalRoundByTrackId.Add(track.Id, finalRound);
-            }
+            var finalRound = FinalRoundRules.GetFinalRound(finalTrack.Id, rounds);
+            EnsureFinalRoundClosed(finalRound);
 
-            var finalRoundIds = finalRoundByTrackId.Values
-                .Select(round => round.Id)
-                .ToList();
-
-            // Lấy Ranking của mọi Final Round trong một query để tránh N+1.
+            // Event Ranking chung cuộc chỉ lấy từ Final Round của Track Final,
+            // không gom điểm từ các Track vòng loại để tránh công bố sai top 3 toàn Event.
             var rankings = await _unitOfWork
                 .GetRepository<Domain.Entities.Ranking>()
-                .GetAllAsync(ranking => finalRoundIds.Contains(ranking.RoundId)
+                .GetAllAsync(ranking => ranking.RoundId == finalRound.Id
                                         && !ranking.Team.IsDeleted
                                         && ranking.Team.Status != TeamConstants.Status.Disqualified);
 
-            var rankingsByRoundId = rankings
-                .GroupBy(ranking => ranking.RoundId)
-                .ToDictionary(group => group.Key, group => group.ToList());
-
-            if (finalRoundIds.Any(finalRoundId => !rankingsByRoundId.ContainsKey(finalRoundId)))
+            if (!rankings.Any())
                 throw new BadRequestException(ErrorMessages.Ranking.FinalRoundRankingNotFound);
 
             var teamIds = rankings.Select(ranking => ranking.TeamId).Distinct().ToList();
@@ -556,59 +544,27 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetAllAsync(team => teamIds.Contains(team.Id));
 
             var teamNameById = teams.ToDictionary(team => team.Id, team => team.TeamName);
-            var trackRankings = tracks
-                .OrderBy(track => track.Name)
-                .Select(track =>
-                {
-                    var finalRound = finalRoundByTrackId[track.Id];
+            var finalRoundRanking = BuildLeaderboardResponse(
+                finalRound,
+                rankings,
+                teamNameById);
+            EnsureLeaderboardCalculated(finalRoundRanking);
 
-                    return new TrackFinalRankingResponse
-                    {
-                        TrackId = track.Id,
-                        TrackName = track.Name,
-                        FinalRoundRanking = BuildLeaderboardResponse(
-                            finalRound,
-                            rankingsByRoundId[finalRound.Id],
-                            teamNameById)
-                    };
-                })
+            var trackRankings = new List<TrackFinalRankingResponse>
+            {
+                new()
+                {
+                    TrackId = finalTrack.Id,
+                    TrackName = finalTrack.Name,
+                    FinalRoundRanking = finalRoundRanking
+                }
+            };
+
+            var eventTop3 = finalRoundRanking.Rankings
+                .OrderBy(ranking => ranking.RankPosition)
+                .ThenByDescending(ranking => ranking.TotalScore)
+                .Take(3)
                 .ToList();
-
-            var finalTrack = trackRankings.FirstOrDefault(t => 
-                t.TrackName.Contains("final", StringComparison.OrdinalIgnoreCase) || 
-                t.TrackName.Contains("chung kết", StringComparison.OrdinalIgnoreCase) ||
-                t.TrackName.Contains("chung ket", StringComparison.OrdinalIgnoreCase));
-
-            List<RankingResponse> eventTop3;
-
-            if (finalTrack != null)
-            {
-                eventTop3 = finalTrack.FinalRoundRanking.Rankings
-                    .OrderByDescending(r => r.TotalScore)
-                    .Take(3)
-                    .ToList();
-            }
-            else
-            {
-                eventTop3 = trackRankings
-                    .SelectMany(tr => tr.FinalRoundRanking.Rankings)
-                    .OrderByDescending(r => r.TotalScore)
-                    .Take(3)
-                    .ToList();
-            }
-
-            // Sửa lại thứ hạng (RankPosition) của Top 3 Event
-            for (int i = 0; i < eventTop3.Count; i++)
-            {
-                if (i > 0 && eventTop3[i].TotalScore == eventTop3[i - 1].TotalScore)
-                {
-                    eventTop3[i].RankPosition = eventTop3[i - 1].RankPosition;
-                }
-                else
-                {
-                    eventTop3[i].RankPosition = i + 1;
-                }
-            }
 
             return new EventRankingResponse
             {
@@ -664,7 +620,7 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Xuất bảng xếp hạng chung kết của mọi Track trong Event ra file XLSX.
+        /// Xuất bảng xếp hạng chung cuộc của Event ra file XLSX.
         /// </summary>
         public async Task<byte[]> ExportLeaderboardByEventAsync(int eventId)
         {
@@ -849,6 +805,35 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 throw new BadRequestException(ErrorMessages.Ranking.FinalRoundNotClosed);
             }
+        }
+
+        /// <summary>
+        /// Tìm Track Final duy nhất của Event theo convention hiện tại của Dev 1.
+        /// </summary>
+        private static Track GetEventFinalTrack(IReadOnlyCollection<Track> tracks)
+        {
+            var finalTracks = tracks
+                .Where(IsFinalTrack)
+                .ToList();
+
+            if (finalTracks.Count == 0)
+                throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackNotFound);
+
+            if (finalTracks.Count > 1)
+                throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackDuplicated);
+
+            return finalTracks[0];
+        }
+
+        /// <summary>
+        /// Nhận diện Track Final theo tên vì Track hiện chưa có field IsFinal hoặc TrackType.
+        /// </summary>
+        private static bool IsFinalTrack(Track track)
+        {
+            // Convention này đang khớp với RoundService: Track Final phải có tên chứa final/chung kết.
+            return track.Name.Contains("final", StringComparison.OrdinalIgnoreCase)
+                   || track.Name.Contains("chung kết", StringComparison.OrdinalIgnoreCase)
+                   || track.Name.Contains("chung ket", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

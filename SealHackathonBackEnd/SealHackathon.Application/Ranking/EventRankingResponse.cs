@@ -1,7 +1,7 @@
 namespace SealHackathon.Application.DTOs.Ranking
 {
     /// <summary>
-    /// Tổng hợp bảng xếp hạng chung kết của tất cả Track trong Event.
+    /// Bảng xếp hạng chung cuộc của Event, lấy từ Final Round thuộc Track Final.
     /// </summary>
     public class EventRankingResponse
     {
