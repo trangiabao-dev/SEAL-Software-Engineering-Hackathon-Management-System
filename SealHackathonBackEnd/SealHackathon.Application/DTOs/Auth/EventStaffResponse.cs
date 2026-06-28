@@ -23,5 +23,7 @@ namespace SealHackathon.Application.DTOs.Auth
     {
         public int Id { get; set; }
         public string Name { get; set; } = null!;
+        public string EventName { get; set; } = null!;
+        public string TrackName { get; set; } = null!;
     }
 }
