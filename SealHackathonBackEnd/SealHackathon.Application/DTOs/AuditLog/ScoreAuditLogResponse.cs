@@ -8,6 +8,27 @@ namespace SealHackathon.Application.DTOs.AuditLog
         public Guid AuditLogId { get; set; }
         public string Action { get; set; } = string.Empty;
         public Guid? ScoreRecordId { get; set; }
+
+        /// <summary>
+        /// Cho FE biết log này thuộc điểm chấm lại tie-break hay điểm chấm thường.
+        /// </summary>
+        public bool IsTieBreak { get; set; }
+
+        /// <summary>
+        /// Id điểm chấm lại tie-break, chỉ có giá trị khi IsTieBreak = true.
+        /// </summary>
+        public Guid? TieBreakScoreRecordId { get; set; }
+
+        /// <summary>
+        /// Id phiên chấm lại tie-break, chỉ có giá trị khi IsTieBreak = true.
+        /// </summary>
+        public Guid? TieBreakSessionId { get; set; }
+
+        /// <summary>
+        /// Id bài trong phiên tie-break, dùng để FE mở lại màn chấm lại nếu cần.
+        /// </summary>
+        public Guid? TieBreakSubmissionId { get; set; }
+
         public Guid JudgeId { get; set; }
         public string JudgeName { get; set; } = string.Empty;
         public int? EventId { get; set; }

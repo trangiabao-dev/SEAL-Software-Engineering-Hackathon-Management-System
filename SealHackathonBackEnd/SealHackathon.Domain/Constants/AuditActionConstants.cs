@@ -12,6 +12,15 @@ public static class AuditActionConstants
         public const string Update = "Score.Update";
     }
 
+    /// <summary>
+    /// Hành động audit cho điểm chấm lại trong phiên tie-break.
+    /// </summary>
+    public static class TieBreakScoreAudit
+    {
+        public const string Create = "TieBreakScore.Create";
+        public const string Update = "TieBreakScore.Update";
+    }
+
     public static class RankingAudit
     {
         public const string Calculate = "Ranking.Calculate";

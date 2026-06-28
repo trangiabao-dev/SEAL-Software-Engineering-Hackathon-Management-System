@@ -107,11 +107,20 @@ namespace SealHackathon.Application.Services.Implementations
 
             var auditLogRepository = _uow.GetRepository<AuditLog>();
 
-            // Chỉ đọc log của ScoreRecord để không làm lộ AuditLog của module khác.
+            // Chỉ đọc log điểm thường và điểm tie-break để không làm lộ AuditLog của module khác.
             Expression<Func<AuditLog, bool>> predicate = auditLog =>
-                auditLog.EntityName == nameof(ScoreRecord)
-                && (auditLog.Action == AuditActionConstants.ScoreAudit.Create
-                    || auditLog.Action == AuditActionConstants.ScoreAudit.Update)
+                (
+                    (
+                        auditLog.EntityName == nameof(ScoreRecord)
+                        && (auditLog.Action == AuditActionConstants.ScoreAudit.Create
+                            || auditLog.Action == AuditActionConstants.ScoreAudit.Update)
+                    )
+                    || (
+                        auditLog.EntityName == nameof(TieBreakScoreRecord)
+                        && (auditLog.Action == AuditActionConstants.TieBreakScoreAudit.Create
+                            || auditLog.Action == AuditActionConstants.TieBreakScoreAudit.Update)
+                    )
+                )
                 && (!judgeId.HasValue || auditLog.PerformedBy == judgeId.Value);
 
             var totalRecords = await auditLogRepository.CountAsync(predicate);
@@ -151,6 +160,16 @@ namespace SealHackathon.Application.Services.Implementations
                 .ToList();
 
             var scoreRecordIds = auditLogs
+                .Where(auditLog => auditLog.EntityName == nameof(ScoreRecord))
+                .Select(auditLog => Guid.TryParse(auditLog.EntityId, out var scoreRecordId)
+                    ? scoreRecordId
+                    : Guid.Empty)
+                .Where(scoreRecordId => scoreRecordId != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            var tieBreakScoreRecordIds = auditLogs
+                .Where(auditLog => auditLog.EntityName == nameof(TieBreakScoreRecord))
                 .Select(auditLog => Guid.TryParse(auditLog.EntityId, out var scoreRecordId)
                     ? scoreRecordId
                     : Guid.Empty)
@@ -170,12 +189,26 @@ namespace SealHackathon.Application.Services.Implementations
 
             var scoreRecordById = scoreRecords.ToDictionary(item => item.Id);
 
+            var tieBreakScoreRecords = tieBreakScoreRecordIds.Count == 0
+                ? new List<TieBreakScoreRecord>()
+                : await _uow.GetRepository<TieBreakScoreRecord>()
+                    .GetAllWithIncludeAsync(
+                        scoreRecord => tieBreakScoreRecordIds.Contains(scoreRecord.Id),
+                        scoreRecord => scoreRecord.Judge,
+                        scoreRecord => scoreRecord.Criterion,
+                        scoreRecord => scoreRecord.TieBreakSubmission.Submission.Team,
+                        scoreRecord => scoreRecord.TieBreakSubmission.Submission.Round.Track.Event,
+                        scoreRecord => scoreRecord.TieBreakSubmission.TieBreakSession);
+
+            var tieBreakScoreRecordById = tieBreakScoreRecords.ToDictionary(item => item.Id);
+
             return parsedLogs
                 .Select(item => MapToScoreAuditLogResponse(
                     item.AuditLog,
                     item.OldSnapshot,
                     item.NewSnapshot,
-                    scoreRecordById))
+                    scoreRecordById,
+                    tieBreakScoreRecordById))
                 .ToList();
         }
 
@@ -186,43 +219,61 @@ namespace SealHackathon.Application.Services.Implementations
             AuditLog auditLog,
             ScoreAuditSnapshot? oldSnapshot,
             ScoreAuditSnapshot? newSnapshot,
-            IReadOnlyDictionary<Guid, ScoreRecord> scoreRecordById)
+            IReadOnlyDictionary<Guid, ScoreRecord> scoreRecordById,
+            IReadOnlyDictionary<Guid, TieBreakScoreRecord> tieBreakScoreRecordById)
         {
             var snapshot = newSnapshot ?? oldSnapshot;
+            var isTieBreak = auditLog.EntityName == nameof(TieBreakScoreRecord);
 
             var scoreRecordId = Guid.TryParse(auditLog.EntityId, out var parsedScoreRecordId)
                 ? parsedScoreRecordId
                 : (Guid?)null;
 
             ScoreRecord? scoreRecord = null;
-            if (scoreRecordId.HasValue)
+            if (!isTieBreak && scoreRecordId.HasValue)
                 scoreRecordById.TryGetValue(scoreRecordId.Value, out scoreRecord);
 
-            var submission = scoreRecord?.Submission;
+            var tieBreakScoreRecordId = isTieBreak ? scoreRecordId : null;
+            TieBreakScoreRecord? tieBreakScoreRecord = null;
+            if (tieBreakScoreRecordId.HasValue)
+                tieBreakScoreRecordById.TryGetValue(tieBreakScoreRecordId.Value, out tieBreakScoreRecord);
+
+            var tieBreakSubmission = tieBreakScoreRecord?.TieBreakSubmission;
+            var submission = isTieBreak
+                ? tieBreakSubmission?.Submission
+                : scoreRecord?.Submission;
             var team = submission?.Team;
             var round = submission?.Round;
             var track = round?.Track;
             var eventEntity = track?.Event;
-            var criterion = scoreRecord?.Criterion;
+            var criterion = isTieBreak
+                ? tieBreakScoreRecord?.Criterion
+                : scoreRecord?.Criterion;
 
             return new ScoreAuditLogResponse
             {
                 AuditLogId = auditLog.Id,
                 Action = auditLog.Action,
-                ScoreRecordId = scoreRecordId,
+                ScoreRecordId = isTieBreak ? null : scoreRecordId,
+                IsTieBreak = isTieBreak,
+                TieBreakScoreRecordId = tieBreakScoreRecordId,
+                TieBreakSessionId = snapshot?.TieBreakSessionId ?? tieBreakSubmission?.TieBreakSessionId,
+                TieBreakSubmissionId = snapshot?.TieBreakSubmissionId ?? tieBreakScoreRecord?.TieBreakSubmissionId,
                 JudgeId = auditLog.PerformedBy,
-                JudgeName = scoreRecord?.Judge.Username ?? string.Empty,
+                JudgeName = isTieBreak
+                    ? tieBreakScoreRecord?.Judge.Username ?? string.Empty
+                    : scoreRecord?.Judge.Username ?? string.Empty,
                 EventId = eventEntity?.Id,
                 EventName = eventEntity?.Name,
                 TrackId = track?.Id,
                 TrackName = track?.Name,
                 RoundId = round?.Id,
                 RoundName = round?.Name,
-                SubmissionId = snapshot?.SubmissionId ?? scoreRecord?.SubmissionId,
+                SubmissionId = snapshot?.SubmissionId ?? submission?.Id,
                 TeamId = team?.Id,
                 TeamName = team?.TeamName,
                 University = team?.University,
-                CriterionId = snapshot?.CriterionId ?? scoreRecord?.CriterionId,
+                CriterionId = snapshot?.CriterionId ?? criterion?.Id,
                 CriterionName = criterion?.Name,
                 OldScore = oldSnapshot?.Score,
                 NewScore = newSnapshot?.Score,
@@ -284,13 +335,17 @@ namespace SealHackathon.Application.Services.Implementations
         /// </summary>
         private sealed class ScoreAuditSnapshot
         {
-            public Guid SubmissionId { get; set; }
+            public Guid? SubmissionId { get; set; }
+
+            public Guid? TieBreakSessionId { get; set; }
+
+            public Guid? TieBreakSubmissionId { get; set; }
 
             public Guid JudgeId { get; set; }
 
-            public int CriterionId { get; set; }
+            public int? CriterionId { get; set; }
 
-            public double Score { get; set; }
+            public double? Score { get; set; }
 
             public string? Comment { get; set; }
         }

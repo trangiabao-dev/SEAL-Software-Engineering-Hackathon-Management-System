@@ -142,6 +142,7 @@ builder.Services.AddScoped<ICriterionTemplateService, CriterionTemplateService>(
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IPrizeService, PrizeService>();
 builder.Services.AddScoped<IRblService, RblService>();
+builder.Services.AddScoped<ITieBreakService, TieBreakService>();
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 //=======

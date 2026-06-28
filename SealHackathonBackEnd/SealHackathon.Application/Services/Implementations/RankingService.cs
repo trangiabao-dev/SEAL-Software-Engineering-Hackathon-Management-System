@@ -43,10 +43,14 @@ namespace SealHackathon.Application.Services.Implementations
             };
 
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ITieBreakService _tieBreakService;
 
-        public RankingService(IUnitOfWork unitOfWork)
+        public RankingService(
+            IUnitOfWork unitOfWork,
+            ITieBreakService tieBreakService)
         {
             _unitOfWork = unitOfWork;
+            _tieBreakService = tieBreakService;
         }
 
         /// <summary>
@@ -114,30 +118,46 @@ namespace SealHackathon.Application.Services.Implementations
                     c.MaxScore
                 });
 
-            // Bước 3: Lấy các bài nộp hợp lệ của Round.
-            // Bài nộp hợp lệ là bài chưa bị loại và team cũng chưa bị loại/xóa.
+            // Bước 3: Lấy danh sách đội phải tham gia Round từ RoundTeam.
+            // Ranking phải dựa trên đội được phân vào Round, không dựa trên Submission,
+            // vì đội không nộp bài vẫn phải xuất hiện trong bảng xếp hạng với 0 điểm.
+            var roundTeams = await _unitOfWork
+                .GetRepository<RoundTeam>()
+                .GetAllAsync(roundTeam =>
+                    roundTeam.RoundId == roundId
+                    && !roundTeam.Team.IsDeleted
+                    && roundTeam.Team.Status != TeamConstants.Status.Disqualified);
+
+            var roundTeamIds = roundTeams
+                .Select(roundTeam => roundTeam.TeamId)
+                .Distinct()
+                .ToList();
+
+            if (!roundTeamIds.Any())
+                throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoAssignedTeams);
+
+            // Bước 4: Lấy các bài nộp hợp lệ của những đội được phân vào Round.
+            // Đội không có Submission sẽ không bị lỗi ở đây; hệ thống sẽ cho 0 điểm ở bước tính Ranking.
             var submissions = await _unitOfWork
                 .GetRepository<Submission>()
-                .GetAllAsync(s => s.RoundId == roundId
-                                  && !s.IsDisqualified
-                                  && !s.Team.IsDeleted
-                                  && s.Team.Status != TeamConstants.Status.Disqualified);
-
-            if (!submissions.Any())
-                throw new BadRequestException(ErrorMessages.Ranking.RoundHasNoValidSubmissions);
+                .GetAllAsync(submission =>
+                    submission.RoundId == roundId
+                    && roundTeamIds.Contains(submission.TeamId)
+                    && !submission.IsDisqualified
+                    && !submission.Team.IsDeleted
+                    && submission.Team.Status != TeamConstants.Status.Disqualified);
 
             var submissionIds = submissions.Select(s => s.Id).ToList();
             var submissionTeamDict = submissions.ToDictionary(s => s.Id, s => s.TeamId);
-
-            // Dùng lần nộp cuối để tránh đội tạo bài tạm sớm nhằm chiếm ưu thế tie-break.
-            var submittedAtByTeamId = submissions.ToDictionary(
-                submission => submission.TeamId,
-                submission => submission.UpdatedAt ?? submission.CreatedAt);
+            var teamIdsWithValidSubmission = submissions
+                .Select(submission => submission.TeamId)
+                .Distinct()
+                .ToHashSet();
 
             // Ranking chỉ tính điểm từ judge được assign và còn quyền Judge hợp lệ trong Event.
             var assignedJudgeIds = await GetActiveAssignedJudgeIdsAsync(round);
 
-            // Bước 4: Lấy ScoreRecord hợp lệ, bỏ qua điểm hiệu chuẩn và điểm của judge không được assign.
+            // Bước 5: Lấy ScoreRecord hợp lệ, chỉ tính điểm của Judge đang được assign.
             var allScoreRecords = await _unitOfWork
                 .GetRepository<ScoreRecord>()
                 .GetAllAsync(scoreRecord => submissionIds.Contains(scoreRecord.SubmissionId)
@@ -150,7 +170,7 @@ namespace SealHackathon.Application.Services.Implementations
                 assignedJudgeIds,
                 allScoreRecords);
 
-            // Bước 5: Tính TotalScore cho từng team.
+            // Bước 6: Tính TotalScore cho từng team có Submission.
             // Công thức: TotalScore = tổng của ((điểm trung bình / điểm tối đa tiêu chí) x trọng số tiêu chí x 100).
             var teamScores = allScoreRecords
                 .GroupBy(sr => submissionTeamDict[sr.SubmissionId])
@@ -181,29 +201,24 @@ namespace SealHackathon.Application.Services.Implementations
                 })
                 .ToList();
 
-            // Bước 5b: Thêm các team có Submission nhưng chưa có điểm (TotalScore = 0)
-            var teamIdsWithScores = teamScores.Select(ts => ts.TeamId).ToHashSet();
-            var teamIdsWithoutScores = submissions
-                .Select(s => s.TeamId)
-                .Distinct()
-                .Where(tid => !teamIdsWithScores.Contains(tid))
+            // Bước 6b: Thêm các team không có Submission hợp lệ với TotalScore = 0.
+            // Không tạo ScoreRecord giả vì ScoreRecord chỉ lưu điểm Judge thật sự đã nhập.
+            var teamIdsWithoutValidSubmission = roundTeamIds
+                .Where(teamId => !teamIdsWithValidSubmission.Contains(teamId))
                 .ToList();
 
             // Làm tròn trước khi so sánh để điểm xếp hạng khớp điểm lưu trong database.
             var allTeamScores = teamScores
                 .Select(teamScore => (
                     TeamId: teamScore.TeamId,
-                    TotalScore: Math.Round(teamScore.TotalScore, 4),
-                    SubmittedAt: submittedAtByTeamId[teamScore.TeamId]))
-                .Concat(teamIdsWithoutScores.Select(teamId => (
+                    TotalScore: Math.Round(teamScore.TotalScore, 4)))
+                .Concat(teamIdsWithoutValidSubmission.Select(teamId => (
                     TeamId: teamId,
-                    TotalScore: 0.0,
-                    SubmittedAt: submittedAtByTeamId[teamId])))
+                    TotalScore: 0.0)))
                 .OrderByDescending(team => team.TotalScore)
-                .ThenBy(team => team.SubmittedAt)
                 .ToList();
 
-            // Bước 6: Xếp điểm giảm dần và dùng thời gian nộp cuối làm tie-break tự động.
+            // Bước 6: Xếp điểm giảm dần; nếu bằng TotalScore thì giữ đồng hạng để xử lý tie-break.
             var rankedTeams = new List<(Guid TeamId, double TotalScore, int Rank)>();
             for (var index = 0; index < allTeamScores.Count; index++)
             {
@@ -214,9 +229,8 @@ namespace SealHackathon.Application.Services.Implementations
                     var currentTeam = allTeamScores[index];
                     var previousTeam = allTeamScores[index - 1];
 
-                    // Chỉ giữ đồng hạng khi cả điểm và thời gian nộp cuối đều bằng nhau.
-                    if (currentTeam.TotalScore == previousTeam.TotalScore
-                        && currentTeam.SubmittedAt == previousTeam.SubmittedAt)
+                    // Chỉ cần bằng điểm là đồng hạng; không dùng thời gian nộp để tự phá tie nữa.
+                    if (currentTeam.TotalScore == previousTeam.TotalScore)
                     {
                         rank = rankedTeams[index - 1].Rank;
                     }
@@ -234,27 +248,11 @@ namespace SealHackathon.Application.Services.Implementations
             var unresolvedAdvancingRank = GetUnresolvedAdvancingRank(
                 rankedTeams,
                 advancingSlots);
+            var importantTieRanks = GetImportantTieRanks(
+                rankedTeams,
+                advancingSlots);
 
             var now = DateTime.UtcNow;
-
-            if (unresolvedAdvancingRank.HasValue || (!advancingSlots.HasValue && rankedTeams.Where(r => r.Rank <= 3).GroupBy(r => r.Rank).Any(g => g.Count() > 1)))
-            {
-                var judgeAssigns = await _unitOfWork.GetRepository<JudgeAssign>().GetAllAsync(ja => ja.RoundId == roundId);
-                var judgeIds = judgeAssigns.Select(ja => ja.JudgeId).Distinct().ToList();
-                
-                foreach (var judgeId in judgeIds)
-                {
-                    await _unitOfWork.GetRepository<Notification>().AddAsync(new Notification
-                    {
-                        AccountId = judgeId,
-                        Title = "Xử lý đồng hạng",
-                        Message = $"Có đội đồng hạng tại ranh giới đi tiếp hoặc Top 3 ở vòng thi '{round.Name}'. Vui lòng xem xét giải quyết Tie-break.",
-                        Type = "TIE_BREAK_REQUIRED",
-                        IsRead = false,
-                        CreatedAt = now
-                    });
-                }
-            }
 
             // Bước 8: Xóa ranking cũ và thêm ranking mới.
             var existingRankings = await _unitOfWork
@@ -291,7 +289,18 @@ namespace SealHackathon.Application.Services.Implementations
 
             await _unitOfWork.SaveChangesAsync();
 
-            // Bước 9: Chuyển dữ liệu sang response DTO.
+            await DisqualifyTeamsWithoutValidSubmissionAsync(
+                teamIdsWithoutValidSubmission,
+                round,
+                now);
+
+            // Bước 9: Sau khi Ranking đã lưu, tự tạo phiên tie-break cho các hạng quan trọng còn đồng điểm.
+            foreach (var tieRank in importantTieRanks)
+            {
+                await _tieBreakService.CreateSessionIfNotExistsAsync(roundId, tieRank);
+            }
+
+            // Bước 10: Chuyển dữ liệu sang response DTO.
             var teamIds = rankedTeams.Select(r => r.TeamId).ToList();
             var teams = await _unitOfWork
                 .GetRepository<Team>()
@@ -889,6 +898,37 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
+        /// Chuyển các đội không có bài nộp hợp lệ sang trạng thái bị loại sau khi Ranking đã lưu điểm 0.
+        /// </summary>
+        private async Task DisqualifyTeamsWithoutValidSubmissionAsync(
+            IReadOnlyCollection<Guid> teamIdsWithoutValidSubmission,
+            Round round,
+            DateTime now)
+        {
+            if (!teamIdsWithoutValidSubmission.Any())
+                return;
+
+            var teams = await _unitOfWork
+                .GetRepository<Team>()
+                .GetAllAsync(team =>
+                    teamIdsWithoutValidSubmission.Contains(team.Id)
+                    && !team.IsDeleted
+                    && team.Status != TeamConstants.Status.Disqualified);
+
+            foreach (var team in teams)
+            {
+                // Ranking phải lưu 0 điểm trước, sau đó mới đánh dấu loại để không mất dữ liệu xếp hạng.
+                team.Status = TeamConstants.Status.Disqualified;
+                team.DisqualifyReason = $"Không có bài nộp hợp lệ ở vòng thi {round.Name}.";
+                team.UpdatedAt = now;
+
+                _unitOfWork.GetRepository<Team>().Update(team);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
         /// Tìm hạng đồng hạng đang nằm đúng tại ranh giới chọn đội đi tiếp.
         /// </summary>
         private static int? GetUnresolvedAdvancingRank(
@@ -909,6 +949,37 @@ namespace SealHackathon.Application.Services.Implementations
             return lastSelectedTeam.Rank == firstExcludedTeam.Rank
                 ? lastSelectedTeam.Rank
                 : null;
+        }
+
+        /// <summary>
+        /// Tìm các hạng đồng điểm cần tạo tie-break vì ảnh hưởng đội đi tiếp hoặc Top 3 chung cuộc.
+        /// </summary>
+        private static List<int> GetImportantTieRanks(
+            IReadOnlyList<(Guid TeamId, double TotalScore, int Rank)> rankedTeams,
+            int? advancingSlots)
+        {
+            var importantTieRanks = new List<int>();
+            var unresolvedAdvancingRank = GetUnresolvedAdvancingRank(
+                rankedTeams,
+                advancingSlots);
+
+            if (unresolvedAdvancingRank.HasValue)
+                importantTieRanks.Add(unresolvedAdvancingRank.Value);
+
+            if (!advancingSlots.HasValue)
+            {
+                // Final Round không có đội đi tiếp, nên chỉ cần khóa tie trong Top 3 để công bố Event/Prize.
+                importantTieRanks.AddRange(rankedTeams
+                    .Where(team => team.Rank <= 3)
+                    .GroupBy(team => team.Rank)
+                    .Where(group => group.Count() > 1)
+                    .Select(group => group.Key));
+            }
+
+            return importantTieRanks
+                .Distinct()
+                .OrderBy(rank => rank)
+                .ToList();
         }
 
         /// <summary>

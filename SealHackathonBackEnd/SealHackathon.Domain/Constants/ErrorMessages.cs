@@ -147,6 +147,7 @@ namespace SealHackathon.Domain.Constants
             public const string RoundHasNoCriteria = "Round này chưa có tiêu chí chấm điểm. Vui lòng tạo tiêu chí trước khi tính xếp hạng.";
             public const string CriteriaWeightTotalInvalid = "Tổng trọng số của các tiêu chí phải bằng 100% trước khi tính ranking.";
             public const string RoundHasNoValidSubmissions = "Round này không có bài nộp hợp lệ hoặc tất cả bài nộp đã bị loại.";
+            public const string RoundHasNoAssignedTeams = "Round này chưa có đội được phân công tham gia, không thể tính ranking.";
             public const string CriterionConfigNotFound = "Không tìm thấy cấu hình tiêu chí chấm điểm khi tính xếp hạng.";
             public const string CriterionMaxScoreInvalid = Criterion.MaxScoreInvalid;
             public const string NoAssignedJudges = "Round này chưa có giám khảo hợp lệ được phân công để tính xếp hạng.";
@@ -165,6 +166,27 @@ namespace SealHackathon.Domain.Constants
             public const string FinalRoundRankingNotFound = "Vòng chung kết chưa có kết quả Ranking.";
             public const string RoundNotClosedForExport = "Chỉ được xuất báo cáo Ranking sau khi Round đã đóng.";
             public const string RankingReportNotFound = "Round chưa có dữ liệu Ranking để xuất báo cáo.";
+        }
+
+        public static class TieBreak
+        {
+            public const string SessionNotFound = "Không tìm thấy phiên tie-break.";
+            public const string SessionAlreadyExists = "Đã có phiên tie-break đang mở cho nhóm đồng hạng này.";
+            public const string SessionNotPending = "Phiên tie-break không còn ở trạng thái chờ chấm.";
+            public const string SubmissionNotInSession = "Bài nộp không thuộc phiên tie-break này.";
+            public const string AlreadyScored = "Bạn đã chấm tiêu chí này trong phiên tie-break.";
+            public const string InvalidScoreRange = "Điểm chấm tie-break không hợp lệ.";
+            public const string ScoresNotCompleted = "Chưa đủ điểm tie-break cho tất cả giám khảo, tiêu chí và bài nộp.";
+            public const string ResultStillTied = "Kết quả tie-break vẫn còn đồng hạng. Cần chấm lại hoặc xử lý thủ công.";
+            public const string ScoreRecordNotFound = "Không tìm thấy điểm chấm tie-break.";
+            public const string JudgeNoUpdatePermission = "Bạn chỉ được chỉnh sửa điểm tie-break do chính bạn đã chấm.";
+            public const string CriterionNotInSessionRound = "Tiêu chí không thuộc Round của phiên tie-break.";
+
+            public const string InvalidRankPosition = "Hạng cần xử lý tie-break không hợp lệ.";
+            public const string TieBreakGroupNotFound = "Không tìm thấy nhóm đội đồng hạng ở hạng này.";
+            public const string TieBreakSubmissionMissing = "Không tìm thấy đủ bài nộp hợp lệ của các đội đồng hạng.";
+            public const string JudgeNotAssignedToSession = "Bạn không được phân công chấm phiên tie-break này.";
+            public const string RoundNotInScoring = "Chỉ được tạo phiên tie-break khi Round đang ở trạng thái Scoring.";
         }
 
         public static class Prize

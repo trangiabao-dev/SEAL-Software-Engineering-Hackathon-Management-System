@@ -50,6 +50,12 @@ public partial class SealDbContext : DbContext
 
     public virtual DbSet<TeamMember> TeamMembers { get; set; } = null!;
 
+    public virtual DbSet<TieBreakScoreRecord> TieBreakScoreRecords { get; set; } = null!;
+
+    public virtual DbSet<TieBreakSession> TieBreakSessions { get; set; } = null!;
+
+    public virtual DbSet<TieBreakSubmission> TieBreakSubmissions { get; set; } = null!;
+
     public virtual DbSet<Topic> Topics { get; set; } = null!;
 
     public virtual DbSet<Track> Tracks { get; set; } = null!;
@@ -459,6 +465,85 @@ public partial class SealDbContext : DbContext
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Submissio__TeamI__7B5B524B");
+        });
+
+        modelBuilder.Entity<TieBreakScoreRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_TieBreakScoreRecord");
+
+            entity.ToTable("TieBreakScoreRecord");
+
+            entity.HasIndex(e => e.JudgeId, "IX_TieBreakScoreRecord_JudgeId");
+
+            entity.HasIndex(e => new { e.TieBreakSubmissionId, e.JudgeId, e.CriterionId }, "UQ_TieBreakScoreRecord").IsUnique();
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.ScoredAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.Criterion).WithMany()
+                .HasForeignKey(d => d.CriterionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakScoreRecord_Criterion");
+
+            entity.HasOne(d => d.Judge).WithMany()
+                .HasForeignKey(d => d.JudgeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakScoreRecord_Judge");
+
+            entity.HasOne(d => d.TieBreakSubmission).WithMany(p => p.TieBreakScoreRecords)
+                .HasForeignKey(d => d.TieBreakSubmissionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakScoreRecord_TieBreakSubmission");
+        });
+
+        modelBuilder.Entity<TieBreakSession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_TieBreakSession");
+
+            entity.ToTable("TieBreakSession");
+
+            entity.HasIndex(e => new { e.RoundId, e.RankPosition, e.Status }, "IX_TieBreakSession_Round_Rank_Status");
+
+            // Chỉ cho phép một phiên tie-break đang mở cho cùng Round và cùng hạng đồng hạng.
+            entity.HasIndex(e => new { e.RoundId, e.RankPosition }, "UQ_TieBreakSession_Open_Round_Rank")
+                .IsUnique()
+                .HasFilter("[Status] = 'PendingScoring'");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasDefaultValue("PendingScoring");
+
+            entity.HasOne(d => d.Round).WithMany()
+                .HasForeignKey(d => d.RoundId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakSession_Round");
+        });
+
+        modelBuilder.Entity<TieBreakSubmission>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_TieBreakSubmission");
+
+            entity.ToTable("TieBreakSubmission");
+
+            entity.HasIndex(e => e.SubmissionId, "IX_TieBreakSubmission_SubmissionId");
+
+            entity.HasIndex(e => new { e.TieBreakSessionId, e.SubmissionId }, "UQ_TieBreakSubmission_Session_Submission").IsUnique();
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.Submission).WithMany()
+                .HasForeignKey(d => d.SubmissionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakSubmission_Submission");
+
+            entity.HasOne(d => d.TieBreakSession).WithMany(p => p.TieBreakSubmissions)
+                .HasForeignKey(d => d.TieBreakSessionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TieBreakSubmission_TieBreakSession");
         });
 
         modelBuilder.Entity<Team>(entity =>
