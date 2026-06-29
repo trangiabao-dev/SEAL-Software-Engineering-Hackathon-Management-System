@@ -40,7 +40,9 @@ IF NOT EXISTS (
       AND object_id = OBJECT_ID(N'dbo.Track')
 )
 BEGIN
-    CREATE UNIQUE NONCLUSTERED INDEX UQ_Track_Event_Final
-    ON dbo.Track(EventId)
-    WHERE IsFinal = 1 AND IsDeleted = 0;
+    -- SQL Server compile ca batch truoc khi cot moi visible, nen can dynamic SQL cho cau lenh dung IsFinal.
+    EXEC sp_executesql N'
+        CREATE UNIQUE NONCLUSTERED INDEX UQ_Track_Event_Final
+        ON dbo.Track(EventId)
+        WHERE IsFinal = 1 AND IsDeleted = 0;';
 END;
