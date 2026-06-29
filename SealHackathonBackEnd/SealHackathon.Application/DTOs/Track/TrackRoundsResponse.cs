@@ -7,6 +7,7 @@ namespace SealHackathon.Application.DTOs.Track
     {
         public int TrackId { get; set; }
         public string TrackName { get; set; } = null!;
+        public bool IsFinal { get; set; }
         public string EventName { get; set; } = null!;
         public List<RoundTimelineDto> Rounds { get; set; } = new List<RoundTimelineDto>();
     }
