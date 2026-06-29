@@ -236,6 +236,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
+                    CurrentTeamCount = 0,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,
@@ -594,6 +595,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
+                    CurrentTeamCount = 0,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,

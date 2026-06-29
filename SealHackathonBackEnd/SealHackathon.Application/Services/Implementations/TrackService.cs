@@ -33,7 +33,7 @@ namespace SealHackathon.Application.Services.Implementations
             if (eventExists == null) throw new NotFoundException($"Không tìm thấy Event với ID {eventId}");
 
             // Bước 2: Kéo toàn bộ danh sách Track thỏa mãn điều kiện EventId và chưa bị xóa
-            var tracks = await _uow.GetRepository<Track>().GetAllAsync(x => x.EventId == eventId && !x.IsDeleted);
+            var tracks = await _uow.GetRepository<Track>().GetAllWithIncludeAsync(x => x.EventId == eventId && !x.IsDeleted, x => x.Teams);
             
             // Bước 3: Đóng gói dữ liệu sang DTO (Data Transfer Object) để Frontend dễ đọc
             var response = tracks.Select(t => new TrackResponse
@@ -44,6 +44,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = t.Description,
                 MaxTeams = t.MaxTeams, // Số đội tối đa được phép thi ở bảng này
                 MaxMembers = t.MaxMembers,
+                CurrentTeamCount = t.Teams != null ? t.Teams.Count(tm => !tm.IsDeleted) : 0,
                 IsDeleted = t.IsDeleted
             }).ToList();
 
@@ -82,6 +83,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = newTrack.Description,
                 MaxTeams = newTrack.MaxTeams,
                 MaxMembers = newTrack.MaxMembers,
+                CurrentTeamCount = 0,
                 IsDeleted = newTrack.IsDeleted
             };
 
@@ -114,6 +116,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = existingTrack.Description,
                 MaxTeams = existingTrack.MaxTeams,
                 MaxMembers = existingTrack.MaxMembers,
+                CurrentTeamCount = await _uow.GetRepository<Team>().CountAsync(t => t.TrackId == existingTrack.Id && !t.IsDeleted),
                 IsDeleted = existingTrack.IsDeleted
             };
 

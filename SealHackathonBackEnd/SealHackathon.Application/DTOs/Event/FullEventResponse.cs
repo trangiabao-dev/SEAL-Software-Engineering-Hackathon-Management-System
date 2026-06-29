@@ -23,6 +23,7 @@ namespace SealHackathon.Application.DTOs.Event
         public string? Description { get; set; }
         public int? MaxTeams { get; set; }
         public int? MaxMembers { get; set; }
+        public int CurrentTeamCount { get; set; }
         public List<FullRoundResponse> Rounds { get; set; } = new();
     }
 
