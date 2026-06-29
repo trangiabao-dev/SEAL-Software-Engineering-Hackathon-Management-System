@@ -63,17 +63,6 @@ namespace SealHackathon.Application.Services.Implementations
                 () => CalculateRankingCoreAsync(roundId));
         }
 
-        /// <summary>
-        /// Lưu thứ tự chính thức của nhóm đồng hạng sau khi Judge xét tiêu chí phụ.
-        /// </summary>
-        public Task<RankingLeaderboardResponse> ResolveTieAsync(
-            int roundId,
-            ResolveRankingTieRequest request)
-        {
-            return ExecuteWithRoundRankingLockAsync(
-                roundId,
-                () => ResolveTieCoreAsync(roundId, request));
-        }
 
         /// <summary>
         /// Chạy logic tính ranking thật sự sau khi đã giữ khóa theo Round.
@@ -324,110 +313,6 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
 
-        /// <summary>
-        /// Cập nhật RankPosition và IsAdvancing của nhóm đồng hạng theo thứ tự đã được xác nhận.
-        /// </summary>
-        private async Task<RankingLeaderboardResponse> ResolveTieCoreAsync(
-            int roundId,
-            ResolveRankingTieRequest request)
-        {
-            if (request.OrderedTeamIds.Count < 2)
-            {
-                throw new BadRequestException(
-                    ErrorMessages.Ranking.TieBreakRequiresMultipleTeams);
-            }
-
-            if (request.OrderedTeamIds.Distinct().Count()
-                != request.OrderedTeamIds.Count)
-            {
-                throw new BadRequestException(
-                    ErrorMessages.Ranking.TieBreakTeamDuplicated);
-            }
-
-            var round = await _unitOfWork
-                .GetRepository<Round>()
-                .GetFirstOrDefaultAsync(entity => entity.Id == roundId);
-
-            if (round is null)
-                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
-
-            var rankingRepository =
-                _unitOfWork.GetRepository<Domain.Entities.Ranking>();
-
-            // GetAllAsync trả entity no-tracking nên phải gọi Update trước SaveChangesAsync.
-            var rankings = await rankingRepository
-                .GetAllAsync(ranking => ranking.RoundId == roundId);
-
-            if (!rankings.Any())
-                throw new NotFoundException(ErrorMessages.Ranking.NotFound);
-
-            var requestedTeamIdSet = request.OrderedTeamIds.ToHashSet();
-            var selectedRankings = rankings
-                .Where(ranking => requestedTeamIdSet.Contains(ranking.TeamId))
-                .ToList();
-
-            if (selectedRankings.Count != request.OrderedTeamIds.Count)
-            {
-                throw new BadRequestException(
-                    ErrorMessages.Ranking.TieBreakTeamNotInRanking);
-            }
-
-            var tiedRankPosition = selectedRankings[0].RankPosition;
-
-            if (selectedRankings.Any(
-                    ranking => ranking.RankPosition != tiedRankPosition))
-            {
-                throw new BadRequestException(
-                    ErrorMessages.Ranking.TieBreakTeamsNotSameRank);
-            }
-
-            var completeTieTeamIdSet = rankings
-                .Where(ranking => ranking.RankPosition == tiedRankPosition)
-                .Select(ranking => ranking.TeamId)
-                .ToHashSet();
-
-            // Bắt buộc gửi đủ nhóm tie để tránh chỉ xử lý một phần và làm sai thứ hạng.
-            if (!completeTieTeamIdSet.SetEquals(requestedTeamIdSet))
-            {
-                throw new BadRequestException(
-                    ErrorMessages.Ranking.TieBreakGroupIncomplete);
-            }
-
-            var rankingByTeamId = selectedRankings.ToDictionary(
-                ranking => ranking.TeamId);
-
-            for (var index = 0; index < request.OrderedTeamIds.Count; index++)
-            {
-                var teamId = request.OrderedTeamIds[index];
-                rankingByTeamId[teamId].RankPosition = tiedRankPosition + index;
-            }
-
-            var orderedRankings = rankings
-                .OrderBy(ranking => ranking.RankPosition)
-                .Select(ranking => (
-                    ranking.TeamId,
-                    ranking.TotalScore,
-                    Rank: ranking.RankPosition))
-                .ToList();
-
-            var unresolvedAdvancingRank = GetUnresolvedAdvancingRank(
-                orderedRankings,
-                round.AdvancingSlots);
-
-            foreach (var ranking in rankings)
-            {
-                // Nếu vẫn còn tie tại cutoff, toàn bộ đội phải chờ trước khi Round tiếp theo được mở.
-                ranking.IsAdvancing = round.AdvancingSlots.HasValue
-                    && !unresolvedAdvancingRank.HasValue
-                    && ranking.RankPosition <= round.AdvancingSlots.Value;
-
-                rankingRepository.Update(ranking);
-            }
-
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetLeaderboardByRoundAsync(roundId);
-        }
 
         /// <summary>
         /// Lấy bảng xếp hạng đã tính của 1 round từ database, không tính lại.
@@ -468,35 +353,6 @@ namespace SealHackathon.Application.Services.Implementations
             return BuildLeaderboardResponse(round, rankings, teamNameById);
         }
 
-        /// <summary>
-        /// Lấy Ranking chính thức của vòng chung kết thuộc một Track.
-        /// </summary>
-        public async Task<TrackFinalRankingResponse> GetLeaderboardByTrackAsync(int trackId)
-        {
-            var track = await _unitOfWork
-                .GetRepository<Track>()
-                .GetFirstOrDefaultAsync(entity => entity.Id == trackId && !entity.IsDeleted);
-
-            if (track is null)
-                throw new NotFoundException(ErrorMessages.Common.TrackNotFound);
-
-            var rounds = await _unitOfWork
-                .GetRepository<Round>()
-                .GetAllAsync(round => round.TrackId == track.Id);
-
-            var finalRound = FinalRoundRules.GetFinalRound(track.Id, rounds);
-            EnsureFinalRoundClosed(finalRound);
-
-            var leaderboard = await GetLeaderboardByRoundAsync(finalRound.Id);
-            EnsureLeaderboardCalculated(leaderboard);
-
-            return new TrackFinalRankingResponse
-            {
-                TrackId = track.Id,
-                TrackName = track.Name,
-                FinalRoundRanking = leaderboard
-            };
-        }
 
         /// <summary>
         /// Lấy Ranking chung cuộc của Event từ Final Round thuộc Track Final.

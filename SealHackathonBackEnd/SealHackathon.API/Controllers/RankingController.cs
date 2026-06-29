@@ -34,21 +34,6 @@ namespace SealHackathon.API.Controllers
                 result, "Tính ranking thành công."));
         }
 
-        /// <summary>
-        /// Coordinator ghi nhận thứ tự tie-break đã được hội đồng Judge thống nhất.
-        /// </summary>
-        [HttpPut("rounds/{roundId}/tie-break")]
-        [Authorize(Roles = RoleConstants.Coordinator)]
-        public async Task<IActionResult> ResolveTie(
-            int roundId,
-            [FromBody] ResolveRankingTieRequest request)
-        {
-            var result = await _rankingService.ResolveTieAsync(roundId, request);
-
-            return Ok(ApiResponse<RankingLeaderboardResponse>.SuccessResult(
-                result,
-                "Xử lý đồng hạng thành công."));
-        }
 
         /// <summary>
         /// Lấy bảng xếp hạng đã tính của 1 vòng thi — đọc từ DB, không tính lại.
@@ -62,18 +47,6 @@ namespace SealHackathon.API.Controllers
                 result, "Lấy bảng xếp hạng thành công."));
         }
 
-        /// <summary>
-        /// Lấy bảng xếp hạng chính thức của vòng chung kết thuộc một Track.
-        /// </summary>
-        [HttpGet("tracks/{trackId:int}")]
-        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
-        public async Task<IActionResult> GetTrackLeaderboard(int trackId)
-        {
-            var result = await _rankingService.GetLeaderboardByTrackAsync(trackId);
-
-            return Ok(ApiResponse<TrackFinalRankingResponse>.SuccessResult(
-                result, "Lấy bảng xếp hạng Track thành công."));
-        }
 
         /// <summary>
         /// Lấy bảng xếp hạng chung cuộc của Event từ Final Round thuộc Track Final.
