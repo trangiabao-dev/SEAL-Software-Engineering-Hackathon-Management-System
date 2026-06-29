@@ -9,11 +9,8 @@ namespace SealHackathon.Application.DTOs.Track
         public string? Description { get; set; }
         public int? MaxTeams { get; set; }
         public int? MaxMembers { get; set; }
-<<<<<<< Updated upstream
         public int CurrentTeamCount { get; set; }
-=======
         public bool IsFinal { get; set; }
->>>>>>> Stashed changes
         public bool IsDeleted { get; set; }
     }
 }

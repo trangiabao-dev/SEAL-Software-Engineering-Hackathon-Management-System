@@ -238,11 +238,8 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
-<<<<<<< Updated upstream
                     CurrentTeamCount = 0,
-=======
                     IsFinal = tr.IsFinal,
->>>>>>> Stashed changes
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,
@@ -620,11 +617,8 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
-<<<<<<< Updated upstream
                     CurrentTeamCount = 0,
-=======
                     IsFinal = tr.IsFinal,
->>>>>>> Stashed changes
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,

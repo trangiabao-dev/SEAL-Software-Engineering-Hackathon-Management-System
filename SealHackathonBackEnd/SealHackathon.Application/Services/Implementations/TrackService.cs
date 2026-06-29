@@ -44,11 +44,8 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = t.Description,
                 MaxTeams = t.MaxTeams, // Số đội tối đa được phép thi ở bảng này
                 MaxMembers = t.MaxMembers,
-<<<<<<< Updated upstream
                 CurrentTeamCount = t.Teams != null ? t.Teams.Count(tm => !tm.IsDeleted) : 0,
-=======
                 IsFinal = t.IsFinal,
->>>>>>> Stashed changes
                 IsDeleted = t.IsDeleted
             }).ToList();
 
@@ -90,11 +87,8 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = newTrack.Description,
                 MaxTeams = newTrack.MaxTeams,
                 MaxMembers = newTrack.MaxMembers,
-<<<<<<< Updated upstream
                 CurrentTeamCount = 0,
-=======
                 IsFinal = newTrack.IsFinal,
->>>>>>> Stashed changes
                 IsDeleted = newTrack.IsDeleted
             };
 
@@ -130,11 +124,8 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = existingTrack.Description,
                 MaxTeams = existingTrack.MaxTeams,
                 MaxMembers = existingTrack.MaxMembers,
-<<<<<<< Updated upstream
                 CurrentTeamCount = await _uow.GetRepository<Team>().CountAsync(t => t.TrackId == existingTrack.Id && !t.IsDeleted),
-=======
                 IsFinal = existingTrack.IsFinal,
->>>>>>> Stashed changes
                 IsDeleted = existingTrack.IsDeleted
             };
 
