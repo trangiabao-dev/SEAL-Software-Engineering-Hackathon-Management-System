@@ -17,6 +17,11 @@ public partial class Track
 
     public int? MaxMembers { get; set; }
 
+    /// <summary>
+    /// Xác định Track này là Track Final dùng để gom các đội vượt qua vòng loại.
+    /// </summary>
+    public bool IsFinal { get; set; }
+
     public bool IsDeleted { get; set; }
 
     public DateTime CreatedAt { get; set; }

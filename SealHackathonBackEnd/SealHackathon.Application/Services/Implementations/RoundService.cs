@@ -625,14 +625,15 @@ namespace SealHackathon.Application.Services.Implementations
             var track = await _uow.GetRepository<Track>()
                 .GetFirstOrDefaultAsync(t => t.Id == round.TrackId && !t.IsDeleted);
 
-            bool isFinalTrack = track != null && 
-                                (track.Name.Contains("final", StringComparison.OrdinalIgnoreCase) || 
-                                 track.Name.Contains("chung kết", StringComparison.OrdinalIgnoreCase));
+            var isFinalTrack = track?.IsFinal == true;
 
             if (isFinalTrack)
             {
                 var otherTracks = await _uow.GetRepository<Track>()
-                    .GetAllAsync(t => t.EventId == track!.EventId && t.Id != track.Id && !t.IsDeleted);
+                    .GetAllAsync(t => t.EventId == track!.EventId
+                                      && t.Id != track.Id
+                                      && !t.IsFinal
+                                      && !t.IsDeleted);
 
                 var qualifiedTeams = new List<Team>();
 

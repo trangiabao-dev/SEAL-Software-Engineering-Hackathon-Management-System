@@ -170,6 +170,11 @@ namespace SealHackathon.Domain.Constants
             public const string RankingReportNotFound = "Round chưa có dữ liệu Ranking để xuất báo cáo.";
         }
 
+        public static class Track
+        {
+            public const string OnlyOneFinalTrackAllowed = "Event chỉ được có một Track Final.";
+        }
+
         public static class TieBreak
         {
             public const string SessionNotFound = "Không tìm thấy phiên tie-break.";

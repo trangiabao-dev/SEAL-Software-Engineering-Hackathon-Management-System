@@ -36,6 +36,8 @@ namespace SealHackathon.Application.DTOs.Event
         
         public int? MaxMembers { get; set; }
 
+        public bool IsFinal { get; set; }
+
         public List<CreateFullEventRoundDto> Rounds { get; set; } = new();
     }
 

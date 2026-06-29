@@ -669,7 +669,12 @@ public partial class SealDbContext : DbContext
 
             entity.ToTable("Track");
 
+            entity.HasIndex(e => e.EventId, "UQ_Track_Event_Final")
+                .IsUnique()
+                .HasFilter("[IsFinal] = 1 AND [IsDeleted] = 0");
+
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.IsFinal).HasDefaultValue(false);
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
 

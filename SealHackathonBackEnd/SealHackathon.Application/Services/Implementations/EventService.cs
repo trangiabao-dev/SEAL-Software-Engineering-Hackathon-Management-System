@@ -150,6 +150,7 @@ namespace SealHackathon.Application.Services.Implementations
         public async Task<ApiResponse<FullEventResponse>> CreateFullEventAsync(CreateFullEventRequest request)
         {
             await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Registration);
+            EnsureSingleFinalTrackRequest(request.Tracks);
 
             // 1. Tạo Event gốc
             var newEvent = new Event
@@ -184,6 +185,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = trackDto.Description,
                     MaxTeams = trackDto.MaxTeams,
                     MaxMembers = trackDto.MaxMembers,
+                    IsFinal = trackDto.IsFinal,
                     CreatedAt = DateTime.UtcNow,
                     IsDeleted = false,
                     Rounds = new List<Round>()
@@ -235,6 +237,7 @@ namespace SealHackathon.Application.Services.Implementations
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
                     CurrentTeamCount = 0,
+                    IsFinal = tr.IsFinal,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,
@@ -296,11 +299,19 @@ namespace SealHackathon.Application.Services.Implementations
                 var tracks = await _uow.GetRepository<Track>().GetAllAsync(t => t.EventId == id && !t.IsDeleted);
                 if (tracks.Any())
                 {
-                    var trackIds = tracks.Select(t => t.Id).ToList();
+                    var finalTracks = tracks.Where(t => t.IsFinal).ToList();
+
+                    if (finalTracks.Count == 0)
+                        throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackNotFound);
+
+                    if (finalTracks.Count > 1)
+                        throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackDuplicated);
+
+                    var trackIds = finalTracks.Select(t => t.Id).ToList();
                     var allRounds = await _uow.GetRepository<Round>().GetAllAsync(r => trackIds.Contains(r.TrackId));
                     var rankingsRepo = _uow.GetRepository<Domain.Entities.Ranking>();
 
-                    foreach (var track in tracks)
+                    foreach (var track in finalTracks)
                     {
                         var finalRound = allRounds
                             .Where(r => r.TrackId == track.Id && r.AdvancingSlots == null)
@@ -427,6 +438,16 @@ namespace SealHackathon.Application.Services.Implementations
             return ApiResponse<bool>.SuccessResult(true, "Xóa Event thành công.");
         }
 
+        /// <summary>
+        /// Đảm bảo request tạo Event không cấu hình nhiều hơn một Track Final.
+        /// </summary>
+        private static void EnsureSingleFinalTrackRequest(IEnumerable<CreateFullEventTrackDto> tracks)
+        {
+            // Event chỉ có một Track Final để gom các đội vượt qua vòng loại và tính Ranking chung cuộc.
+            if (tracks.Count(track => track.IsFinal) > 1)
+                throw new BadRequestException(ErrorMessages.Track.OnlyOneFinalTrackAllowed);
+        }
+
         private static string NormalizeEventStatus(string status)
         {
             if (string.IsNullOrWhiteSpace(status))
@@ -524,6 +545,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = oldTrack.Name,
                     Description = oldTrack.Description,
                     MaxMembers = oldTrack.MaxMembers,
+                    IsFinal = oldTrack.IsFinal,
                     MaxTeams = oldTrack.MaxTeams, // Đã bổ sung clone cả MaxTeams
                     IsDeleted = false,
                     CreatedAt = DateTime.UtcNow,
@@ -594,6 +616,7 @@ namespace SealHackathon.Application.Services.Implementations
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
                     CurrentTeamCount = 0,
+                    IsFinal = tr.IsFinal,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
                     {
                         Id = r.Id,

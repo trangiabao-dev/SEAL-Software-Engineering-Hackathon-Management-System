@@ -45,6 +45,7 @@ namespace SealHackathon.Application.Services.Implementations
                 MaxTeams = t.MaxTeams, // Số đội tối đa được phép thi ở bảng này
                 MaxMembers = t.MaxMembers,
                 CurrentTeamCount = t.Teams != null ? t.Teams.Count(tm => !tm.IsDeleted) : 0,
+                IsFinal = t.IsFinal,
                 IsDeleted = t.IsDeleted
             }).ToList();
 
@@ -59,6 +60,8 @@ namespace SealHackathon.Application.Services.Implementations
             if (eventExists == null) throw new NotFoundException($"Không tìm thấy Event với ID {request.EventId}");
 
             // Bước 2: Khởi tạo một đối tượng Track mới
+            await EnsureSingleFinalTrackAsync(request.EventId, request.IsFinal);
+
             var newTrack = new Track
             {
                 EventId = request.EventId, // Nối Track này vào Event
@@ -66,6 +69,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = request.Description,
                 MaxTeams = request.MaxTeams,
                 MaxMembers = request.MaxMembers,
+                IsFinal = request.IsFinal,
                 CreatedAt = DateTime.UtcNow, // Lấy thời gian hệ thống
                 IsDeleted = false
             };
@@ -84,6 +88,7 @@ namespace SealHackathon.Application.Services.Implementations
                 MaxTeams = newTrack.MaxTeams,
                 MaxMembers = newTrack.MaxMembers,
                 CurrentTeamCount = 0,
+                IsFinal = newTrack.IsFinal,
                 IsDeleted = newTrack.IsDeleted
             };
 
@@ -98,10 +103,13 @@ namespace SealHackathon.Application.Services.Implementations
             if (existingTrack == null) throw new NotFoundException($"Không tìm thấy Track với ID {id}");
 
             // Bước 2: Cập nhật các trường thông tin mới từ Request
+            await EnsureSingleFinalTrackAsync(existingTrack.EventId, request.IsFinal, existingTrack.Id);
+
             existingTrack.Name = request.Name;
             existingTrack.Description = request.Description;
             existingTrack.MaxTeams = request.MaxTeams;
             existingTrack.MaxMembers = request.MaxMembers;
+            existingTrack.IsFinal = request.IsFinal;
             existingTrack.UpdatedAt = DateTime.UtcNow; // Ghi nhận thời điểm bị sửa
 
             // Bước 3: Ghi nhận sự thay đổi và lưu vào DB
@@ -117,6 +125,7 @@ namespace SealHackathon.Application.Services.Implementations
                 MaxTeams = existingTrack.MaxTeams,
                 MaxMembers = existingTrack.MaxMembers,
                 CurrentTeamCount = await _uow.GetRepository<Team>().CountAsync(t => t.TrackId == existingTrack.Id && !t.IsDeleted),
+                IsFinal = existingTrack.IsFinal,
                 IsDeleted = existingTrack.IsDeleted
             };
 
@@ -355,6 +364,7 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     TrackId = track.Id,
                     TrackName = track.Name,
+                    IsFinal = track.IsFinal,
                     EventName = ev?.Name ?? "Unknown Event",
                     Rounds = trackRounds
                 });
@@ -375,6 +385,25 @@ namespace SealHackathon.Application.Services.Implementations
             if (totalDuration <= 0) return 100;
             
             return (int)((elapsedDuration / totalDuration) * 100);
+        }
+
+        /// <summary>
+        /// Đảm bảo một Event chỉ có tối đa một Track Final đang hoạt động.
+        /// </summary>
+        private async Task EnsureSingleFinalTrackAsync(int eventId, bool isFinal, int? currentTrackId = null)
+        {
+            if (!isFinal)
+                return;
+
+            // Check ở service giúp FE nhận lỗi rõ ràng; unique index trong database là lớp bảo vệ cuối cùng.
+            var existingFinalTrack = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(track => track.EventId == eventId
+                                                 && track.IsFinal
+                                                 && !track.IsDeleted
+                                                 && (!currentTrackId.HasValue || track.Id != currentTrackId.Value));
+
+            if (existingFinalTrack is not null)
+                throw new BadRequestException(ErrorMessages.Track.OnlyOneFinalTrackAllowed);
         }
 
         private async Task CheckMentorCanManageTrackAsync(Track track, Guid mentorId)

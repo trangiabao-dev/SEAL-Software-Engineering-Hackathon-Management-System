@@ -808,12 +808,12 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Tìm Track Final duy nhất của Event theo convention hiện tại của Dev 1.
+        /// Tìm Track Final duy nhất của Event để lấy Ranking chung cuộc.
         /// </summary>
         private static Track GetEventFinalTrack(IReadOnlyCollection<Track> tracks)
         {
             var finalTracks = tracks
-                .Where(IsFinalTrack)
+                .Where(track => track.IsFinal)
                 .ToList();
 
             if (finalTracks.Count == 0)
@@ -823,17 +823,6 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackDuplicated);
 
             return finalTracks[0];
-        }
-
-        /// <summary>
-        /// Nhận diện Track Final theo tên vì Track hiện chưa có field IsFinal hoặc TrackType.
-        /// </summary>
-        private static bool IsFinalTrack(Track track)
-        {
-            // Convention này đang khớp với RoundService: Track Final phải có tên chứa final/chung kết.
-            return track.Name.Contains("final", StringComparison.OrdinalIgnoreCase)
-                   || track.Name.Contains("chung kết", StringComparison.OrdinalIgnoreCase)
-                   || track.Name.Contains("chung ket", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
