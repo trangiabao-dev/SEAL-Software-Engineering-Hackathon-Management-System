@@ -23,6 +23,17 @@ namespace SealHackathon.Application.Services.Implementations
             if (roundExists == null) throw new NotFoundException($"Không tìm thấy Round với ID {roundId}");
 
             var topics = await _uow.GetRepository<Topic>().GetAllAsync(x => x.RoundId == roundId);
+            
+            // Logic Fallback: Nếu không có đề riêng cho Round này, lấy đề chung của Event
+            if (!topics.Any())
+            {
+                var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == roundExists.TrackId);
+                if (track != null)
+                {
+                    topics = await _uow.GetRepository<Topic>().GetAllAsync(x => x.EventId == track.EventId && x.RoundId == null);
+                }
+            }
+
             var response = topics.Select(t => new TopicResponse
             {
                 Id = t.Id,

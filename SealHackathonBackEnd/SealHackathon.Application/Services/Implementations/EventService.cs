@@ -161,7 +161,18 @@ namespace SealHackathon.Application.Services.Implementations
                 Status = EventConstants.Status.Registration,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
-                Tracks = new List<Track>() // Khởi tạo List để add
+                Tracks = new List<Track>(), // Khởi tạo List để add
+                Topics = new List<Topic>
+                {
+                    new Topic
+                    {
+                        Title = request.Topic.Name,
+                        Description = request.Topic.Description,
+                        Requirements = request.Topic.Requirements,
+                        AttachmentUrl = request.Topic.AttachmentUrl,
+                        CreatedAt = DateTime.UtcNow
+                    }
+                }
             };
 
             // 2. Lặp qua các Track
@@ -194,19 +205,6 @@ namespace SealHackathon.Application.Services.Implementations
                         Topics = new List<Topic>()
                     };
 
-                    // 4. Gán 1 Topic chung cho vòng thi đầu tiên (Round 1) của Track
-                    if (newRound.OrderIndex == 1)
-                    {
-                        var newTopic = new Topic
-                        {
-                            Title = request.Topic.Name,
-                            Description = request.Topic.Description,
-                            Requirements = request.Topic.Requirements,
-                            AttachmentUrl = request.Topic.AttachmentUrl,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        newRound.Topics.Add(newTopic);
-                    }
                     newTrack.Rounds.Add(newRound);
                 }
                 newEvent.Tracks.Add(newTrack);

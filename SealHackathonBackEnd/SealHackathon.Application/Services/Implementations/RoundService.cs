@@ -563,6 +563,17 @@ namespace SealHackathon.Application.Services.Implementations
                     {
                         assignedTopic = await _uow.GetRepository<Topic>().GetFirstOrDefaultAsync(t => t.Id == team.TopicId.Value);
                     }
+
+                    // Fallback: Nếu vẫn chưa có Topic (vd vòng 1 không có đề riêng), dùng Đề chung của Event
+                    if (assignedTopic == null)
+                    {
+                        var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(tr => tr.Id == round.TrackId);
+                        if (track != null)
+                        {
+                            assignedTopic = await _uow.GetRepository<Topic>()
+                                .GetFirstOrDefaultAsync(t => t.EventId == track.EventId && t.RoundId == null);
+                        }
+                    }
                 }
 
                 if (assignedTopic == null)

@@ -650,9 +650,12 @@ public partial class SealDbContext : DbContext
                 .HasForeignKey(d => d.CreatedBy)
                 .HasConstraintName("FK__Topic__CreatedBy__60A75C0F");
 
+            entity.HasOne(d => d.Event).WithMany(p => p.Topics)
+                .HasForeignKey(d => d.EventId)
+                .HasConstraintName("FK_Topic_EventId");
+
             entity.HasOne(d => d.Round).WithMany(p => p.Topics)
                 .HasForeignKey(d => d.RoundId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Topic__RoundId__5DCAEF64");
 
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.TopicUpdatedByNavigations)

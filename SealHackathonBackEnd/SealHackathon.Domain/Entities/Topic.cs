@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SealHackathon.Domain.Entities;
@@ -7,7 +7,9 @@ public partial class Topic
 {
     public int Id { get; set; }
 
-    public int RoundId { get; set; }
+    public int? RoundId { get; set; }
+
+    public int? EventId { get; set; }
 
     public string Title { get; set; } = null!;
 
@@ -27,7 +29,9 @@ public partial class Topic
 
     public virtual Account? CreatedByNavigation { get; set; }
 
-    public virtual Round Round { get; set; } = null!;
+    public virtual Event? Event { get; set; }
+
+    public virtual Round? Round { get; set; }
 
     public virtual ICollection<RoundTeam> RoundTeams { get; set; } = new List<RoundTeam>();
 
