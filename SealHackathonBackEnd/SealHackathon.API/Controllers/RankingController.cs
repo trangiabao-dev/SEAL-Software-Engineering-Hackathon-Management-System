@@ -52,7 +52,7 @@ namespace SealHackathon.API.Controllers
         /// Lấy bảng xếp hạng chung cuộc của Event từ Final Round thuộc Track Final.
         /// </summary>
         [HttpGet("events/{eventId:int}")]
-        [AllowAnonymous]
+        [Authorize(Roles = RoleConstants.Coordinator + "," + RoleConstants.Judge + "," + RoleConstants.Leader)]
         public async Task<IActionResult> GetEventLeaderboard(int eventId)
         {
             var result = await _rankingService.GetLeaderboardByEventAsync(eventId);

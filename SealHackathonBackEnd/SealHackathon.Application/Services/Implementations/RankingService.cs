@@ -294,12 +294,21 @@ namespace SealHackathon.Application.Services.Implementations
             var teams = await _unitOfWork
                 .GetRepository<Team>()
                 .GetAllAsync(t => teamIds.Contains(t.Id));
-            var teamNameDict = teams.ToDictionary(t => t.Id, t => t.TeamName);
+            var teamById = teams.ToDictionary(team => team.Id);
 
             var rankingResponses = newRankings
-                .OrderBy(r => r.RankPosition)
-                .Select(r => MapToRankingResponse(
-                    r, round.Name, teamNameDict.GetValueOrDefault(r.TeamId, string.Empty)))
+                .OrderBy(ranking => ranking.RankPosition)
+                .Select(ranking =>
+                {
+                    // Ranking public cần đủ tên đội và trường đại học, nên map từ Team entity thay vì chỉ lấy TeamName.
+                    teamById.TryGetValue(ranking.TeamId, out var team);
+
+                    return MapToRankingResponse(
+                        ranking,
+                        round.Name,
+                        team?.TeamName ?? string.Empty,
+                        team?.University ?? string.Empty);
+                })
                 .ToList();
 
             return new RankingLeaderboardResponse
@@ -332,7 +341,7 @@ namespace SealHackathon.Application.Services.Implementations
                                   && !r.Team.IsDeleted
                                   && r.Team.Status != TeamConstants.Status.Disqualified);
 
-            var teamNameById = new Dictionary<Guid, string>();
+            var teamById = new Dictionary<Guid, Team>();
 
             if (rankings.Count > 0)
             {
@@ -345,12 +354,10 @@ namespace SealHackathon.Application.Services.Implementations
                     .GetRepository<Team>()
                     .GetAllAsync(team => teamIds.Contains(team.Id));
 
-                teamNameById = teams.ToDictionary(
-                    team => team.Id,
-                    team => team.TeamName);
+                teamById = teams.ToDictionary(team => team.Id);
             }
 
-            return BuildLeaderboardResponse(round, rankings, teamNameById);
+            return BuildLeaderboardResponse(round, rankings, teamById);
         }
 
 
@@ -372,15 +379,12 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetRepository<Track>()
                 .GetAllAsync(track => track.EventId == eventEntity.Id && !track.IsDeleted);
 
-            if (tracks.Count == 0)
-                throw new BadRequestException(ErrorMessages.Ranking.EventHasNoTracks);
-
-            var finalTrack = GetEventFinalTrack(tracks);
+            var finalTrack = EventFinalRoundRules.GetFinalTrack(tracks);
             var rounds = await _unitOfWork
                 .GetRepository<Round>()
                 .GetAllAsync(round => round.TrackId == finalTrack.Id);
 
-            var finalRound = FinalRoundRules.GetFinalRound(finalTrack.Id, rounds);
+            var finalRound = EventFinalRoundRules.GetFinalRound(finalTrack, rounds);
             EnsureFinalRoundClosed(finalRound);
 
             // Event Ranking chung cuộc chỉ lấy từ Final Round của Track Final,
@@ -399,11 +403,11 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetRepository<Team>()
                 .GetAllAsync(team => teamIds.Contains(team.Id));
 
-            var teamNameById = teams.ToDictionary(team => team.Id, team => team.TeamName);
+            var teamById = teams.ToDictionary(team => team.Id);
             var finalRoundRanking = BuildLeaderboardResponse(
                 finalRound,
                 rankings,
-                teamNameById);
+                teamById);
             EnsureLeaderboardCalculated(finalRoundRanking);
 
             var trackRankings = new List<TrackFinalRankingResponse>
@@ -531,7 +535,11 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException(ErrorMessages.Ranking.NotFound);
 
             // Bước 4: Chuyển dữ liệu sang response DTO.
-            return MapToRankingResponse(ranking, round.Name, team.TeamName);
+            return MapToRankingResponse(
+                ranking,
+                round.Name,
+                team.TeamName,
+                team.University);
         }
 
         // =============== Private helpers ===============
@@ -661,24 +669,6 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 throw new BadRequestException(ErrorMessages.Ranking.FinalRoundNotClosed);
             }
-        }
-
-        /// <summary>
-        /// Tìm Track Final duy nhất của Event để lấy Ranking chung cuộc.
-        /// </summary>
-        private static Track GetEventFinalTrack(IReadOnlyCollection<Track> tracks)
-        {
-            var finalTracks = tracks
-                .Where(track => track.IsFinal)
-                .ToList();
-
-            if (finalTracks.Count == 0)
-                throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackNotFound);
-
-            if (finalTracks.Count > 1)
-                throw new BadRequestException(ErrorMessages.Ranking.EventFinalTrackDuplicated);
-
-            return finalTracks[0];
         }
 
         /// <summary>
@@ -904,7 +894,7 @@ namespace SealHackathon.Application.Services.Implementations
         private static RankingLeaderboardResponse BuildLeaderboardResponse(
             Round round,
             IReadOnlyCollection<Domain.Entities.Ranking> rankings,
-            IReadOnlyDictionary<Guid, string> teamNameById)
+            IReadOnlyDictionary<Guid, Team> teamById)
         {
             if (rankings.Count == 0)
             {
@@ -921,12 +911,17 @@ namespace SealHackathon.Application.Services.Implementations
 
             var responses = rankings
                 .OrderBy(ranking => ranking.RankPosition)
-                .Select(ranking => MapToRankingResponse(
-                    ranking,
-                    round.Name,
-                    teamNameById.TryGetValue(ranking.TeamId, out var teamName)
-                        ? teamName
-                        : string.Empty))
+                .Select(ranking =>
+                {
+                    // Dùng Team entity để response Ranking có đủ TeamName và University cho mọi đội.
+                    teamById.TryGetValue(ranking.TeamId, out var team);
+
+                    return MapToRankingResponse(
+                        ranking,
+                        round.Name,
+                        team?.TeamName ?? string.Empty,
+                        team?.University ?? string.Empty);
+                })
                 .ToList();
 
             return new RankingLeaderboardResponse
@@ -944,13 +939,17 @@ namespace SealHackathon.Application.Services.Implementations
         /// Chuyển entity Ranking sang DTO trả về cho client.
         /// </summary>
         private static RankingResponse MapToRankingResponse(
-            Domain.Entities.Ranking ranking, string roundName, string teamName)
+            Domain.Entities.Ranking ranking,
+            string roundName,
+            string teamName,
+            string university)
         {
             return new RankingResponse
             {
                 Id = ranking.Id,
                 TeamId = ranking.TeamId,
                 TeamName = teamName,
+                University = university,
                 RoundId = ranking.RoundId,
                 RoundName = roundName,
                 TotalScore = ranking.TotalScore,

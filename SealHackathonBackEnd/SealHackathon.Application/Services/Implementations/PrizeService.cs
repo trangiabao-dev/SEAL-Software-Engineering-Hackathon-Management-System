@@ -117,11 +117,33 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của một Round.
+        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của Event.
         /// </summary>
-        public async Task<List<PrizeWinnerResponse>> GetWinnersByRoundAsync(int roundId)
+        public async Task<List<PrizeWinnerResponse>> GetWinnersByEventAsync(int eventId)
         {
-            var round = await GetRoundOrThrowAsync(roundId);
+            var finalRound = await GetEventFinalRoundOrThrowAsync(eventId);
+
+            // Prize Winners của Event luôn lấy từ Final Round chính thức.
+            return await GetWinnersByFinalRoundAsync(finalRound.Id);
+        }
+
+        /// <summary>
+        /// Xuất danh sách đội đạt giải của Event ra file XLSX.
+        /// </summary>
+        public async Task<byte[]> ExportWinnersByEventAsync(int eventId)
+        {
+            var finalRound = await GetEventFinalRoundOrThrowAsync(eventId);
+
+            // File Prize Winners của Event dùng lại dữ liệu top 1, 2, 3 từ Final Round.
+            return await ExportWinnersByFinalRoundAsync(finalRound.Id);
+        }
+
+        /// <summary>
+        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 từ Final Round chính thức.
+        /// </summary>
+        private async Task<List<PrizeWinnerResponse>> GetWinnersByFinalRoundAsync(int finalRoundId)
+        {
+            var round = await GetRoundOrThrowAsync(finalRoundId);
             var track = await GetTrackOrThrowAsync(round.TrackId);
             var eventEntity = await GetEventOrThrowAsync(track.EventId);
 
@@ -156,11 +178,11 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Xuất danh sách đội đạt giải của một Round ra file XLSX.
+        /// Xuất danh sách đội đạt giải của Final Round chính thức ra file XLSX.
         /// </summary>
-        public async Task<byte[]> ExportWinnersByRoundAsync(int roundId)
+        private async Task<byte[]> ExportWinnersByFinalRoundAsync(int finalRoundId)
         {
-            var winners = await GetWinnersByRoundAsync(roundId);
+            var winners = await GetWinnersByFinalRoundAsync(finalRoundId);
             var headers = new[]
             {
                 "PrizeId",
@@ -219,6 +241,25 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // =============== Private helpers ===============
+
+        /// <summary>
+        /// Tìm Final Round chính thức của Event để xác định Prize Winners.
+        /// </summary>
+        private async Task<Round> GetEventFinalRoundOrThrowAsync(int eventId)
+        {
+            var eventEntity = await GetEventOrThrowAsync(eventId);
+
+            var tracks = await _unitOfWork
+                .GetRepository<Track>()
+                .GetAllAsync(track => track.EventId == eventEntity.Id && !track.IsDeleted);
+
+            var finalTrack = EventFinalRoundRules.GetFinalTrack(tracks);
+            var rounds = await _unitOfWork
+                .GetRepository<Round>()
+                .GetAllAsync(round => round.TrackId == finalTrack.Id);
+
+            return EventFinalRoundRules.GetFinalRound(finalTrack, rounds);
+        }
 
         /// <summary>
         /// Đảm bảo chỉ Final Round đã đóng mới được xác định và xuất giải thưởng.

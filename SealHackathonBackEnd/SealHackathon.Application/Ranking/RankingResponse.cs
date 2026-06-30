@@ -14,6 +14,9 @@
         /// <summary>Tên team</summary>
         public string TeamName { get; set; } = string.Empty;
 
+        /// <summary>Trường đại học của team</summary>
+        public string University { get; set; } = string.Empty;
+
         /// <summary>ID vòng thi</summary>
         public int RoundId { get; set; }
 
