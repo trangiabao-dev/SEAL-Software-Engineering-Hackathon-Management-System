@@ -10,6 +10,10 @@ namespace SealHackathon.Application.Services.Interfaces
     {
         Task<ApiResponse<List<EventResponse>>> GetAllEventsAsync();
         Task<ApiResponse<EventResponse>> GetEventByIdAsync(int id);
+        
+        Task<ApiResponse<Common.Responses.PaginatedResponse<PublicEventResponse>>> GetPublicEventsAsync(int pageNumber, int pageSize, string? status, string? search, string? sortBy);
+        Task<ApiResponse<PublicEventResponse>> GetPublicEventByIdAsync(int id);
+        
         Task<ApiResponse<EventResponse>> GetActiveEventAsync();
         Task<ApiResponse<EventResponse>> CreateEventAsync(CreateEventRequest request);
         Task<ApiResponse<FullEventResponse>> CreateFullEventAsync(CreateFullEventRequest request);

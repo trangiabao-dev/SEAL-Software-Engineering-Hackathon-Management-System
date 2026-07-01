@@ -27,7 +27,7 @@ namespace SealHackathon.API.Controllers
         /// <summary>
         /// Lấy danh sách Event được phép hiển thị cho người xem public.
         /// </summary>
-        [HttpGet("events")]
+        [HttpGet("events/summary")]
         public async Task<IActionResult> GetPublicEvents()
         {
             var result = await _publicResultsService.GetPublicEventsAsync();

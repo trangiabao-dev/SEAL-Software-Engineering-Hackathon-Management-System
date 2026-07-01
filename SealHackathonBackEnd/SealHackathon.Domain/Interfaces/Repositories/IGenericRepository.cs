@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -13,8 +13,9 @@ namespace SealHackathon.Domain.Interfaces.Repositories
         /// GetFirstOrDefaultAsync dùng khi chỉ đọc. Vì có AsNoTracking nên EF Core không theo dõi entity đó. 
         /// Nếu sửa object lấy từ hàm này rồi gọi SaveChangesAsync thì thường không lưu thay đổi.
         /// Nó không tự ghi đè database, trừ khi mình gọi Update(entity) hoặc attach lại entity vào DbContext.
-        /// </summary>
         Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
+
+        IQueryable<T> GetQueryable(Expression<Func<T, bool>>? predicate = null);
 
         /// <summary>
         /// Thực thi câu lệnh đếm (SELECT COUNT) trực tiếp dưới CSDL.

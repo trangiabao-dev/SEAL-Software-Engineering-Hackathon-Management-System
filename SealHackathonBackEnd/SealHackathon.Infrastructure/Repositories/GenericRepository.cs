@@ -26,6 +26,16 @@ namespace SealHackathon.Infrastructure.Repositories
             return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
         }
 
+        public IQueryable<T> GetQueryable(Expression<Func<T, bool>>? predicate = null)
+        {
+            IQueryable<T> query = _dbSet.AsNoTracking();
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+            return query;
+        }
+
         /// <summary>
         /// Cần hàm này khi service phải đọc entity chính kèm dữ liệu liên quan trong cùng một truy vấn.
         /// Bên trong hàm, mỗi navigation property trong includes sẽ được đưa vào Include để EF Core lấy kèm dữ liệu liên quan.
