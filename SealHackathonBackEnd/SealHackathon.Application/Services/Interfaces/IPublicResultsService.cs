@@ -8,6 +8,11 @@ namespace SealHackathon.Application.Services.Interfaces
     public interface IPublicResultsService
     {
         /// <summary>
+        /// Lấy danh sách Event public đang Active hoặc đã Completed.
+        /// </summary>
+        Task<List<PublicEventSummaryResponse>> GetPublicEventsAsync();
+
+        /// <summary>
         /// Lấy kết quả công khai của một Event sau khi Event đã đủ điều kiện công bố.
         /// </summary>
         Task<PublicEventResultsResponse> GetEventResultsAsync(int eventId);

@@ -16,9 +16,25 @@ namespace SealHackathon.API.Controllers
     {
         private readonly IPublicResultsService _publicResultsService;
 
+        /// <summary>
+        /// Khởi tạo controller public results.
+        /// </summary>
         public PublicResultsController(IPublicResultsService publicResultsService)
         {
             _publicResultsService = publicResultsService;
+        }
+
+        /// <summary>
+        /// Lấy danh sách Event được phép hiển thị cho người xem public.
+        /// </summary>
+        [HttpGet("events")]
+        public async Task<IActionResult> GetPublicEvents()
+        {
+            var result = await _publicResultsService.GetPublicEventsAsync();
+
+            return Ok(ApiResponse<List<PublicEventSummaryResponse>>.SuccessResult(
+                result,
+                "Lấy danh sách Event public thành công."));
         }
 
         /// <summary>
