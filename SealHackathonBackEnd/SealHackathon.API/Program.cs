@@ -192,7 +192,16 @@ static void RunDbUp(IConfiguration configuration)
         return;
     }
 
-// EnsureDatabase.For.SqlDatabase(connectionString); // Bỏ comment dòng này trên MonsterASP vì DB đã được tạo sẵn, và không có quyền truy cập master db.
+    try
+    {
+        EnsureDatabase.For.SqlDatabase(connectionString);
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"[Cảnh báo] Không thể tự động tạo Database (Thường xảy ra trên Cloud Hosting như MonsterASP do giới hạn quyền): {ex.Message}");
+        Console.ResetColor();
+    }
 
     var upgrader = DeployChanges.To
         .SqlDatabase(connectionString)
