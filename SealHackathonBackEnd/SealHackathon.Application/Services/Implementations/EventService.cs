@@ -711,6 +711,8 @@ namespace SealHackathon.Application.Services.Implementations
                 })
                 .ToList();
 
+            await PopulateResultsAvailableAsync(events);
+
             var paginatedResult = new Common.Responses.PaginatedResponse<PublicEventResponse>(events, totalRecords, pageNumber, pageSize);
             return ApiResponse<Common.Responses.PaginatedResponse<PublicEventResponse>>.SuccessResult(paginatedResult);
         }
@@ -738,7 +740,41 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException($"Không tìm thấy Event với ID {id}");
             }
 
+            await PopulateResultsAvailableAsync(new List<PublicEventResponse> { e });
+
             return ApiResponse<PublicEventResponse>.SuccessResult(e);
+        }
+
+        private async Task PopulateResultsAvailableAsync(List<PublicEventResponse> events)
+        {
+            var eventIds = events.Select(e => e.Id).ToList();
+            if (!eventIds.Any()) return;
+
+            var tracks = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => eventIds.Contains(t.EventId) && t.IsFinal && !t.IsDeleted);
+
+            var finalTrackIds = tracks.Select(t => t.Id).ToList();
+
+            var finalRounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => finalTrackIds.Contains(r.TrackId) && r.AdvancingSlots == null && r.Status == RoundConstants.Status.Closed);
+
+            var finalRoundIds = finalRounds.Select(r => r.Id).ToList();
+
+            var rankings = await _uow.GetRepository<Ranking>()
+                .GetAllAsync(r => finalRoundIds.Contains(r.RoundId));
+
+            var prizes = await _uow.GetRepository<Prize>()
+                .GetAllAsync(p => eventIds.Contains(p.EventId));
+
+            foreach (var evt in events)
+            {
+                var finalTrack = tracks.FirstOrDefault(track => track.EventId == evt.Id);
+                var finalRound = finalTrack is null ? null : finalRounds.Where(round => round.TrackId == finalTrack.Id).OrderByDescending(round => round.OrderIndex).FirstOrDefault();
+                var hasRanking = finalRound is not null && rankings.Any(ranking => ranking.RoundId == finalRound.Id);
+                var hasEnoughPrizes = prizes.Where(prize => prize.EventId == evt.Id).Select(prize => prize.RankPosition).Distinct().Count(rank => rank is 1 or 2 or 3) == 3;
+                
+                evt.ResultsAvailable = hasRanking && hasEnoughPrizes;
+            }
         }
     }
 }
