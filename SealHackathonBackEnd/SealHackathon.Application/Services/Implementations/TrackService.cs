@@ -25,15 +25,15 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         // Hàm lấy danh sách tất cả các Bảng đấu (Track) thuộc về một Giải đấu (Event) cụ thể
-        public async Task<ApiResponse<List<TrackResponse>>> GetTracksByEventIdAsync(int eventId)
+        public async Task<ApiResponse<List<TrackResponse>>> GetTracksByEventIdAsync(int eventId, bool excludeFinal = false)
         {
             // Bước 1: Kiểm tra xem Event cha có thực sự tồn tại không
             // Nếu gửi ID bậy bạ lên thì chặn ngay lập tức
             var eventExists = await _uow.GetRepository<Event>().GetFirstOrDefaultAsync(x => x.Id == eventId && !x.IsDeleted);
             if (eventExists == null) throw new NotFoundException($"Không tìm thấy Event với ID {eventId}");
 
-            // Bước 2: Kéo toàn bộ danh sách Track thỏa mãn điều kiện EventId và chưa bị xóa
-            var tracks = await _uow.GetRepository<Track>().GetAllWithIncludeAsync(x => x.EventId == eventId && !x.IsDeleted, x => x.Teams);
+            // Bước 2: Kéo toàn bộ danh sách Track thỏa mãn điều kiện EventId và chưa bị xóa, có thể loại trừ Track Chung Kết
+            var tracks = await _uow.GetRepository<Track>().GetAllWithIncludeAsync(x => x.EventId == eventId && !x.IsDeleted && (!excludeFinal || !x.IsFinal), x => x.Teams);
             
             // Bước 3: Đóng gói dữ liệu sang DTO (Data Transfer Object) để Frontend dễ đọc
             var response = tracks.Select(t => new TrackResponse
