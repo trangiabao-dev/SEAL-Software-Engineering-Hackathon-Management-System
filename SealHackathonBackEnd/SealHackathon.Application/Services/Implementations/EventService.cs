@@ -42,6 +42,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = e.Id,
                 Name = e.Name,
                 Description = e.Description,
+                BannerUrl = e.BannerUrl,
+                Location = e.Location,
+                IsOnline = e.IsOnline,
                 StartDate = e.StartDate,
                 EndDate = e.EndDate,
                 Status = e.Status,
@@ -70,6 +73,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = e.Id,
                 Name = e.Name,
                 Description = e.Description,
+                BannerUrl = e.BannerUrl,
+                Location = e.Location,
+                IsOnline = e.IsOnline,
                 StartDate = e.StartDate,
                 EndDate = e.EndDate,
                 Status = e.Status,
@@ -99,6 +105,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = activeEvent.Id,
                 Name = activeEvent.Name,
                 Description = activeEvent.Description,
+                BannerUrl = activeEvent.BannerUrl,
+                Location = activeEvent.Location,
+                IsOnline = activeEvent.IsOnline,
                 StartDate = activeEvent.StartDate,
                 EndDate = activeEvent.EndDate,
                 Status = activeEvent.Status,
@@ -119,6 +128,9 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Name = request.Name,
                 Description = request.Description,
+                BannerUrl = request.BannerUrl,
+                Location = request.Location,
+                IsOnline = request.IsOnline,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 Status = status, // Trạng thái mặc định là Registration
@@ -138,6 +150,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = newEvent.Id,
                 Name = newEvent.Name,
                 Description = newEvent.Description,
+                BannerUrl = newEvent.BannerUrl,
+                Location = newEvent.Location,
+                IsOnline = newEvent.IsOnline,
                 StartDate = newEvent.StartDate,
                 EndDate = newEvent.EndDate,
                 Status = newEvent.Status,
@@ -157,6 +172,9 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Name = request.Name,
                 Description = request.Description,
+                BannerUrl = request.BannerUrl,
+                Location = request.Location,
+                IsOnline = request.IsOnline,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 Status = EventConstants.Status.Registration,
@@ -224,6 +242,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = newEvent.Id,
                 Name = newEvent.Name,
                 Description = newEvent.Description,
+                BannerUrl = newEvent.BannerUrl,
+                Location = newEvent.Location,
+                IsOnline = newEvent.IsOnline,
                 StartDate = newEvent.StartDate,
                 EndDate = newEvent.EndDate,
                 Status = newEvent.Status,
@@ -391,6 +412,9 @@ namespace SealHackathon.Application.Services.Implementations
             // Bước 2: Đè dữ liệu mới (từ request) lên dữ liệu cũ (trong DB)
             existingEvent.Name = request.Name;
             existingEvent.Description = request.Description;
+            existingEvent.BannerUrl = request.BannerUrl;
+            existingEvent.Location = request.Location;
+            existingEvent.IsOnline = request.IsOnline;
             existingEvent.StartDate = request.StartDate;
             existingEvent.EndDate = request.EndDate;
             existingEvent.Status = newStatus;
@@ -406,6 +430,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = existingEvent.Id,
                 Name = existingEvent.Name,
                 Description = existingEvent.Description,
+                BannerUrl = existingEvent.BannerUrl,
+                Location = existingEvent.Location,
+                IsOnline = existingEvent.IsOnline,
                 StartDate = existingEvent.StartDate,
                 EndDate = existingEvent.EndDate,
                 Status = existingEvent.Status,
@@ -514,6 +541,9 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Name = request.NewName,
                 Description = oldEvent.Description,
+                BannerUrl = oldEvent.BannerUrl,
+                Location = oldEvent.Location,
+                IsOnline = oldEvent.IsOnline,
                 StartDate = request.NewStartDate,
                 EndDate = request.NewEndDate,
                 Status = newStatus,
@@ -603,6 +633,9 @@ namespace SealHackathon.Application.Services.Implementations
                 Id = newEvent.Id,
                 Name = newEvent.Name,
                 Description = newEvent.Description,
+                BannerUrl = newEvent.BannerUrl,
+                Location = newEvent.Location,
+                IsOnline = newEvent.IsOnline,
                 StartDate = newEvent.StartDate,
                 EndDate = newEvent.EndDate,
                 Status = newEvent.Status,
@@ -636,6 +669,112 @@ namespace SealHackathon.Application.Services.Implementations
                 responseDto,
                 "Nhân bản giải đấu thành công! Trạng thái hiện tại: Mở đăng ký (Registration)."
             );
+        }
+
+        public async Task<ApiResponse<Common.Responses.PaginatedResponse<PublicEventResponse>>> GetPublicEventsAsync(int pageNumber, int pageSize, string? status, string? search, string? sortBy)
+        {
+            var query = _uow.GetRepository<Event>().GetQueryable(e => !e.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusList = status.Split('|').Select(s => s.Trim()).ToList();
+                query = query.Where(e => statusList.Contains(e.Status));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(e => e.Name.Contains(search));
+            }
+
+            // Mặc định sort theo StartDate giảm dần nếu không truyền
+            if (string.IsNullOrWhiteSpace(sortBy))
+            {
+                query = query.OrderByDescending(e => e.StartDate);
+            }
+
+            int totalRecords = query.Count();
+            var events = query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(e => new PublicEventResponse
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Description = e.Description,
+                    BannerUrl = e.BannerUrl,
+                    Location = e.Location,
+                    IsOnline = e.IsOnline,
+                    StartDate = e.StartDate,
+                    EndDate = e.EndDate,
+                    Status = e.Status,
+                    TrackCount = e.Tracks.Count(t => !t.IsDeleted)
+                })
+                .ToList();
+
+            await PopulateResultsAvailableAsync(events);
+
+            var paginatedResult = new Common.Responses.PaginatedResponse<PublicEventResponse>(events, totalRecords, pageNumber, pageSize);
+            return ApiResponse<Common.Responses.PaginatedResponse<PublicEventResponse>>.SuccessResult(paginatedResult);
+        }
+
+        public async Task<ApiResponse<PublicEventResponse>> GetPublicEventByIdAsync(int id)
+        {
+            var e = _uow.GetRepository<Event>().GetQueryable(x => x.Id == id && !x.IsDeleted)
+                .Select(e => new PublicEventResponse
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Description = e.Description,
+                    BannerUrl = e.BannerUrl,
+                    Location = e.Location,
+                    IsOnline = e.IsOnline,
+                    StartDate = e.StartDate,
+                    EndDate = e.EndDate,
+                    Status = e.Status,
+                    TrackCount = e.Tracks.Count(t => !t.IsDeleted)
+                })
+                .FirstOrDefault();
+
+            if (e == null)
+            {
+                throw new NotFoundException($"Không tìm thấy Event với ID {id}");
+            }
+
+            await PopulateResultsAvailableAsync(new List<PublicEventResponse> { e });
+
+            return ApiResponse<PublicEventResponse>.SuccessResult(e);
+        }
+
+        private async Task PopulateResultsAvailableAsync(List<PublicEventResponse> events)
+        {
+            var eventIds = events.Select(e => e.Id).ToList();
+            if (!eventIds.Any()) return;
+
+            var tracks = await _uow.GetRepository<Track>()
+                .GetAllAsync(t => eventIds.Contains(t.EventId) && t.IsFinal && !t.IsDeleted);
+
+            var finalTrackIds = tracks.Select(t => t.Id).ToList();
+
+            var finalRounds = await _uow.GetRepository<Round>()
+                .GetAllAsync(r => finalTrackIds.Contains(r.TrackId) && r.AdvancingSlots == null && r.Status == RoundConstants.Status.Closed);
+
+            var finalRoundIds = finalRounds.Select(r => r.Id).ToList();
+
+            var rankings = await _uow.GetRepository<Ranking>()
+                .GetAllAsync(r => finalRoundIds.Contains(r.RoundId));
+
+            var prizes = await _uow.GetRepository<Prize>()
+                .GetAllAsync(p => eventIds.Contains(p.EventId));
+
+            foreach (var evt in events)
+            {
+                var finalTrack = tracks.FirstOrDefault(track => track.EventId == evt.Id);
+                var finalRound = finalTrack is null ? null : finalRounds.Where(round => round.TrackId == finalTrack.Id).OrderByDescending(round => round.OrderIndex).FirstOrDefault();
+                var hasRanking = finalRound is not null && rankings.Any(ranking => ranking.RoundId == finalRound.Id);
+                var hasEnoughPrizes = prizes.Where(prize => prize.EventId == evt.Id).Select(prize => prize.RankPosition).Distinct().Count(rank => rank is 1 or 2 or 3) == 3;
+                
+                evt.ResultsAvailable = hasRanking && hasEnoughPrizes;
+            }
         }
     }
 }

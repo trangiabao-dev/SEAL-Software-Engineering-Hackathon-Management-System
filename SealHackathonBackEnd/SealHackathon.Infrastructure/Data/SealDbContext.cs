@@ -173,6 +173,8 @@ public partial class SealDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.BannerUrl).HasMaxLength(1000).IsUnicode(false);
+            entity.Property(e => e.Location).HasMaxLength(500);
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .IsUnicode(false)

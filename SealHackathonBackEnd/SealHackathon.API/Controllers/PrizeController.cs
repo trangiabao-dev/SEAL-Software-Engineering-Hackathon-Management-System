@@ -71,30 +71,31 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của một Round.
+        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của Event.
         /// </summary>
-        [HttpGet("rounds/{roundId:int}/winners")]
-        public async Task<IActionResult> GetWinnersByRound(int roundId)
+        [HttpGet("events/{eventId:int}/winners")]
+        public async Task<IActionResult> GetWinnersByEvent(int eventId)
         {
-            var result = await _prizeService.GetWinnersByRoundAsync(roundId);
+            var result = await _prizeService.GetWinnersByEventAsync(eventId);
 
             return Ok(ApiResponse<List<PrizeWinnerResponse>>.SuccessResult(
-                result, "Lấy danh sách đội đạt giải thành công."));
+                result, "Lấy danh sách đội đạt giải của Event thành công."));
         }
 
         /// <summary>
-        /// Xuất danh sách đội đạt giải của một Round ra file XLSX.
+        /// Xuất danh sách đội đạt giải của Event ra file XLSX.
         /// </summary>
-        [HttpGet("rounds/{roundId:int}/winners/export")]
-        public async Task<IActionResult> ExportWinnersByRound(int roundId)
+        [HttpGet("events/{eventId:int}/winners/export")]
+        public async Task<IActionResult> ExportWinnersByEvent(int eventId)
         {
-            var fileBytes = await _prizeService.ExportWinnersByRoundAsync(roundId);
-            var fileName = $"prize-winners-round-{roundId}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            var fileBytes = await _prizeService.ExportWinnersByEventAsync(eventId);
+            var fileName = $"prize-winners-event-{eventId}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
 
             return File(
                 fileBytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 fileName);
         }
+
     }
 }

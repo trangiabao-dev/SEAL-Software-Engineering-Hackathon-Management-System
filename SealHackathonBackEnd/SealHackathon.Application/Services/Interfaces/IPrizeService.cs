@@ -28,13 +28,14 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<bool> DeletePrizeAsync(int prizeId);
 
         /// <summary>
-        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của một Round.
+        /// Lấy danh sách đội đạt giải hạng 1, 2, 3 của Event.
         /// </summary>
-        Task<List<PrizeWinnerResponse>> GetWinnersByRoundAsync(int roundId);
+        Task<List<PrizeWinnerResponse>> GetWinnersByEventAsync(int eventId);
 
         /// <summary>
-        /// Xuất danh sách đội đạt giải của một Round ra file XLSX.
+        /// Xuất danh sách đội đạt giải của Event ra file XLSX.
         /// </summary>
-        Task<byte[]> ExportWinnersByRoundAsync(int roundId);
+        Task<byte[]> ExportWinnersByEventAsync(int eventId);
+
     }
 }

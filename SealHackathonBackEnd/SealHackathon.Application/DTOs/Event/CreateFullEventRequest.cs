@@ -12,6 +12,12 @@ namespace SealHackathon.Application.DTOs.Event
         
         public string? Description { get; set; }
         
+        public string? BannerUrl { get; set; }
+        
+        public string? Location { get; set; }
+        
+        public bool? IsOnline { get; set; }
+        
         [Required]
         public DateTime StartDate { get; set; }
         
