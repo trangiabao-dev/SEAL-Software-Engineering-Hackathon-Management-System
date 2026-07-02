@@ -2,6 +2,7 @@ using SealHackathon.Application.Common.Calculations;
 using SealHackathon.Application.Common.Requests;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Score;
+using SealHackathon.Application.DTOs.Batch;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
@@ -533,6 +534,157 @@ namespace SealHackathon.Application.Services.Implementations
                 Comment = scoreRecord.Comment,
                 ScoredAt = scoreRecord.ScoredAt
             };
+        }
+        public async Task<BatchImportResponse<ImportScoreSuccessDto, ImportScoreSuccessDto>> ImportScoresAsync(int roundId, ImportScoresRequest request, Guid coordinatorId)
+        {
+            var response = new BatchImportResponse<ImportScoreSuccessDto, ImportScoreSuccessDto>();
+            var now = DateTime.UtcNow;
+
+            var round = await _unitOfWork.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
+            if (round == null)
+            {
+                foreach (var s in request.Scores)
+                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = s.RowNumber, Reason = "RoundId không tồn tại." });
+                return response;
+            }
+
+            // Kiểm tra trạng thái Ranking và Round Closed
+            var hasRanking = await _unitOfWork.GetRepository<Ranking>().GetFirstOrDefaultAsync(r => r.RoundId == roundId) != null;
+            var isClosed = string.Equals(round.Status, RoundConstants.Status.Closed, StringComparison.OrdinalIgnoreCase);
+
+            var scoreRepo = _unitOfWork.GetRepository<ScoreRecord>();
+            var criteriaRepo = _unitOfWork.GetRepository<Criterion>();
+            var judgeAssignRepo = _unitOfWork.GetRepository<JudgeAssign>();
+            var subRepo = _unitOfWork.GetRepository<Submission>();
+
+            // Pre-load data to optimize
+            var criteria = await criteriaRepo.GetAllAsync(c => c.RoundId == roundId);
+            var criteriaDict = criteria.ToDictionary(c => c.Id);
+
+            var judgeIds = request.Scores.Select(s => s.JudgeId).Distinct().ToList();
+            var judgeAssigns = await judgeAssignRepo.GetAllAsync(ja => ja.RoundId == roundId && judgeIds.Contains(ja.JudgeId));
+            var assignedJudgeIds = judgeAssigns.Select(ja => ja.JudgeId).ToHashSet();
+
+            var submissionIds = request.Scores.Select(s => s.SubmissionId).Distinct().ToList();
+            var submissions = await subRepo.GetAllAsync(s => s.RoundId == roundId && submissionIds.Contains(s.Id));
+            var submissionDict = submissions.ToDictionary(s => s.Id);
+
+            var existingScores = await scoreRepo.GetAllAsync(sr => submissionIds.Contains(sr.SubmissionId) && judgeIds.Contains(sr.JudgeId));
+            var existingScoresDict = existingScores.ToDictionary(sr => $"{sr.SubmissionId}_{sr.JudgeId}_{sr.CriterionId}");
+
+            foreach (var sReq in request.Scores)
+            {
+                var rowNumber = sReq.RowNumber;
+                try
+                {
+                    if (hasRanking || isClosed)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Không thể import điểm vì Round đã Closed hoặc đã có Ranking." });
+                        continue; // Nếu đã có ranking thì thất bại hết, nhưng vẫn chạy hết loop để trả về lý do cho từng row.
+                    }
+
+                    // 1. Validate Criterion
+                    if (!criteriaDict.TryGetValue(sReq.CriterionId, out var criterion))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "CriterionId không tồn tại hoặc không thuộc Round này." });
+                        continue;
+                    }
+
+                    // 2. Validate Judge Assignment
+                    if (!assignedJudgeIds.Contains(sReq.JudgeId))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Judge không được phân công chấm thi cho Round này." });
+                        continue;
+                    }
+
+                    // 3. Validate Submission
+                    if (!submissionDict.TryGetValue(sReq.SubmissionId, out var submission))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "SubmissionId không tồn tại hoặc không thuộc Round này." });
+                        continue;
+                    }
+
+                    if (submission.IsDisqualified)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Không thể chấm điểm cho bài thi đã bị loại." });
+                        continue;
+                    }
+
+                    // 4. Validate Score Range
+                    if (sReq.ScoreValue < 0 || sReq.ScoreValue > criterion.MaxScore)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Điểm số không hợp lệ (0 - {criterion.MaxScore})." });
+                        continue;
+                    }
+
+                    // 5. Upsert Score
+                    var scoreKey = $"{sReq.SubmissionId}_{sReq.JudgeId}_{sReq.CriterionId}";
+                    Guid scoreId;
+
+                    if (existingScoresDict.TryGetValue(scoreKey, out var existingScore))
+                    {
+                        var oldValues = CreateScoreAuditValues(existingScore);
+
+                        existingScore.Score = sReq.ScoreValue;
+                        existingScore.Comment = sReq.Note;
+                        existingScore.UpdatedAt = now;
+                        scoreId = existingScore.Id;
+                        
+                        scoreRepo.Update(existingScore);
+
+                        await _auditLogService.AddAsync(
+                            coordinatorId,
+                            AuditActionConstants.ScoreAudit.Update,
+                            nameof(ScoreRecord),
+                            existingScore.Id.ToString(),
+                            oldValues,
+                            CreateScoreAuditValues(existingScore));
+                    }
+                    else
+                    {
+                        var newScore = new ScoreRecord
+                        {
+                            Id = Guid.NewGuid(),
+                            SubmissionId = sReq.SubmissionId,
+                            JudgeId = sReq.JudgeId,
+                            CriterionId = sReq.CriterionId,
+                            Score = sReq.ScoreValue,
+                            Comment = sReq.Note,
+                            ScoredAt = now,
+                            UpdatedAt = now
+                        };
+                        await scoreRepo.AddAsync(newScore);
+                        scoreId = newScore.Id;
+                        
+                        // Thêm vào Dictionary để kiểm tra nếu trong cùng mảng import có 2 record trùng nhau
+                        existingScoresDict[scoreKey] = newScore;
+
+                        await _auditLogService.AddAsync(
+                            coordinatorId,
+                            AuditActionConstants.ScoreAudit.Create,
+                            nameof(ScoreRecord),
+                            newScore.Id.ToString(),
+                            newValues: CreateScoreAuditValues(newScore));
+                    }
+
+                    await _unitOfWork.SaveChangesAsync();
+
+                    response.Data.Created.Add(new ImportScoreSuccessDto
+                    {
+                        RowNumber = rowNumber,
+                        ScoreId = scoreId,
+                        SubmissionId = sReq.SubmissionId,
+                        JudgeId = sReq.JudgeId,
+                        CriterionId = sReq.CriterionId
+                    });
+                }
+                catch (Exception ex)
+                {
+                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Lỗi hệ thống: {ex.Message}" });
+                }
+            }
+
+            return response;
         }
     }
 }

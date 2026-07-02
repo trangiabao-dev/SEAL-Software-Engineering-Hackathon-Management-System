@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Submission;
@@ -91,6 +91,19 @@ namespace SealHackathon.API.Controllers
                 User.IsInRole(RoleConstants.Judge));
 
             return Ok(ApiResponse<List<SubmissionDto>>.SuccessResult(result));
+        }
+
+        /// <summary>
+        /// Import danh sách bài thi (Submissions) bằng Excel/CSV.
+        /// Tự động cập nhật TopicId cho nhóm, tự động tạo RoundTeam (nếu cờ AutoCreateRoundTeam bật),
+        /// và Upsert bài thi (thêm mới hoặc cập nhật PresentationUrl nếu đã có bài nộp).
+        /// </summary>
+        [HttpPost("api/admin/rounds/{roundId:int}/submissions/import")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ImportSubmissions(int roundId, [FromBody] ImportSubmissionsRequest request)
+        {
+            var result = await _submissionService.ImportSubmissionsAsync(roundId, request);
+            return Ok(result);
         }
 
         // PUT api/submissions/{id}/disqualify

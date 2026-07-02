@@ -1,6 +1,7 @@
 using SealHackathon.Application.Common.Requests;
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Team;
+using SealHackathon.Application.DTOs.Batch;
 using SealHackathon.Application.DTOs.Topic;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -1216,6 +1217,208 @@ namespace SealHackathon.Application.Services.Implementations
                 DisqualifyReason = team.DisqualifyReason,
                 RejectedReason = team.RejectedReason
             };
+        }
+        public async Task<BatchImportResponse<ImportTeamSuccessDto, ImportTeamSuccessDto>> ImportTeamsAsync(int eventId, ImportTeamsRequest request)
+        {
+            var response = new BatchImportResponse<ImportTeamSuccessDto, ImportTeamSuccessDto>();
+            var now = DateTime.UtcNow;
+
+            var accountRepo = _uow.GetRepository<Account>();
+            var teamRepo = _uow.GetRepository<Team>();
+            var memberRepo = _uow.GetRepository<TeamMember>();
+
+            // Pre-load data to optimize N+1 queries
+            var requestLeaderEmails = request.Teams.Select(t => t.Leader.Email).ToList();
+            var requestLeaderUsernames = request.Teams.Select(t => t.Leader.Username).ToList();
+
+            var existingAccounts = await accountRepo.GetAllAsync(a => requestLeaderEmails.Contains(a.Email) || requestLeaderUsernames.Contains(a.Username));
+            var existingAccountEmails = existingAccounts.Select(a => a.Email).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingAccountUsernames = existingAccounts.Select(a => a.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var existingTeams = await teamRepo.GetAllAsync(t => t.Track.EventId == eventId && !t.IsDeleted);
+            var existingTeamNames = existingTeams.Select(t => t.TeamName.ToLower()).ToHashSet();
+
+            var existingMembers = await memberRepo.GetAllAsync(m => m.Team.Track.EventId == eventId && !m.Team.IsDeleted);
+            var existingMemberEmails = existingMembers.Select(m => m.Email).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingMemberStudentCodes = existingMembers.Select(m => m.StudentCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var teamReq in request.Teams)
+            {
+                var rowNumber = teamReq.RowNumber;
+                try
+                {
+                    // 1. Validate Track
+                    var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == teamReq.TrackId && t.EventId == eventId && !t.IsDeleted);
+                    if (track == null)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "TrackId không tồn tại trong sự kiện này." });
+                        continue;
+                    }
+
+                    // 2. Validate Max Members
+                    if (teamReq.Members.Count + 1 > TeamConstants.Rules.MaxMembersPerTeam)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Số lượng thành viên vượt quá {TeamConstants.Rules.MaxMembersPerTeam}." });
+                        continue;
+                    }
+
+                    // 3. Check Duplicate TeamName in Event
+                    var normalizedTeamName = teamReq.TeamName.Trim();
+                    if (existingTeamNames.Contains(normalizedTeamName.ToLower()))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Tên nhóm đã tồn tại trong sự kiện." });
+                        continue;
+                    }
+
+                    // 4. Check Leader & Members duplicate Email / StudentCode within request
+                    var allEmails = new List<string> { teamReq.Leader.Email };
+                    allEmails.AddRange(teamReq.Members.Select(m => m.Email));
+                    if (allEmails.Distinct().Count() != allEmails.Count)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Có email bị trùng lặp trong chính danh sách đăng ký của team." });
+                        continue;
+                    }
+
+                    var allStudentCodes = new List<string> { teamReq.Leader.StudentCode };
+                    allStudentCodes.AddRange(teamReq.Members.Select(m => m.StudentCode));
+                    if (allStudentCodes.Distinct().Count() != allStudentCodes.Count)
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Có MSSV bị trùng lặp trong chính danh sách đăng ký của team." });
+                        continue;
+                    }
+
+                    // 5. Handle Leader Account
+                    Guid leaderId;
+                    if (existingAccountEmails.Contains(teamReq.Leader.Email))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Email của Leader đã tồn tại trong hệ thống." });
+                        continue;
+                    }
+                    else if (existingAccountUsernames.Contains(teamReq.Leader.Username))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Username của Leader đã tồn tại trong hệ thống." });
+                        continue;
+                    }
+                    else
+                    {
+                        // Create new Leader Account
+                        leaderId = Guid.NewGuid();
+                        var leaderAccount = new Account
+                        {
+                            Id = leaderId,
+                            Username = teamReq.Leader.Username,
+                            Email = teamReq.Leader.Email,
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.DefaultPassword),
+                            SystemRole = RoleConstants.Leader,
+                            IsDeleted = false,
+                            CreatedAt = now,
+                            UpdatedAt = now
+                        };
+                        await accountRepo.AddAsync(leaderAccount);
+                        existingAccountEmails.Add(teamReq.Leader.Email);
+                        existingAccountUsernames.Add(teamReq.Leader.Username);
+                    }
+
+                    // Check duplicate emails & student codes in event
+                    bool hasDuplicateInEvent = false;
+                    foreach (var email in allEmails)
+                    {
+                        if (existingMemberEmails.Contains(email))
+                        {
+                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Email {email} đã nằm trong một team khác của sự kiện." });
+                            hasDuplicateInEvent = true;
+                            break;
+                        }
+                    }
+                    if (hasDuplicateInEvent) continue;
+
+                    foreach (var studentCode in allStudentCodes)
+                    {
+                        if (existingMemberStudentCodes.Contains(studentCode))
+                        {
+                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"MSSV {studentCode} đã nằm trong một team khác của sự kiện." });
+                            hasDuplicateInEvent = true;
+                            break;
+                        }
+                    }
+                    if (hasDuplicateInEvent) continue;
+
+                    // Update HashSets so subsequent teams in the same batch don't duplicate
+                    existingTeamNames.Add(normalizedTeamName.ToLower());
+                    foreach (var email in allEmails) existingMemberEmails.Add(email);
+                    foreach (var code in allStudentCodes) existingMemberStudentCodes.Add(code);
+
+                    // 6. Create Team
+                    var newTeam = new Team
+                    {
+                        Id = Guid.NewGuid(),
+                        TeamName = normalizedTeamName,
+                        University = teamReq.University,
+                        TrackId = teamReq.TrackId,
+                        LeaderId = leaderId,
+                        GithubRepoLink = teamReq.GithubRepoLink,
+                        Status = request.DefaultStatus ?? TeamConstants.Status.Approved,
+                        IsDeleted = false,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        CreatedBy = leaderId
+                    };
+                    await _uow.GetRepository<Team>().AddAsync(newTeam);
+
+                    // 7. Create Members
+                    var leaderMember = new TeamMember
+                    {
+                        TeamId = newTeam.Id,
+                        FullName = teamReq.Leader.FullName,
+                        StudentCode = teamReq.Leader.StudentCode,
+                        Email = teamReq.Leader.Email,
+                        University = teamReq.Leader.University,
+                        Phone = teamReq.Leader.Phone,
+                        IsLeader = true,
+                        IsFptstudent = teamReq.Leader.IsFPTStudent,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        CreatedBy = leaderId
+                    };
+                    await memberRepo.AddAsync(leaderMember);
+
+                    foreach (var m in teamReq.Members)
+                    {
+                        var tm = new TeamMember
+                        {
+                            TeamId = newTeam.Id,
+                            FullName = m.FullName,
+                            StudentCode = m.StudentCode,
+                            Email = m.Email,
+                            University = m.University,
+                            Phone = m.Phone,
+                            IsLeader = false,
+                            IsFptstudent = m.IsFPTStudent,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            CreatedBy = leaderId
+                        };
+                        await memberRepo.AddAsync(tm);
+                    }
+
+                    await _uow.SaveChangesAsync();
+
+                    response.Data.Created.Add(new ImportTeamSuccessDto
+                    {
+                        RowNumber = rowNumber,
+                        TeamId = newTeam.Id,
+                        TeamName = newTeam.TeamName,
+                        TrackId = newTeam.TrackId,
+                        LeaderId = leaderId
+                    });
+                }
+                catch (Exception ex)
+                {
+                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Lỗi hệ thống: {ex.Message}" });
+                }
+            }
+
+            return response;
         }
     }
 }

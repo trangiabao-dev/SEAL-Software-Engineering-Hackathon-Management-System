@@ -86,5 +86,17 @@ namespace SealHackathon.API.Controllers
             var result = await _scoreService.UpdateScoreAsync(UpdateScoreRecordId, judgeId, request);
             return Ok(ApiResponse<ScoreRecordResponse>.SuccessResult(result, "Cập nhật điểm thành công."));
         }
+
+        // Import hàng loạt Điểm (Scores) bằng Excel/CSV.
+        // Kiểm tra điều kiện vòng thi (Chưa đóng, chưa chia giải), kiểm tra Judge, Criterion.
+        // Thực hiện lưu điểm và ghi lại AuditLog để đối chiếu sau này.
+        [HttpPost("~/api/admin/rounds/{roundId:int}/scores/import")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ImportScores(int roundId, [FromBody] ImportScoresRequest request)
+        {
+            var coordinatorId = GetCurrentAccountId();
+            var result = await _scoreService.ImportScoresAsync(roundId, request, coordinatorId);
+            return Ok(result);
+        }
     }
 }

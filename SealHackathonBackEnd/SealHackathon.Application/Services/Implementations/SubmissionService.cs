@@ -1,4 +1,5 @@
 using SealHackathon.Application.DTOs.Submission;
+using SealHackathon.Application.DTOs.Batch;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
 using SealHackathon.Domain.Entities;
@@ -389,6 +390,139 @@ namespace SealHackathon.Application.Services.Implementations
                 UpdatedAt = submission.UpdatedAt,
                 CanEdit = submission.CanEdit
             };
+        }
+        
+        public async Task<BatchImportResponse<ImportSubmissionSuccessDto, ImportSubmissionSuccessDto>> ImportSubmissionsAsync(int roundId, ImportSubmissionsRequest request)
+        {
+            var response = new BatchImportResponse<ImportSubmissionSuccessDto, ImportSubmissionSuccessDto>();
+            var now = DateTime.UtcNow;
+
+            var round = await _uow.GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == roundId);
+            
+            if (round == null)
+            {
+                // Nếu không tìm thấy round, tất cả items đều lỗi nhưng ta không thể báo lỗi từng dòng dễ dàng nếu chưa lặp.
+                // Ta sẽ lặp và gán lỗi chung.
+                foreach (var s in request.Submissions)
+                {
+                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = s.RowNumber, Reason = "RoundId không tồn tại." });
+                }
+                return response;
+            }
+
+            var teamRepo = _uow.GetRepository<Team>();
+            var roundTeamRepo = _uow.GetRepository<RoundTeam>();
+            var subRepo = _uow.GetRepository<Submission>();
+            var topicRepo = _uow.GetRepository<Topic>();
+
+            // Pre-load data to optimize N+1 Query
+            var teamIds = request.Submissions.Select(s => s.TeamId).Distinct().ToList();
+            var teams = await teamRepo.GetAllAsync(t => teamIds.Contains(t.Id) && !t.IsDeleted);
+            var teamDict = teams.ToDictionary(t => t.Id);
+
+            var topicIds = request.Submissions.Where(s => s.TopicId.HasValue).Select(s => s.TopicId!.Value).Distinct().ToList();
+            var topics = await topicRepo.GetAllAsync(t => topicIds.Contains(t.Id));
+            var topicDict = topics.ToDictionary(t => t.Id);
+
+            var roundTeams = await roundTeamRepo.GetAllAsync(rt => rt.RoundId == roundId && teamIds.Contains(rt.TeamId));
+            var roundTeamDict = roundTeams.ToDictionary(rt => rt.TeamId);
+
+            var submissions = await subRepo.GetAllAsync(s => s.RoundId == roundId && teamIds.Contains(s.TeamId));
+            var submissionDict = submissions.ToDictionary(s => s.TeamId);
+
+            foreach (var sReq in request.Submissions)
+            {
+                var rowNumber = sReq.RowNumber;
+                try
+                {
+                    // 1. Validate Team
+                    if (!teamDict.TryGetValue(sReq.TeamId, out var team))
+                    {
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "TeamId không tồn tại hoặc đã bị xóa." });
+                        continue;
+                    }
+
+                    // 2. Validate TopicId nếu có
+                    if (sReq.TopicId.HasValue)
+                    {
+                        if (!topicDict.TryGetValue(sReq.TopicId.Value, out var topic))
+                        {
+                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "TopicId không tồn tại." });
+                            continue;
+                        }
+                        
+                        if (topic.RoundId != roundId)
+                        {
+                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Topic không thuộc Round hiện tại." });
+                            continue;
+                        }
+
+                        team.TopicId = topic.Id;
+                        team.UpdatedAt = now;
+                        teamRepo.Update(team);
+                    }
+
+                    // 3. Xử lý RoundTeam
+                    if (!roundTeamDict.TryGetValue(team.Id, out var roundTeam))
+                    {
+                        if (request.AutoCreateRoundTeam)
+                        {
+                            roundTeam = new RoundTeam
+                            {
+                                RoundId = roundId,
+                                TeamId = team.Id
+                            };
+                            await roundTeamRepo.AddAsync(roundTeam);
+                            // Lưu lại vào Dictionary đề phòng import duplicate team trong cùng mảng
+                            roundTeamDict[team.Id] = roundTeam;
+                        }
+                        else
+                        {
+                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Team chưa được thêm vào Round này (AutoCreateRoundTeam = false)." });
+                            continue;
+                        }
+                    }
+
+                    // 4. Upsert Submission
+                    if (submissionDict.TryGetValue(team.Id, out var submission))
+                    {
+                        submission.PresentationUrl = sReq.PresentationUrl;
+                        submission.UpdatedAt = now;
+                        subRepo.Update(submission);
+                    }
+                    else
+                    {
+                        submission = new Submission
+                        {
+                            Id = Guid.NewGuid(),
+                            TeamId = team.Id,
+                            RoundId = roundId,
+                            PresentationUrl = sReq.PresentationUrl,
+                            IsDisqualified = false,
+                            CreatedAt = now,
+                            UpdatedAt = now
+                        };
+                        await subRepo.AddAsync(submission);
+                    }
+
+                    await _uow.SaveChangesAsync();
+
+                    response.Data.Created.Add(new ImportSubmissionSuccessDto
+                    {
+                        RowNumber = rowNumber,
+                        SubmissionId = submission.Id,
+                        TeamId = submission.TeamId,
+                        RoundId = submission.RoundId
+                    });
+                }
+                catch (Exception ex)
+                {
+                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Lỗi hệ thống: {ex.Message}" });
+                }
+            }
+
+            return response;
         }
     }
 }

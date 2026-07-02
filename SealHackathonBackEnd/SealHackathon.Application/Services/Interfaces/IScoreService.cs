@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using SealHackathon.Application.Common.Responses;
 using SealHackathon.Application.DTOs.Score;
+using SealHackathon.Application.DTOs.Batch;
 
 namespace SealHackathon.Application.Services.Interfaces
 {
@@ -40,6 +41,6 @@ namespace SealHackathon.Application.Services.Interfaces
             Guid judgeId,
             UpdateScoreRequest request);
 
-
+        Task<BatchImportResponse<ImportScoreSuccessDto, ImportScoreSuccessDto>> ImportScoresAsync(int roundId, ImportScoresRequest request, Guid coordinatorId);
     }
 }

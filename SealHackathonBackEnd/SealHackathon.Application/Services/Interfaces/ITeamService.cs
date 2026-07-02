@@ -1,4 +1,5 @@
 using SealHackathon.Application.DTOs.Team;
+using SealHackathon.Application.DTOs.Batch;
 using SealHackathon.Application.Common.Responses;
 
 namespace SealHackathon.Application.Services.Interfaces
@@ -25,6 +26,7 @@ namespace SealHackathon.Application.Services.Interfaces
         Task DisqualifyTeamAsync(Guid teamId, DisqualifyTeamRequest request, Guid coordinatorId);
         Task AssignMentorAsync(Guid teamId, AssignMentorRequest request, Guid coordinatorId);
         Task<TeamGroupedByStatusDto> GetTeamsGroupedByStatusAsync(int eventId, int? trackId);
+        Task<BatchImportResponse<ImportTeamSuccessDto, ImportTeamSuccessDto>> ImportTeamsAsync(int eventId, ImportTeamsRequest request);
 
 
         // Mentor

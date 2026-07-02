@@ -181,6 +181,17 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<object>.SuccessResult(null!, "Đã phân công Mentor thành công."));
         }
 
+        /// <summary>
+        /// Thêm hàng loạt Team (Import bằng file Excel/CSV).
+        /// FE gửi mảng Teams, hệ thống sẽ tự động tạo Account cho Leader, tạo Team và tạo Members.
+        /// </summary>
+        [HttpPost("/api/admin/events/{eventId:int}/teams/import")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> ImportTeams(int eventId, [FromBody] ImportTeamsRequest request)
+        {
+            var result = await _teamService.ImportTeamsAsync(eventId, request);
+            return Ok(result);
+        }
 
         // GET /api/admin/participants — Coordinator xem tất cả các thí sinh (từ bảng TeamMember)
         [HttpGet("/api/admin/participants")]

@@ -1,4 +1,5 @@
-﻿using SealHackathon.Application.DTOs.Submission;
+using SealHackathon.Application.DTOs.Submission;
+using SealHackathon.Application.DTOs.Batch;
 using SealHackathon.Application.Services.Interfaces;
 
 namespace SealHackathon.Application.Services.Interfaces
@@ -33,5 +34,7 @@ namespace SealHackathon.Application.Services.Interfaces
         /// </summary>
         Task DisqualifySubmissionAsync(Guid submissionId,
             DisqualifySubmissionRequest request, Guid coordinatorId);
+
+        Task<BatchImportResponse<ImportSubmissionSuccessDto, ImportSubmissionSuccessDto>> ImportSubmissionsAsync(int roundId, ImportSubmissionsRequest request);
     }
 }
