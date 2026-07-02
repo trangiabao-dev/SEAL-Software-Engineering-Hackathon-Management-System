@@ -1,3 +1,4 @@
+using SealHackathon.Application.Common.Rules;
 using SealHackathon.Application.DTOs.PublicResults;
 using SealHackathon.Application.Services.Interfaces;
 using SealHackathon.Domain.Constants;
@@ -68,25 +69,13 @@ namespace SealHackathon.Application.Services.Implementations
                 .OrderByDescending(evt => evt.StartDate)
                 .Select(evt =>
                 {
-                    var finalTrack = tracks.FirstOrDefault(track => track.EventId == evt.Id);
-
-                    var finalRound = finalTrack is null
-                        ? null
-                        : finalRounds
-                            .Where(round => round.TrackId == finalTrack.Id)
-                            .OrderByDescending(round => round.OrderIndex)
-                            .FirstOrDefault();
-
-                    // Event chỉ được xem kết quả khi Final Round đã có Ranking.
-                    var hasRanking = finalRound is not null
-                        && rankings.Any(ranking => ranking.RoundId == finalRound.Id);
-
-                    // Prize phải có đủ cấu hình hạng 1, 2, 3 thì FE mới nên mở nút xem kết quả.
-                    var hasEnoughPrizes = prizes
-                        .Where(prize => prize.EventId == evt.Id)
-                        .Select(prize => prize.RankPosition)
-                        .Distinct()
-                        .Count(rank => rank is 1 or 2 or 3) == 3;
+                    // Dùng rule chung để PublicResultsService và EventService hiểu ResultsAvailable giống nhau.
+                    var resultsAvailable = EventResultAvailabilityRules.HasAvailableResults(
+                        evt.Id,
+                        tracks,
+                        finalRounds,
+                        rankings,
+                        prizes);
 
                     return new PublicEventSummaryResponse
                     {
@@ -96,7 +85,7 @@ namespace SealHackathon.Application.Services.Implementations
                         StartDate = evt.StartDate,
                         EndDate = evt.EndDate,
                         Status = evt.Status,
-                        ResultsAvailable = hasRanking && hasEnoughPrizes
+                        ResultsAvailable = resultsAvailable
                     };
                 })
                 .ToList();

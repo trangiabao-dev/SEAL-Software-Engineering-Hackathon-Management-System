@@ -1,4 +1,5 @@
 using SealHackathon.Application.Common.Responses;
+using SealHackathon.Application.Common.Rules;
 using SealHackathon.Application.DTOs.Event;
 using SealHackathon.Application.DTOs.Round;
 using SealHackathon.Application.Services.Interfaces;
@@ -768,12 +769,12 @@ namespace SealHackathon.Application.Services.Implementations
 
             foreach (var evt in events)
             {
-                var finalTrack = tracks.FirstOrDefault(track => track.EventId == evt.Id);
-                var finalRound = finalTrack is null ? null : finalRounds.Where(round => round.TrackId == finalTrack.Id).OrderByDescending(round => round.OrderIndex).FirstOrDefault();
-                var hasRanking = finalRound is not null && rankings.Any(ranking => ranking.RoundId == finalRound.Id);
-                var hasEnoughPrizes = prizes.Where(prize => prize.EventId == evt.Id).Select(prize => prize.RankPosition).Distinct().Count(rank => rank is 1 or 2 or 3) == 3;
-                
-                evt.ResultsAvailable = hasRanking && hasEnoughPrizes;
+                evt.ResultsAvailable = EventResultAvailabilityRules.HasAvailableResults(
+                    evt.Id,
+                    tracks,
+                    finalRounds,
+                    rankings,
+                    prizes);
             }
         }
     }
