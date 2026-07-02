@@ -26,9 +26,9 @@ namespace SealHackathon.API.Controllers
 
         [HttpGet("api/events/{eventId}/tracks")]
         [Authorize(Roles = $"{RoleConstants.Leader},{RoleConstants.Coordinator}")]
-        public async Task<IActionResult> GetTracksByEventId(int eventId)
+        public async Task<IActionResult> GetTracksByEventId(int eventId, [FromQuery] bool excludeFinal = false)
         {
-            var result = await _trackService.GetTracksByEventIdAsync(eventId);
+            var result = await _trackService.GetTracksByEventIdAsync(eventId, excludeFinal);
             return Ok(result);
         }
 

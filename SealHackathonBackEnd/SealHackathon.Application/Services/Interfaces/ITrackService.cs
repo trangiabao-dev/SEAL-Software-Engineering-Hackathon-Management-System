@@ -8,7 +8,7 @@ namespace SealHackathon.Application.Services.Interfaces
     // Giao diện (Interface) cho Track Service
     public interface ITrackService
     {
-        Task<ApiResponse<List<TrackResponse>>> GetTracksByEventIdAsync(int eventId);
+        Task<ApiResponse<List<TrackResponse>>> GetTracksByEventIdAsync(int eventId, bool excludeFinal = false);
         Task<ApiResponse<TrackResponse>> CreateTrackAsync(CreateTrackRequest request);
         Task<ApiResponse<TrackResponse>> UpdateTrackAsync(int id, UpdateTrackRequest request);
         Task<ApiResponse<bool>> AssignMentorAsync(int trackId, AssignMentorRequest request, Guid assignedBy);

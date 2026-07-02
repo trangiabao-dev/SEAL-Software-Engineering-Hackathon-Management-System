@@ -44,6 +44,11 @@ namespace SealHackathon.Application.Services.Implementations
 
             }
 
+            if (track.IsFinal)
+            {
+                throw new BadRequestException("Không thể đăng ký trực tiếp vào Track Chung Kết.");
+            }
+
             // Không cho tạo thêm Team khi Track đã đủ số lượng.
             if (track.MaxTeams is not null)
             {
