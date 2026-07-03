@@ -1,0 +1,1 @@
+ALTER TABLE dbo.Topic ALTER COLUMN RoundId INT NULL;

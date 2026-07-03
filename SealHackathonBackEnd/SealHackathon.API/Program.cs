@@ -160,7 +160,6 @@ var app = builder.Build();
 // 4. DbUp
 // ==========================================
 RunDbUp(builder.Configuration);
-
 // if (app.Environment.IsDevelopment())
 // {
     app.UseSwagger();
