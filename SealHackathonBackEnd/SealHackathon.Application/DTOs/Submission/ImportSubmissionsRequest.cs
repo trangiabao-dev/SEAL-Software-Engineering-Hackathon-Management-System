@@ -14,7 +14,7 @@ namespace SealHackathon.Application.DTOs.Submission
         public int RowNumber { get; set; }
         public Guid TeamId { get; set; }
         public int? TopicId { get; set; }
-        public string PresentationUrl { get; set; }
+        public string PresentationUrl { get; set; } = string.Empty;
     }
 
     public class ImportSubmissionSuccessDto
