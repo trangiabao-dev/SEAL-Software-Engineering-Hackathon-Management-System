@@ -509,7 +509,8 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Kiểm tra hợp lệ dòng import bài thi: điều kiện đội thi tham gia giải, link thuyết trình và đề tài.
+        /// Kiểm tra hợp lệ dòng import bài thi: điều kiện đội thi tham gia giải, 
+        /// link thuyết trình và đề tài.
         /// </summary>
         private string? ValidateSubmissionRow(
             int roundId,
@@ -588,7 +589,8 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
-        /// Thêm mới hoặc cập nhật bài thi (Upsert): Cập nhật link bài làm nếu đã tồn tại, khởi tạo mới nếu chưa có.
+        /// Thêm mới hoặc cập nhật bài thi (Upsert): Cập nhật link bài làm nếu đã tồn tại, 
+        /// khởi tạo mới nếu chưa có.
         /// </summary>
         private Submission UpsertSubmissionEntity(
             int roundId,
