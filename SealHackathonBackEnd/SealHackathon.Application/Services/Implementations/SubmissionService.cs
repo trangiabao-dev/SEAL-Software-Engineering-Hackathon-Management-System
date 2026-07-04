@@ -392,22 +392,28 @@ namespace SealHackathon.Application.Services.Implementations
             };
         }
         
+        /// <summary>
+        /// Import danh sách bài thi (Submissions) bằng Excel/CSV.
+        /// Kiểm tra chặt chẽ điều kiện vòng thi và trạng thái đội thi trước khi import, đảm bảo an toàn ChangeTracker.
+        /// </summary>
         public async Task<BatchImportResponse<ImportSubmissionSuccessDto, ImportSubmissionSuccessDto>> ImportSubmissionsAsync(int roundId, ImportSubmissionsRequest request)
         {
             var response = new BatchImportResponse<ImportSubmissionSuccessDto, ImportSubmissionSuccessDto>();
             var now = DateTime.UtcNow;
 
-            var round = await _uow.GetRepository<Round>()
-                .GetFirstOrDefaultAsync(r => r.Id == roundId);
-            
+            var round = await _uow.GetRepository<Round>().GetFirstOrDefaultAsync(r => r.Id == roundId);
             if (round == null)
             {
-                // Nếu không tìm thấy round, tất cả items đều lỗi nhưng ta không thể báo lỗi từng dòng dễ dàng nếu chưa lặp.
-                // Ta sẽ lặp và gán lỗi chung.
-                foreach (var s in request.Submissions)
-                {
-                    response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = s.RowNumber, Reason = "RoundId không tồn tại." });
-                }
+                response.Success = false;
+                response.Message = "Vòng thi không tồn tại.";
+                return response;
+            }
+
+            // Kiểm tra trạng thái Vòng thi: Nếu đã đóng hoặc đang chấm điểm thì từ chối import
+            if (round.Status == RoundConstants.Status.Closed || round.Status == RoundConstants.Status.Scoring)
+            {
+                response.Success = false;
+                response.Message = $"Vòng thi đang ở trạng thái '{round.Status}', không cho phép import hay thay đổi bài làm.";
                 return response;
             }
 
@@ -416,12 +422,14 @@ namespace SealHackathon.Application.Services.Implementations
             var subRepo = _uow.GetRepository<Submission>();
             var topicRepo = _uow.GetRepository<Topic>();
 
-            // Pre-load data to optimize N+1 Query
+            // Tối ưu N+1 Query: tải trước dữ liệu Teams, Topics, RoundTeams, Submissions
             var teamIds = request.Submissions.Select(s => s.TeamId).Distinct().ToList();
             var teams = await teamRepo.GetAllAsync(t => teamIds.Contains(t.Id) && !t.IsDeleted);
             var teamDict = teams.ToDictionary(t => t.Id);
 
-            var topicIds = request.Submissions.Where(s => s.TopicId.HasValue).Select(s => s.TopicId!.Value).Distinct().ToList();
+            var topicIds = request.Submissions.Where(s => s.TopicId.HasValue)
+                .Select(s => s.TopicId!.Value).Distinct().ToList();
+
             var topics = await topicRepo.GetAllAsync(t => topicIds.Contains(t.Id));
             var topicDict = topics.ToDictionary(t => t.Id);
 
@@ -436,93 +444,183 @@ namespace SealHackathon.Application.Services.Implementations
                 var rowNumber = sReq.RowNumber;
                 try
                 {
-                    // 1. Validate Team
-                    if (!teamDict.TryGetValue(sReq.TeamId, out var team))
+                    // Kiểm tra tính hợp lệ của dòng dữ liệu import
+                    var validationError = ValidateSubmissionRow(roundId, sReq, teamDict, topicDict, out var team);
+                    if (validationError != null)
                     {
-                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "TeamId không tồn tại hoặc đã bị xóa." });
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = validationError });
                         continue;
                     }
 
-                    // 2. Validate TopicId nếu có
+                    // Cập nhật đề tài (Topic) nếu có
                     if (sReq.TopicId.HasValue)
                     {
-                        if (!topicDict.TryGetValue(sReq.TopicId.Value, out var topic))
-                        {
-                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "TopicId không tồn tại." });
-                            continue;
-                        }
-                        
-                        if (topic.RoundId != roundId)
-                        {
-                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Topic không thuộc Round hiện tại." });
-                            continue;
-                        }
-
-                        team.TopicId = topic.Id;
+                        var topic = topicDict[sReq.TopicId.Value];
+                        team!.TopicId = topic.Id;
                         team.UpdatedAt = now;
-                        teamRepo.Update(team);
                     }
 
-                    // 3. Xử lý RoundTeam
-                    if (!roundTeamDict.TryGetValue(team.Id, out var roundTeam))
+                    // Đảm bảo nhóm đã được thêm vào vòng thi (RoundTeam) trước khi nộp bài
+                    var roundTeamError = await EnsureRoundTeamExistsAsync(roundId, sReq.TeamId, 
+                        request.AutoCreateRoundTeam, roundTeamDict, roundTeamRepo);
+                    if (roundTeamError != null)
                     {
-                        if (request.AutoCreateRoundTeam)
-                        {
-                            roundTeam = new RoundTeam
-                            {
-                                RoundId = roundId,
-                                TeamId = team.Id
-                            };
-                            await roundTeamRepo.AddAsync(roundTeam);
-                            // Lưu lại vào Dictionary đề phòng import duplicate team trong cùng mảng
-                            roundTeamDict[team.Id] = roundTeam;
-                        }
-                        else
-                        {
-                            response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = "Team chưa được thêm vào Round này (AutoCreateRoundTeam = false)." });
-                            continue;
-                        }
+                        response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = roundTeamError });
+                        continue;
                     }
 
-                    // 4. Upsert Submission
-                    if (submissionDict.TryGetValue(team.Id, out var submission))
-                    {
-                        submission.PresentationUrl = sReq.PresentationUrl;
-                        submission.UpdatedAt = now;
-                        subRepo.Update(submission);
-                    }
-                    else
-                    {
-                        submission = new Submission
-                        {
-                            Id = Guid.NewGuid(),
-                            TeamId = team.Id,
-                            RoundId = roundId,
-                            PresentationUrl = sReq.PresentationUrl,
-                            IsDisqualified = false,
-                            CreatedAt = now,
-                            UpdatedAt = now
-                        };
-                        await subRepo.AddAsync(submission);
-                    }
+                    // Thêm mới hoặc cập nhật bài thi (Upsert)
+                    var submission = UpsertSubmissionEntity(roundId, sReq.TeamId, 
+                        sReq.PresentationUrl, submissionDict, subRepo, now);
 
                     await _uow.SaveChangesAsync();
 
-                    response.Data.Created.Add(new ImportSubmissionSuccessDto
+                    if (submissionDict.ContainsKey(sReq.TeamId))
                     {
-                        RowNumber = rowNumber,
-                        SubmissionId = submission.Id,
-                        TeamId = submission.TeamId,
-                        RoundId = submission.RoundId
-                    });
+                        response.Data.Updated.Add(new ImportSubmissionSuccessDto
+                        {
+                            RowNumber = rowNumber,
+                            SubmissionId = submission.Id,
+                            TeamId = submission.TeamId,
+                            RoundId = submission.RoundId
+                        });
+                    }
+                    else
+                    {
+                        submissionDict[sReq.TeamId] = submission;
+                        response.Data.Created.Add(new ImportSubmissionSuccessDto
+                        {
+                            RowNumber = rowNumber,
+                            SubmissionId = submission.Id,
+                            TeamId = submission.TeamId,
+                            RoundId = submission.RoundId
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
+                    // Dọn sạch bộ nhớ ChangeTracker để tránh entity lỗi làm sập dây chuyền các dòng sau
+                    _uow.ClearChangeTracker();
                     response.Data.Failed.Add(new BatchImportFailedDto { RowNumber = rowNumber, Reason = $"Lỗi hệ thống: {ex.Message}" });
                 }
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Kiểm tra hợp lệ dòng import bài thi: điều kiện đội thi tham gia giải, 
+        /// link thuyết trình và đề tài.
+        /// </summary>
+        private string? ValidateSubmissionRow(
+            int roundId,
+            ImportSubmissionDto sReq,
+            Dictionary<Guid, Team> teamDict,
+            Dictionary<int, Topic> topicDict,
+            out Team? team)
+        {
+            if (!teamDict.TryGetValue(sReq.TeamId, out team))
+            {
+                return "TeamId không tồn tại hoặc đã bị xóa.";
+            }
+
+            if (string.IsNullOrWhiteSpace(sReq.PresentationUrl))
+            {
+                return "Link thuyết trình (PresentationUrl) không được để trống.";
+            }
+
+            // Kiểm tra Đội thi đã bị loại khỏi giải hay chưa
+            if (team.Status == TeamConstants.Status.Disqualified)
+            {
+                return "Đội thi này đã bị Ban tổ chức loại khỏi giải đấu, không được phép nộp bài.";
+            }
+
+            if (string.IsNullOrWhiteSpace(team.GithubRepoLink))
+            {
+                return "Đội thi chưa cập nhật link Github Repository, không đủ điều kiện nộp bài.";
+            }
+
+            if (sReq.TopicId.HasValue)
+            {
+                if (!topicDict.TryGetValue(sReq.TopicId.Value, out var topic))
+                {
+                    return "TopicId không tồn tại.";
+                }
+
+                if (topic.RoundId != roundId)
+                {
+                    return "Đề tài (Topic) không thuộc Vòng thi hiện tại.";
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Đảm bảo đội thi đã thuộc Vòng thi (RoundTeam) trước khi nộp bài, 
+        /// tự động đăng ký nếu AutoCreateRoundTeam = true.
+        /// </summary>
+        private async Task<string?> EnsureRoundTeamExistsAsync(
+            int roundId,
+            Guid teamId,
+            bool autoCreateRoundTeam,
+            Dictionary<Guid, RoundTeam> roundTeamDict,
+            IGenericRepository<RoundTeam> roundTeamRepo)
+        {
+            if (roundTeamDict.ContainsKey(teamId))
+            {
+                return null;
+            }
+
+            if (!autoCreateRoundTeam)
+            {
+                return "Đội thi chưa được thêm vào Vòng thi này (AutoCreateRoundTeam = false).";
+            }
+
+            var newRoundTeam = new RoundTeam
+            {
+                RoundId = roundId,
+                TeamId = teamId
+            };
+            await roundTeamRepo.AddAsync(newRoundTeam);
+            roundTeamDict[teamId] = newRoundTeam;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Thêm mới hoặc cập nhật bài thi (Upsert): Cập nhật link bài làm nếu đã tồn tại, 
+        /// khởi tạo mới nếu chưa có.
+        /// </summary>
+        private Submission UpsertSubmissionEntity(
+            int roundId,
+            Guid teamId,
+            string presentationUrl,
+            Dictionary<Guid, Submission> submissionDict,
+            IGenericRepository<Submission> subRepo,
+            DateTime now)
+        {
+            if (submissionDict.TryGetValue(teamId, out var existingSub))
+            {
+                existingSub.PresentationUrl = presentationUrl;
+                existingSub.UpdatedAt = now;
+                subRepo.Update(existingSub);
+                return existingSub;
+            }
+
+            var newSub = new Submission
+            {
+                Id = Guid.NewGuid(),
+                TeamId = teamId,
+                RoundId = roundId,
+                PresentationUrl = presentationUrl,
+                IsDisqualified = false,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            subRepo.AddAsync(newSub);
+            submissionDict[teamId] = newSub;
+            return newSub;
         }
     }
 }

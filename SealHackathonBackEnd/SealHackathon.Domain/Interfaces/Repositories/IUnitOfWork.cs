@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,5 +16,8 @@ namespace SealHackathon.Domain.Interfaces.Repositories
 
         // Chốt và lưu toàn bộ thay đổi vào Database thành một Transaction
         Task<int> SaveChangesAsync();
+
+        // Dọn sạch bộ nhớ theo dõi thay đổi (ChangeTracker) khi xảy ra lỗi trong xử lý lô (Batch Processing)
+        void ClearChangeTracker();
     }
 }

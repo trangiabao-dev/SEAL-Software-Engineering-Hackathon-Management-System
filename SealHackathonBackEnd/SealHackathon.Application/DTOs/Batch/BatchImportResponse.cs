@@ -1,13 +1,15 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace SealHackathon.Application.DTOs.Batch
 {
     public class BatchImportResponse<TUpdated, TCreated>
     {
+        [JsonPropertyName("isSuccess")]
         public bool Success { get; set; } = true;
-        public string Message { get; set; }
+        public string? Message { get; set; }
         public BatchImportData<TUpdated, TCreated> Data { get; set; } = new BatchImportData<TUpdated, TCreated>();
-        public object Errors { get; set; } = null;
+        public object? Errors { get; set; } = null;
     }
 
     public class BatchImportData<TUpdated, TCreated>
@@ -20,6 +22,6 @@ namespace SealHackathon.Application.DTOs.Batch
     public class BatchImportFailedDto
     {
         public int RowNumber { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 }

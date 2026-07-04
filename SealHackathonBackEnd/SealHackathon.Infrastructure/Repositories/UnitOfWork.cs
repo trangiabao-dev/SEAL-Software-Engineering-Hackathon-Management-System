@@ -1,4 +1,4 @@
-﻿using SealHackathon.Domain.Interfaces.Repositories;
+using SealHackathon.Domain.Interfaces.Repositories;
 using SealHackathon.Infrastructure.Data;
 
 namespace SealHackathon.Infrastructure.Repositories
@@ -29,6 +29,11 @@ namespace SealHackathon.Infrastructure.Repositories
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        public void ClearChangeTracker()
+        {
+            _context.ChangeTracker.Clear();
         }
         
         public void Dispose()
