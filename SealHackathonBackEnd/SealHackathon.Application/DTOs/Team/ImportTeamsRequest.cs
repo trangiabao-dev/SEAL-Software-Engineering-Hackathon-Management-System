@@ -14,10 +14,6 @@ namespace SealHackathon.Application.DTOs.Team
         public int RowNumber { get; set; }
         public int TrackId { get; set; }
         [Required(ErrorMessage = "Tên team không được để trống")]
-        public string? TeamName { get; set; }
-        public string? University { get; set; }
-        public string? GithubRepoLink { get; set; }
-        public ImportMemberDto? Leader { get; set; }
         public string TeamName { get; set; } = string.Empty;
         public string? University { get; set; }
         public string? GithubRepoLink { get; set; }
@@ -50,7 +46,6 @@ namespace SealHackathon.Application.DTOs.Team
     {
         public int RowNumber { get; set; }
         public Guid TeamId { get; set; }
-        public string? TeamName { get; set; }
         public string TeamName { get; set; } = string.Empty;
         public int TrackId { get; set; }
         public Guid LeaderId { get; set; }
