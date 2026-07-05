@@ -266,18 +266,41 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status != TeamConstants.Status.Approved)
                 return null;
 
+            // Bước 1: Tìm vòng Active ở Track hiện tại của đội
             var activeRounds = await _uow.GetRepository<Round>()
                 .GetAllAsync(r => r.TrackId == team.TrackId && r.Status == RoundConstants.Status.Active);
 
             var activeRound = activeRounds.OrderBy(r => r.OrderIndex).FirstOrDefault();
 
+            RoundTeam? roundTeam = null;
+
+            if (activeRound is not null)
+            {
+                // Nếu tìm thấy ở track hiện tại, kiểm tra xem đội có được phân công đề tài ở vòng này không
+                roundTeam = await _uow.GetRepository<RoundTeam>()
+                    .GetFirstOrDefaultAsync(rt => rt.RoundId == activeRound.Id
+                                               && rt.TeamId == team.Id
+                                               && rt.TopicId != null);
+            }
+            else
+            {
+                // Bước 2: Nếu không có ở Track hiện tại, tìm xem đội có đang thi ở vòng Chung Kết (hoặc Track khác) không
+                // bằng cách tra cứu qua bảng RoundTeam những vòng đang Active.
+                roundTeam = await _uow.GetRepository<RoundTeam>()
+                    .GetFirstOrDefaultAsync(rt => rt.TeamId == team.Id
+                                               && rt.Round.Status == RoundConstants.Status.Active
+                                               && rt.TopicId != null);
+
+                if (roundTeam is not null)
+                {
+                    // Lấy thông tin vòng thi đó
+                    activeRound = await _uow.GetRepository<Round>()
+                        .GetFirstOrDefaultAsync(r => r.Id == roundTeam.RoundId);
+                }
+            }
+
             if (activeRound is null)
                 return null;
-
-            var roundTeam = await _uow.GetRepository<RoundTeam>()
-                .GetFirstOrDefaultAsync(rt => rt.RoundId == activeRound.Id
-                                           && rt.TeamId == team.Id
-                                           && rt.TopicId != null);
 
             Topic? topic = null;
 
