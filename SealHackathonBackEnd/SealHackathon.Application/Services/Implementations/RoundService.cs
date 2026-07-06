@@ -564,20 +564,10 @@ namespace SealHackathon.Application.Services.Implementations
                         assignedTopic = await _uow.GetRepository<Topic>().GetFirstOrDefaultAsync(t => t.Id == team.TopicId.Value);
                     }
 
-                    // Fallback: Nếu vẫn chưa có Topic (vd vòng 1 không có đề riêng), dùng Đề chung của Event
-                    if (assignedTopic == null)
-                    {
-                        var track = await _uow.GetRepository<Track>().GetFirstOrDefaultAsync(tr => tr.Id == round.TrackId);
-                        if (track != null)
-                        {
-                            assignedTopic = await _uow.GetRepository<Topic>()
-                                .GetFirstOrDefaultAsync(t => t.EventId == track.EventId && t.RoundId == null);
-                        }
-                    }
                 }
 
                 if (assignedTopic == null)
-                    throw new BadRequestException(ErrorMessages.Round.NoTopicToAssign);
+                    throw new BadRequestException("Chưa có đề tài (Topic) nào được tạo cho Bảng đấu/Vòng thi này. Vui lòng tạo ít nhất một đề tài trước khi chuyển sang trạng thái Active.");
 
                 // Lưu vào lịch sử gán Topic của vòng thi
                 await roundTeamRepo.AddAsync(new RoundTeam
