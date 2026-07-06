@@ -28,6 +28,11 @@ namespace SealHackathon.API.Controllers
         [Authorize(Roles = $"{RoleConstants.Leader},{RoleConstants.Coordinator}")]
         public async Task<IActionResult> GetTracksByEventId(int eventId, [FromQuery] bool excludeFinal = false)
         {
+            if (User.IsInRole(RoleConstants.Leader))
+            {
+                excludeFinal = true;
+            }
+
             var result = await _trackService.GetTracksByEventIdAsync(eventId, excludeFinal);
             return Ok(result);
         }

@@ -547,7 +547,8 @@ namespace SealHackathon.Application.Services.Implementations
                     return "TopicId không tồn tại.";
                 }
 
-                if (topic.RoundId != roundId)
+                // Cho phép gán cả Đề tài chung của Event (RoundId = null)
+                if (topic.RoundId.HasValue && topic.RoundId != roundId)
                 {
                     return "Đề tài (Topic) không thuộc Vòng thi hiện tại.";
                 }
