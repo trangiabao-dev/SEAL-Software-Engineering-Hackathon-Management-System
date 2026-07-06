@@ -521,36 +521,36 @@ namespace SealHackathon.Application.Services.Implementations
         {
             if (!teamDict.TryGetValue(sReq.TeamId, out team))
             {
-                return "TeamId không tồn tại hoặc đã bị xóa.";
+                return $"TeamId {sReq.TeamId} không tồn tại hoặc đã bị xóa.";
             }
 
             if (string.IsNullOrWhiteSpace(sReq.PresentationUrl))
             {
-                return "Link thuyết trình (PresentationUrl) không được để trống.";
+                return $"Đội thi '{team.TeamName}' - Link thuyết trình (PresentationUrl) không được để trống.";
             }
 
             // Kiểm tra Đội thi đã bị loại khỏi giải hay chưa
             if (team.Status == TeamConstants.Status.Disqualified)
             {
-                return "Đội thi này đã bị Ban tổ chức loại khỏi giải đấu, không được phép nộp bài.";
+                return $"Đội thi '{team.TeamName}' đã bị Ban tổ chức loại khỏi giải đấu, không được phép nộp bài.";
             }
 
             if (string.IsNullOrWhiteSpace(team.GithubRepoLink))
             {
-                return "Đội thi chưa cập nhật link Github Repository, không đủ điều kiện nộp bài.";
+                return $"Đội thi '{team.TeamName}' chưa cập nhật link Github Repository, không đủ điều kiện nộp bài.";
             }
 
             if (sReq.TopicId.HasValue)
             {
                 if (!topicDict.TryGetValue(sReq.TopicId.Value, out var topic))
                 {
-                    return "TopicId không tồn tại.";
+                    return $"Đội thi '{team.TeamName}' - TopicId {sReq.TopicId.Value} không tồn tại.";
                 }
 
                 // Cho phép gán cả Đề tài chung của Event (RoundId = null)
                 if (topic.RoundId.HasValue && topic.RoundId != roundId)
                 {
-                    return "Đề tài (Topic) không thuộc Vòng thi hiện tại.";
+                    return $"Đội thi '{team.TeamName}' - Đề tài (Topic) không thuộc Vòng thi hiện tại.";
                 }
             }
 
