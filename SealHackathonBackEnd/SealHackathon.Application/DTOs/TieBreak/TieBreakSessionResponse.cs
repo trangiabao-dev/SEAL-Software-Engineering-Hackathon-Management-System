@@ -44,5 +44,10 @@ namespace SealHackathon.Application.DTOs.TieBreak
         /// Danh sách bài nộp cần được chấm lại trong phiên này.
         /// </summary>
         public List<TieBreakSubmissionResponse> Submissions { get; set; } = new();
+
+        /// <summary>
+        /// Danh sách tiêu chí dùng để chấm điểm trong phiên này.
+        /// </summary>
+        public List<SealHackathon.Application.DTOs.Criteria.CriterionResponse> Criteria { get; set; } = new();
     }
 }

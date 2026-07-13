@@ -837,6 +837,24 @@ namespace SealHackathon.Application.Services.Implementations
                 .GroupBy(item => item.TieBreakSessionId)
                 .ToDictionary(group => group.Key, group => group.ToList());
 
+            var allCriteria = await _unitOfWork
+                .GetRepository<Criterion>()
+                .GetAllAsync(criterion => roundIds.Contains(criterion.RoundId));
+
+            var criteriaByRoundId = allCriteria
+                .GroupBy(criterion => criterion.RoundId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(c => new SealHackathon.Application.DTOs.Criteria.CriterionResponse
+                    {
+                        Id = c.Id,
+                        RoundId = c.RoundId,
+                        Name = c.Name,
+                        Description = c.Description,
+                        MaxScore = c.MaxScore,
+                        Weight = c.Weight
+                    }).ToList());
+
             return sessions
                 .OrderByDescending(session => session.CreatedAt)
                 .Select(session =>
@@ -849,6 +867,10 @@ namespace SealHackathon.Application.Services.Implementations
                         ? sessionSubmissions
                         : new List<TieBreakSubmission>();
 
+                    var criteria = criteriaByRoundId.TryGetValue(session.RoundId, out var roundCriteria)
+                        ? roundCriteria
+                        : new List<SealHackathon.Application.DTOs.Criteria.CriterionResponse>();
+
                     return new TieBreakSessionResponse
                     {
                         Id = session.Id,
@@ -860,7 +882,8 @@ namespace SealHackathon.Application.Services.Implementations
                         CompletedAt = session.CompletedAt,
                         Submissions = items
                             .Select(item => MapSubmissionResponse(item, submissionById))
-                            .ToList()
+                            .ToList(),
+                        Criteria = criteria
                     };
                 })
                 .ToList();
