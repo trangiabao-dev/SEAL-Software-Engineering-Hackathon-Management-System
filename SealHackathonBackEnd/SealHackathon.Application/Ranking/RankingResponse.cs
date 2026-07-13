@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Application.DTOs.Ranking
+namespace SealHackathon.Application.DTOs.Ranking
 {
     /// <summary>
     /// Dữ liệu ranking của 1 team trong 1 round — trả về cho client
@@ -34,5 +34,8 @@
 
         /// <summary>Thời điểm ranking được tính</summary>
         public DateTime CalculatedAt { get; set; }
+
+        /// <summary>ID của phiên tie-break nếu nhóm hạng này đang có tie-break cần chốt</summary>
+        public Guid? TieBreakSessionId { get; set; }
     }
 }

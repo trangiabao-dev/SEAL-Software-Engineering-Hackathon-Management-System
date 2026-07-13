@@ -284,9 +284,14 @@ namespace SealHackathon.Application.Services.Implementations
                 now);
 
             // Bước 9: Sau khi Ranking đã lưu, tự tạo phiên tie-break cho các hạng quan trọng còn đồng điểm.
+            var tieBreakSessionByRank = new Dictionary<int, Guid>();
             foreach (var tieRank in importantTieRanks)
             {
-                await _tieBreakService.CreateSessionIfNotExistsAsync(roundId, tieRank);
+                var session = await _tieBreakService.CreateSessionIfNotExistsAsync(roundId, tieRank);
+                if (session != null)
+                {
+                    tieBreakSessionByRank[tieRank] = session.Id;
+                }
             }
 
             // Bước 10: Chuyển dữ liệu sang response DTO.
@@ -302,12 +307,14 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     // Ranking public cần đủ tên đội và trường đại học, nên map từ Team entity thay vì chỉ lấy TeamName.
                     teamById.TryGetValue(ranking.TeamId, out var team);
+                    var hasTieBreak = tieBreakSessionByRank.TryGetValue(ranking.RankPosition, out var sessionId);
 
                     return MapToRankingResponse(
                         ranking,
                         round.Name,
                         team?.TeamName ?? string.Empty,
-                        team?.University ?? string.Empty);
+                        team?.University ?? string.Empty,
+                        hasTieBreak ? sessionId : null);
                 })
                 .ToList();
 
@@ -357,7 +364,10 @@ namespace SealHackathon.Application.Services.Implementations
                 teamById = teams.ToDictionary(team => team.Id);
             }
 
-            return BuildLeaderboardResponse(round, rankings, teamById);
+            var tieBreakSessions = await _tieBreakService.GetSessionsByRoundAsync(roundId);
+            var tieBreakSessionByRank = tieBreakSessions.ToDictionary(s => s.RankPosition, s => s.Id);
+
+            return BuildLeaderboardResponse(round, rankings, teamById, tieBreakSessionByRank);
         }
 
 
@@ -404,10 +414,15 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetAllAsync(team => teamIds.Contains(team.Id));
 
             var teamById = teams.ToDictionary(team => team.Id);
+
+            var tieBreakSessions = await _tieBreakService.GetSessionsByRoundAsync(finalRound.Id);
+            var tieBreakSessionByRank = tieBreakSessions.ToDictionary(s => s.RankPosition, s => s.Id);
+
             var finalRoundRanking = BuildLeaderboardResponse(
                 finalRound,
                 rankings,
-                teamById);
+                teamById,
+                tieBreakSessionByRank);
             EnsureLeaderboardCalculated(finalRoundRanking);
 
             var trackRankings = new List<TrackFinalRankingResponse>
@@ -894,7 +909,8 @@ namespace SealHackathon.Application.Services.Implementations
         private static RankingLeaderboardResponse BuildLeaderboardResponse(
             Round round,
             IReadOnlyCollection<Domain.Entities.Ranking> rankings,
-            IReadOnlyDictionary<Guid, Team> teamById)
+            IReadOnlyDictionary<Guid, Team> teamById,
+            IReadOnlyDictionary<int, Guid>? tieBreakSessionByRank = null)
         {
             if (rankings.Count == 0)
             {
@@ -915,12 +931,15 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     // Dùng Team entity để response Ranking có đủ TeamName và University cho mọi đội.
                     teamById.TryGetValue(ranking.TeamId, out var team);
+                    Guid sessionId = Guid.Empty;
+                    var hasTieBreak = tieBreakSessionByRank?.TryGetValue(ranking.RankPosition, out sessionId) == true;
 
                     return MapToRankingResponse(
                         ranking,
                         round.Name,
                         team?.TeamName ?? string.Empty,
-                        team?.University ?? string.Empty);
+                        team?.University ?? string.Empty,
+                        hasTieBreak ? sessionId : null);
                 })
                 .ToList();
 
@@ -942,7 +961,8 @@ namespace SealHackathon.Application.Services.Implementations
             Domain.Entities.Ranking ranking,
             string roundName,
             string teamName,
-            string university)
+            string university,
+            Guid? tieBreakSessionId = null)
         {
             return new RankingResponse
             {
@@ -955,7 +975,8 @@ namespace SealHackathon.Application.Services.Implementations
                 TotalScore = ranking.TotalScore,
                 RankPosition = ranking.RankPosition,
                 IsAdvancing = ranking.IsAdvancing,
-                CalculatedAt = ranking.CalculatedAt
+                CalculatedAt = ranking.CalculatedAt,
+                TieBreakSessionId = tieBreakSessionId
             };
         }
     }
