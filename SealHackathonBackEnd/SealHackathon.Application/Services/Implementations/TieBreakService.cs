@@ -198,6 +198,25 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
+        /// Coordinator lấy danh sách toàn bộ các phiên tie-break của một Round.
+        /// </summary>
+        public async Task<List<TieBreakSessionResponse>> GetSessionsByRoundAsync(int roundId)
+        {
+            var round = await _unitOfWork
+                .GetRepository<Round>()
+                .GetFirstOrDefaultAsync(r => r.Id == roundId);
+
+            if (round is null)
+                throw new NotFoundException(ErrorMessages.Common.RoundNotFound);
+
+            var sessions = await _unitOfWork
+                .GetRepository<TieBreakSession>()
+                .GetAllAsync(session => session.RoundId == roundId);
+
+            return await BuildSessionResponsesAsync(sessions);
+        }
+
+        /// <summary>
         /// Lấy chi tiết phiên tie-break, có kiểm tra quyền xem của Judge.
         /// </summary>
         public async Task<TieBreakSessionResponse> GetSessionAsync(

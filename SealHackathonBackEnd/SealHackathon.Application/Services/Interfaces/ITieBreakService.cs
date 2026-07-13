@@ -23,6 +23,11 @@ namespace SealHackathon.Application.Services.Interfaces
         Task<List<TieBreakSessionResponse>> GetMyPendingSessionsAsync(Guid judgeId);
 
         /// <summary>
+        /// Coordinator lấy danh sách toàn bộ các phiên tie-break của một Round.
+        /// </summary>
+        Task<List<TieBreakSessionResponse>> GetSessionsByRoundAsync(int roundId);
+
+        /// <summary>
         /// Lấy chi tiết một phiên tie-break.
         /// Coordinator được xem mọi phiên; Judge chỉ được xem phiên thuộc Round mình được phân công.
         /// </summary>

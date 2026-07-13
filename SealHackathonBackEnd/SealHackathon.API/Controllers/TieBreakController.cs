@@ -55,6 +55,20 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
+        /// Coordinator lấy danh sách tất cả phiên tie-break của một Round.
+        /// </summary>
+        [HttpGet("rounds/{roundId:int}/sessions")]
+        [Authorize(Roles = RoleConstants.Coordinator)]
+        public async Task<IActionResult> GetSessionsByRound(int roundId)
+        {
+            var result = await _tieBreakService.GetSessionsByRoundAsync(roundId);
+
+            return Ok(ApiResponse<List<TieBreakSessionResponse>>.SuccessResult(
+                result,
+                "Lấy danh sách phiên tie-break thành công."));
+        }
+
+        /// <summary>
         /// Lấy chi tiết một phiên tie-break.
         /// </summary>
         [HttpGet("{sessionId:guid}")]
