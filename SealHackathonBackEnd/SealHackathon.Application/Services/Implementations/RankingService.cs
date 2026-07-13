@@ -365,7 +365,9 @@ namespace SealHackathon.Application.Services.Implementations
             }
 
             var tieBreakSessions = await _tieBreakService.GetSessionsByRoundAsync(roundId);
-            var tieBreakSessionByRank = tieBreakSessions.ToDictionary(s => s.RankPosition, s => s.Id);
+            var tieBreakSessionByRank = tieBreakSessions
+                .Where(s => s.Status == TieBreakConstants.Status.PendingScoring)
+                .ToDictionary(s => s.RankPosition, s => s.Id);
 
             return BuildLeaderboardResponse(round, rankings, teamById, tieBreakSessionByRank);
         }
@@ -416,7 +418,9 @@ namespace SealHackathon.Application.Services.Implementations
             var teamById = teams.ToDictionary(team => team.Id);
 
             var tieBreakSessions = await _tieBreakService.GetSessionsByRoundAsync(finalRound.Id);
-            var tieBreakSessionByRank = tieBreakSessions.ToDictionary(s => s.RankPosition, s => s.Id);
+            var tieBreakSessionByRank = tieBreakSessions
+                .Where(s => s.Status == TieBreakConstants.Status.PendingScoring)
+                .ToDictionary(s => s.RankPosition, s => s.Id);
 
             var finalRoundRanking = BuildLeaderboardResponse(
                 finalRound,
