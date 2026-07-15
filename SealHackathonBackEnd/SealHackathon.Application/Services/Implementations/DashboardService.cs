@@ -25,100 +25,60 @@ namespace SealHackathon.Application.Services.Implementations
             var teamRepo = _uow.GetRepository<Team>();
             var roundRepo = _uow.GetRepository<Round>();
             var submissionRepo = _uow.GetRepository<Submission>();
-            var criterionRepo = _uow.GetRepository<Criterion>();
             var judgeAssignRepo = _uow.GetRepository<JudgeAssign>();
+            var mentorAssignRepo = _uow.GetRepository<MentorAssign>();
+            var criterionRepo = _uow.GetRepository<Criterion>();
             var scoreRecordRepo = _uow.GetRepository<ScoreRecord>();
 
-            var activeEvents = await eventRepo.GetAllAsync
-                (e => !e.IsDeleted &&
-                (e.Status == EventConstants.Status.Active ||
-                e.Status == EventConstants.Status.Registration));
+            var allEvents = await eventRepo.GetAllAsync(e => !e.IsDeleted);
 
-            if (!activeEvents.Any())
+            var response = new CoordinatorDashboardResponse();
+            if (!allEvents.Any())
             {
                 return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
-                    new CoordinatorDashboardResponse(), "Lấy dữ liệu dashboard thành công.");
+                    response, "Lấy dữ liệu dashboard thành công.");
             }
 
-            var activeEventIds = activeEvents.Select(e => e.Id).ToList();
-            var eventById = activeEvents.ToDictionary(e => e.Id);
+            var eventIds = allEvents.Select(e => e.Id).ToList();
+            var allTracks = await trackRepo.GetAllAsync(t => !t.IsDeleted && eventIds.Contains(t.EventId));
+            var trackIds = allTracks.Select(t => t.Id).ToList();
 
-            var activeTracks = await trackRepo.GetAllAsync(
-                t => !t.IsDeleted && activeEventIds.Contains(t.EventId));
+            var allRounds = await roundRepo.GetAllAsync(r => trackIds.Contains(r.TrackId));
+            var roundIds = allRounds.Select(r => r.Id).ToList();
 
-            if (!activeTracks.Any())
-            {
-                return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
-                    new CoordinatorDashboardResponse(), "Lấy dữ liệu dashboard thành công.");
-            }
+            var allTeams = await teamRepo.GetAllAsync(t => !t.IsDeleted && trackIds.Contains(t.TrackId));
+            var allSubmissions = await submissionRepo.GetAllAsync(s => roundIds.Contains(s.RoundId));
 
-            var activeTrackIds = activeTracks.Select(t => t.Id).ToList();
-            var trackById = activeTracks.ToDictionary(t => t.Id);
+            var judgeAssigns = await judgeAssignRepo.GetAllAsync(j => roundIds.Contains(j.RoundId));
+            var mentorAssigns = await mentorAssignRepo.GetAllAsync(m => trackIds.Contains(m.TrackId));
 
-            var totalActiveTeams = await teamRepo.CountAsync(t =>
-                !t.IsDeleted && activeTrackIds.Contains(t.TrackId));
+            // Populate Summary
+            response.Summary.TotalEvents = allEvents.Count;
+            response.Summary.TotalTeams = allTeams.Count;
+            response.Summary.TotalSubmissions = allSubmissions.Count;
+            response.Summary.TotalJudges = judgeAssigns.Select(j => j.JudgeId).Distinct().Count();
+            response.Summary.TotalMentors = mentorAssigns.Select(m => m.MentorId).Distinct().Count();
 
-            var totalPendingTeams = await teamRepo.CountAsync(
-                t => !t.IsDeleted && activeTrackIds.Contains(t.TrackId) &&
-                t.Status == TeamConstants.Status.Pending);
+            response.Summary.EventsByStatus = allEvents.GroupBy(e => e.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
+            response.Summary.RoundsByStatus = allRounds.GroupBy(r => r.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
+            response.Summary.TeamsByStatus = allTeams.GroupBy(t => t.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
 
-            var activeRounds = await roundRepo.GetAllAsync(r => activeTrackIds.Contains(r.TrackId));
-
-            var activeRoundStatuses = activeRounds.Select(round =>
-            {
-                trackById.TryGetValue(round.TrackId, out var track);
-
-                Event? ev = null;
-                if (track is not null)
-                    eventById.TryGetValue(track.EventId, out ev);
-
-                return new RoundStatusDto
-                {
-                    EventName = ev?.Name ?? "Không xác định được sự kiện.",
-                    TrackName = track?.Name ?? "Không xác định được Track.",
-                    RoundName = round.Name,
-                    Status = round.Status
-                };
-            }).ToList();
-
-            var activeRoundIds = activeRounds.Select(r => r.Id).ToList();
-
-            if (!activeRoundIds.Any())
-            {
-                var emptyRoundResponse = new CoordinatorDashboardResponse
-                {
-                    TotalActiveTeams = totalActiveTeams,
-                    TotalPendingTeams = totalPendingTeams,
-                    ActiveRoundStatuses = activeRoundStatuses,
-                    IncompleteSubmissions = 0
-                };
-
-                return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
-                    emptyRoundResponse, "Lấy dữ liệu dashboard thành công.");
-            }
-
-            var activeSubmissions = await submissionRepo.GetAllAsync(s =>
-                activeRoundIds.Contains(s.RoundId) &&
-                !s.IsDisqualified);
-
+            // Pre-calculate incomplete submissions
+            var activeSubmissions = allSubmissions.Where(s => !s.IsDisqualified).ToList();
             var activeSubmissionIds = activeSubmissions.Select(s => s.Id).ToList();
-
             var criterionCountByRoundId = await criterionRepo.CountByGroupAsync(
-                c => activeRoundIds.Contains(c.RoundId),
-                c => c.RoundId);
-
+                c => roundIds.Contains(c.RoundId), c => c.RoundId);
             var judgeCountByRoundId = await judgeAssignRepo.CountByGroupAsync(
-                j => activeRoundIds.Contains(j.RoundId),
-                j => j.RoundId);
-
+                j => roundIds.Contains(j.RoundId), j => j.RoundId);
             var scoreCountBySubmissionId = activeSubmissionIds.Count == 0
                 ? new Dictionary<Guid, int>()
                 : await scoreRecordRepo.CountByGroupAsync(
-                    s => activeSubmissionIds.Contains(s.SubmissionId),
-                    s => s.SubmissionId);
+                    s => activeSubmissionIds.Contains(s.SubmissionId), s => s.SubmissionId);
 
-            var incompleteSubmissionsCount = 0;
-
+            var incompleteSubmissionIds = new HashSet<Guid>();
             foreach (var submission in activeSubmissions)
             {
                 criterionCountByRoundId.TryGetValue(submission.RoundId, out var criteriaCount);
@@ -126,18 +86,90 @@ namespace SealHackathon.Application.Services.Implementations
                 scoreCountBySubmissionId.TryGetValue(submission.Id, out var actualScores);
 
                 var expectedScores = criteriaCount * judgeCount;
-
                 if (expectedScores > 0 && actualScores < expectedScores)
-                    incompleteSubmissionsCount++;
+                {
+                    incompleteSubmissionIds.Add(submission.Id);
+                }
             }
 
-            var response = new CoordinatorDashboardResponse
+            response.Summary.IncompleteSubmissions = incompleteSubmissionIds.Count;
+
+            // Generate Event Details and Charts
+            var teamCountByEventId = new Dictionary<int, int>();
+            foreach (var ev in allEvents)
             {
-                TotalActiveTeams = totalActiveTeams,
-                TotalPendingTeams = totalPendingTeams,
-                ActiveRoundStatuses = activeRoundStatuses,
-                IncompleteSubmissions = incompleteSubmissionsCount
-            };
+                var evTracks = allTracks.Where(t => t.EventId == ev.Id).ToList();
+                var evTrackIds = evTracks.Select(t => t.Id).ToList();
+                var evRounds = allRounds.Where(r => evTrackIds.Contains(r.TrackId)).ToList();
+                var evRoundIds = evRounds.Select(r => r.Id).ToList();
+                var evTeams = allTeams.Where(t => evTrackIds.Contains(t.TrackId)).ToList();
+                var evSubmissions = allSubmissions.Where(s => evRoundIds.Contains(s.RoundId)).ToList();
+                var evIncompleteSubmissions = evSubmissions.Count(s => incompleteSubmissionIds.Contains(s.Id));
+
+                var eventDto = new DashboardEventDto
+                {
+                    EventId = ev.Id,
+                    EventName = ev.Name,
+                    Status = ev.Status,
+                    StartDate = ev.StartDate,
+                    EndDate = ev.EndDate,
+                    TotalTracks = evTracks.Count,
+                    TotalRounds = evRounds.Count,
+                    TotalTeams = evTeams.Count,
+                    ApprovedTeams = evTeams.Count(t => t.Status == TeamConstants.Status.Approved),
+                    PendingTeams = evTeams.Count(t => t.Status == TeamConstants.Status.Pending),
+                    RejectedTeams = evTeams.Count(t => t.Status == TeamConstants.Status.Rejected),
+                    DisqualifiedTeams = evTeams.Count(t => t.Status == TeamConstants.Status.Disqualified || string.Equals(t.Status, "Disqualified", StringComparison.OrdinalIgnoreCase)),
+                    TotalSubmissions = evSubmissions.Count,
+                    IncompleteSubmissions = evIncompleteSubmissions,
+                    ActiveRounds = evRounds.Count(r => r.Status == RoundConstants.Status.Active),
+                    ScoringRounds = evRounds.Count(r => r.Status == RoundConstants.Status.Scoring),
+                    ClosedRounds = evRounds.Count(r => r.Status == RoundConstants.Status.Closed),
+                    ResultsAvailable = evRounds.Any(r => r.Status == RoundConstants.Status.Closed)
+                };
+
+                response.Events.Add(eventDto);
+                teamCountByEventId[ev.Id] = evTeams.Count;
+
+                // Charts: Event Teams & Submissions
+                response.Charts.TeamCountByEvent.Add(new ChartTeamByEventDto
+                {
+                    EventId = ev.Id,
+                    EventName = ev.Name,
+                    TotalTeams = evTeams.Count
+                });
+                response.Charts.SubmissionCountByEvent.Add(new ChartSubmissionByEventDto
+                {
+                    EventId = ev.Id,
+                    EventName = ev.Name,
+                    TotalSubmissions = evSubmissions.Count
+                });
+
+                // Charts: Track Teams
+                foreach (var track in evTracks)
+                {
+                    var trackTeams = evTeams.Count(t => t.TrackId == track.Id);
+                    response.Charts.TeamCountByTrack.Add(new ChartTeamByTrackDto
+                    {
+                        EventId = ev.Id,
+                        TrackId = track.Id,
+                        TrackName = track.Name,
+                        TotalTeams = trackTeams
+                    });
+                }
+            }
+
+            // Find Highlight
+            var highlightEvent = response.Events.OrderByDescending(e => e.TotalTeams).FirstOrDefault();
+            if (highlightEvent != null && highlightEvent.TotalTeams > 0)
+            {
+                response.Highlight.EventWithMostTeams = new DashboardHighlightEventDto
+                {
+                    EventId = highlightEvent.EventId,
+                    EventName = highlightEvent.EventName,
+                    TotalTeams = highlightEvent.TotalTeams
+                };
+            }
 
             return ApiResponse<CoordinatorDashboardResponse>.SuccessResult(
                 response, "Lấy dữ liệu dashboard thành công.");
