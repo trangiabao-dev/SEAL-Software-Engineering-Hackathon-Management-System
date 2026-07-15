@@ -325,6 +325,71 @@ namespace SealHackathon.Application.Services.Implementations
         }
 
         /// <summary>
+        /// Judge chấm nhiều tiêu chí cùng lúc cho một bài trong phiên tie-break (Bulk Submit).
+        /// </summary>
+        public async Task<List<TieBreakScoreResponse>> SubmitScoresAsync(
+            Guid tieBreakSubmissionId,
+            Guid judgeId,
+            List<SubmitTieBreakScoreRequest> requests)
+        {
+            var context = await GetTieBreakSubmissionContextAsync(tieBreakSubmissionId);
+
+            EnsureTieBreakSessionPending(context.Session);
+            EnsureRoundCanUseTieBreak(context.Round);
+            await EnsureJudgeAssignedToSessionRoundAsync(judgeId, context.Session.RoundId);
+
+            var responses = new List<TieBreakScoreResponse>();
+
+            foreach (var request in requests)
+            {
+                var criterion = await GetCriterionForSessionRoundAsync(
+                    request.CriterionId,
+                    context.Session.RoundId);
+
+                EnsureTieBreakScoreInRange(request.Score, criterion);
+
+                var existingScore = await _unitOfWork
+                    .GetRepository<TieBreakScoreRecord>()
+                    .GetFirstOrDefaultAsync(scoreRecord =>
+                        scoreRecord.TieBreakSubmissionId == tieBreakSubmissionId
+                        && scoreRecord.JudgeId == judgeId
+                        && scoreRecord.CriterionId == request.CriterionId);
+
+                if (existingScore is not null)
+                    throw new ConflictException(ErrorMessages.TieBreak.AlreadyScored);
+
+                var scoreRecord = new TieBreakScoreRecord
+                {
+                    Id = Guid.NewGuid(),
+                    TieBreakSubmissionId = tieBreakSubmissionId,
+                    JudgeId = judgeId,
+                    CriterionId = request.CriterionId,
+                    Score = request.Score,
+                    Comment = request.Comment,
+                    ScoredAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.GetRepository<TieBreakScoreRecord>().AddAsync(scoreRecord);
+
+                await _auditLogService.AddAsync(
+                    judgeId,
+                    AuditActionConstants.TieBreakScoreAudit.Create,
+                    nameof(TieBreakScoreRecord),
+                    scoreRecord.Id.ToString(),
+                    newValues: CreateTieBreakScoreAuditValues(
+                        scoreRecord,
+                        context.Session.Id,
+                        context.Submission.Id));
+
+                responses.Add(MapToTieBreakScoreResponse(scoreRecord, criterion.Name));
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return responses;
+        }
+
+        /// <summary>
         /// Judge sửa điểm tie-break do chính mình đã chấm.
         /// </summary>
         public async Task<TieBreakScoreResponse> UpdateScoreAsync(
@@ -562,7 +627,7 @@ namespace SealHackathon.Application.Services.Implementations
                 })
                 .ToList();
 
-            EnsureTieBreakResultHasNoTie(teamScores);
+            EnsureTieBreakResultHasNoTie(teamScores, submissions);
 
             return teamScores
                 .OrderByDescending(teamScore => teamScore.TotalScore)
@@ -574,14 +639,25 @@ namespace SealHackathon.Application.Services.Implementations
         /// Chặn kết quả tie-break vẫn còn đồng điểm để tránh backend tự chọn đội thắng sai nghiệp vụ.
         /// </summary>
         private static void EnsureTieBreakResultHasNoTie(
-            IReadOnlyCollection<(Guid TeamId, double TotalScore)> teamScores)
+            IReadOnlyCollection<(Guid TeamId, double TotalScore)> teamScores,
+            IReadOnlyCollection<Submission> submissions)
         {
-            var stillTied = teamScores
+            var tiedGroups = teamScores
                 .GroupBy(teamScore => teamScore.TotalScore)
-                .Any(group => group.Count() > 1);
+                .Where(group => group.Count() > 1)
+                .ToList();
 
-            if (stillTied)
-                throw new BadRequestException(ErrorMessages.TieBreak.ResultStillTied);
+            if (tiedGroups.Any())
+            {
+                var tiedTeamIds = tiedGroups.SelectMany(g => g.Select(t => t.TeamId)).ToHashSet();
+                var tiedTeamNames = submissions
+                    .Where(s => tiedTeamIds.Contains(s.TeamId))
+                    .Select(s => s.Team.TeamName)
+                    .ToList();
+
+                var teamNamesStr = string.Join(", ", tiedTeamNames);
+                throw new BadRequestException($"{ErrorMessages.TieBreak.ResultStillTied} Các đội: {teamNamesStr}");
+            }
         }
 
         /// <summary>
@@ -980,5 +1056,65 @@ namespace SealHackathon.Application.Services.Implementations
                 PresentationUrl = submission.PresentationUrl
             };
         }
+        /// <summary>
+        /// Lấy thứ tự xếp hạng (đã phân định xong) của tất cả các phiên tie-break đã Completed trong một Round.
+        /// </summary>
+        public async Task<Dictionary<int, List<Guid>>> GetCompletedTieBreakOrdersAsync(int roundId)
+        {
+            var completedSessions = await _unitOfWork
+                .GetRepository<TieBreakSession>()
+                .GetAllAsync(session => session.RoundId == roundId && session.Status == TieBreakConstants.Status.Completed);
+
+            var result = new Dictionary<int, List<Guid>>();
+            if (!completedSessions.Any()) return result;
+
+            var criteria = await _unitOfWork
+                .GetRepository<Criterion>()
+                .GetAllAsync(criterion => criterion.RoundId == roundId);
+
+            foreach (var session in completedSessions)
+            {
+                var tieBreakSubmissions = await _unitOfWork
+                    .GetRepository<TieBreakSubmission>()
+                    .GetAllAsync(item => item.TieBreakSessionId == session.Id);
+
+                var submissionIds = tieBreakSubmissions
+                    .Select(item => item.SubmissionId)
+                    .Distinct()
+                    .ToList();
+
+                var submissions = await _unitOfWork
+                    .GetRepository<Submission>()
+                    .GetAllWithIncludeAsync(
+                        submission => submissionIds.Contains(submission.Id),
+                        submission => submission.Team);
+
+                var tieBreakSubmissionIds = tieBreakSubmissions
+                    .Select(item => item.Id)
+                    .ToList();
+
+                var scoreRecords = await _unitOfWork
+                    .GetRepository<TieBreakScoreRecord>()
+                    .GetAllAsync(scoreRecord => tieBreakSubmissionIds.Contains(scoreRecord.TieBreakSubmissionId));
+
+                try
+                {
+                    var orderedTeamIds = CalculateTieBreakTeamOrder(
+                        tieBreakSubmissions,
+                        submissions,
+                        criteria,
+                        scoreRecords);
+
+                    result[session.RankPosition] = orderedTeamIds;
+                }
+                catch
+                {
+                    // Nếu lỗi tính toán (ví dụ: vẫn còn đồng điểm, thiếu điểm), bỏ qua kết quả phiên này.
+                }
+            }
+
+            return result;
+        }
+
     }
 }

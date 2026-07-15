@@ -231,6 +231,49 @@ namespace SealHackathon.Application.Services.Implementations
                     rank));
             }
 
+            // Xử lý áp dụng lại hạng cho các nhóm đã có tie-break Completed
+            var completedTieBreakOrders = await _tieBreakService.GetCompletedTieBreakOrdersAsync(roundId);
+
+            if (completedTieBreakOrders.Any())
+            {
+                var newRankedTeams = new List<(Guid TeamId, double TotalScore, int Rank)>();
+
+                // rankedTeams đang xếp theo TotalScore giảm dần, các team đồng hạng sẽ có chung Rank.
+                var groupedByRank = rankedTeams.GroupBy(t => t.Rank).OrderBy(g => g.Key).ToList();
+
+                foreach (var group in groupedByRank)
+                {
+                    if (completedTieBreakOrders.TryGetValue(group.Key, out var orderedTeamIds))
+                    {
+                        var groupTeamIds = group.Select(t => t.TeamId).ToHashSet();
+                        
+                        // Nếu nhóm đồng hạng gốc vẫn khớp với nhóm đội trong phiên tie-break đã xử lý
+                        if (groupTeamIds.SetEquals(orderedTeamIds))
+                        {
+                            var teamByOrderedIndex = orderedTeamIds.Select((teamId, index) =>
+                            {
+                                var team = group.First(t => t.TeamId == teamId);
+                                return (team.TeamId, team.TotalScore, Rank: group.Key + index);
+                            }).ToList();
+
+                            newRankedTeams.AddRange(teamByOrderedIndex);
+                        }
+                        else
+                        {
+                            // Điểm cơ bản đã thay đổi làm vỡ nhóm đồng hạng gốc, bỏ qua tie-break này.
+                            newRankedTeams.AddRange(group);
+                        }
+                    }
+                    else
+                    {
+                        newRankedTeams.AddRange(group);
+                    }
+                }
+
+                // Cập nhật lại danh sách sau khi đã tách hạng.
+                rankedTeams = newRankedTeams.OrderBy(t => t.Rank).ToList();
+            }
+
             // Bước 7: Xác định đội được vào vòng tiếp theo.
             // AdvancingSlots null đánh dấu vòng chung kết nên không có đội đi tiếp.
             var advancingSlots = round.AdvancingSlots;

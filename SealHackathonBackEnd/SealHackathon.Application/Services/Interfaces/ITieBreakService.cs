@@ -54,6 +54,14 @@ namespace SealHackathon.Application.Services.Interfaces
             SubmitTieBreakScoreRequest request);
 
         /// <summary>
+        /// Judge chấm nhiều tiêu chí cùng lúc cho một bài trong phiên tie-break (Bulk Submit).
+        /// </summary>
+        Task<List<TieBreakScoreResponse>> SubmitScoresAsync(
+            Guid tieBreakSubmissionId,
+            Guid judgeId,
+            List<SubmitTieBreakScoreRequest> requests);
+
+        /// <summary>
         /// Judge sửa điểm tie-break do chính mình đã chấm.
         /// </summary>
         Task<TieBreakScoreResponse> UpdateScoreAsync(
@@ -65,5 +73,11 @@ namespace SealHackathon.Application.Services.Interfaces
         /// Coordinator tính kết quả tie-break và cập nhật lại thứ hạng trong bảng Ranking.
         /// </summary>
         Task<TieBreakSessionResponse> CalculateResultAsync(Guid sessionId);
+
+        /// <summary>
+        /// Lấy thứ tự xếp hạng (đã phân định xong) của tất cả các phiên tie-break đã Completed trong một Round.
+        /// Dictionary trả về có Key là RankPosition gốc, Value là danh sách TeamId đã được xếp hạng từ cao xuống thấp.
+        /// </summary>
+        Task<Dictionary<int, List<Guid>>> GetCompletedTieBreakOrdersAsync(int roundId);
     }
 }
