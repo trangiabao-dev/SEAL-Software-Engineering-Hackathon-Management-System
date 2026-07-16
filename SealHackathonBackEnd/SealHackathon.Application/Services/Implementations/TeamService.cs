@@ -65,7 +65,9 @@ namespace SealHackathon.Application.Services.Implementations
             var normalizedTeamName = request.TeamName.Trim();
 
             var isNameTaken = await teamRepo.GetFirstOrDefaultAsync(
-                team => team.TeamName == normalizedTeamName && !team.IsDeleted);
+                team => team.TeamName == normalizedTeamName 
+                && team.Track.EventId == track.EventId
+                && !team.IsDeleted);
 
             if (isNameTaken is not null)
                 throw new ConflictException(ErrorMessages.Team.NameAlreadyUsed);
@@ -370,6 +372,7 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     var isNameTaken = await repo
                         .GetFirstOrDefaultAsync(t => t.TeamName == normalizedTeamName
+                                                  && t.Track.EventId == team.Track.EventId
                                                   && t.Id != teamId
                                                   && !t.IsDeleted);
 
