@@ -1,0 +1,12 @@
+BEGIN TRY
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'EventAccount' AND COLUMN_NAME = 'JudgeType' AND DATA_TYPE = 'varchar')
+    BEGIN
+        ALTER TABLE dbo.EventAccount ALTER COLUMN JudgeType NVARCHAR(100) NULL;
+        ALTER TABLE dbo.EventAccount ALTER COLUMN EventRole NVARCHAR(50) NOT NULL;
+        ALTER TABLE dbo.EventAccount ALTER COLUMN [Status] NVARCHAR(50) NOT NULL;
+        PRINT 'Successfully altered EventAccount columns from VARCHAR to NVARCHAR.';
+    END
+END TRY
+BEGIN CATCH
+    PRINT 'ERROR IN SCRIPT 004: ' + ERROR_MESSAGE();
+END CATCH;

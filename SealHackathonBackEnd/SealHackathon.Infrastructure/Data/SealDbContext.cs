@@ -204,15 +204,12 @@ public partial class SealDbContext : DbContext
 
             entity.Property(e => e.AssignedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.EventRole)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+                .HasMaxLength(50);
             entity.Property(e => e.JudgeType)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+                .HasMaxLength(100);
             entity.Property(e => e.RejectedReason).HasMaxLength(500);
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
-                .IsUnicode(false)
                 .HasDefaultValue("Pending");
 
             entity.HasOne(d => d.Account).WithMany(p => p.EventAccountAccounts)
