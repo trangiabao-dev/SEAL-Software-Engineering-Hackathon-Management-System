@@ -34,5 +34,15 @@ namespace SealHackathon.Application.DTOs.TieBreak
         /// Link bài nộp/thuyết trình được chấm lại.
         /// </summary>
         public string PresentationUrl { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Tổng điểm chấm lại của bài nộp này (nếu đã được chấm).
+        /// </summary>
+        public double? TotalTieBreakScore { get; set; }
+
+        /// <summary>
+        /// Hạng mới đạt được sau khi giải quyết đồng hạng (chỉ có khi phiên đã Completed).
+        /// </summary>
+        public int? FinalTieBreakRank { get; set; }
     }
 }

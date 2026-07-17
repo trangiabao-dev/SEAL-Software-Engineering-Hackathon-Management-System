@@ -37,5 +37,14 @@ namespace SealHackathon.Application.DTOs.Ranking
 
         /// <summary>ID của phiên tie-break nếu nhóm hạng này đang có tie-break cần chốt</summary>
         public Guid? TieBreakSessionId { get; set; }
+
+        /// <summary>Tên giải thưởng đạt được (nếu là vòng chung kết và có cấu hình giải)</summary>
+        public string? PrizeName { get; set; }
+
+        /// <summary>Tổng điểm chấm lại (nếu có tham gia tie-break)</summary>
+        public double? TieBreakScore { get; set; }
+
+        /// <summary>Tin nhắn thông báo kết quả (Vào vòng trong, Không vào vòng trong, Giải thưởng...)</summary>
+        public string ResultMessage { get; set; } = string.Empty;
     }
 }

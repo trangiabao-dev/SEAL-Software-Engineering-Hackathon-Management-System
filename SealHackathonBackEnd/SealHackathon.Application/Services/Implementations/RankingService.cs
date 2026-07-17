@@ -344,6 +344,19 @@ namespace SealHackathon.Application.Services.Implementations
                 .GetAllAsync(t => teamIds.Contains(t.Id));
             var teamById = teams.ToDictionary(team => team.Id);
 
+            var prizesByRank = new Dictionary<int, string>();
+            if (round.AdvancingSlots == null)
+            {
+                var track = await _unitOfWork.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
+                if (track != null)
+                {
+                    var eventPrizes = await _unitOfWork.GetRepository<Prize>().GetAllAsync(p => p.EventId == track.EventId);
+                    prizesByRank = eventPrizes.ToDictionary(p => p.RankPosition, p => p.Name);
+                }
+            }
+
+            var tieBreakScoresByTeamId = await _tieBreakService.GetTieBreakScoresByRoundAsync(roundId);
+
             var rankingResponses = newRankings
                 .OrderBy(ranking => ranking.RankPosition)
                 .Select(ranking =>
@@ -351,13 +364,38 @@ namespace SealHackathon.Application.Services.Implementations
                     // Ranking public cần đủ tên đội và trường đại học, nên map từ Team entity thay vì chỉ lấy TeamName.
                     teamById.TryGetValue(ranking.TeamId, out var team);
                     var hasTieBreak = tieBreakSessionByRank.TryGetValue(ranking.RankPosition, out var sessionId);
+                    prizesByRank.TryGetValue(ranking.RankPosition, out var prizeName);
+
+                    if (string.IsNullOrEmpty(prizeName) && round.AdvancingSlots == null)
+                    {
+                        prizeName = ranking.RankPosition switch
+                        {
+                            1 => "Giải Nhất",
+                            2 => "Giải Nhì",
+                            3 => "Giải Ba",
+                            _ => ""
+                        };
+                    }
+
+                    var resultMessage = round.AdvancingSlots == null 
+                        ? (prizeName ?? "") 
+                        : (ranking.IsAdvancing ? "Vào vòng trong" : "Không vào vòng trong");
+
+                    double? tieBreakScore = null;
+                    if (tieBreakScoresByTeamId.TryGetValue(ranking.TeamId, out var tScore))
+                    {
+                        tieBreakScore = tScore;
+                    }
 
                     return MapToRankingResponse(
                         ranking,
                         round.Name,
                         team?.TeamName ?? string.Empty,
                         team?.University ?? string.Empty,
-                        hasTieBreak ? sessionId : null);
+                        hasTieBreak ? sessionId : null,
+                        prizeName,
+                        tieBreakScore,
+                        resultMessage);
                 })
                 .ToList();
 
@@ -412,7 +450,20 @@ namespace SealHackathon.Application.Services.Implementations
                 .Where(s => s.Status == TieBreakConstants.Status.PendingScoring)
                 .ToDictionary(s => s.RankPosition, s => s.Id);
 
-            return BuildLeaderboardResponse(round, rankings, teamById, tieBreakSessionByRank);
+            var prizesByRank = new Dictionary<int, string>();
+            if (round.AdvancingSlots == null)
+            {
+                var track = await _unitOfWork.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
+                if (track != null)
+                {
+                    var eventPrizes = await _unitOfWork.GetRepository<Prize>().GetAllAsync(p => p.EventId == track.EventId);
+                    prizesByRank = eventPrizes.ToDictionary(p => p.RankPosition, p => p.Name);
+                }
+            }
+
+            var tieBreakScoresByTeamId = await _tieBreakService.GetTieBreakScoresByRoundAsync(roundId);
+
+            return BuildLeaderboardResponse(round, rankings, teamById, tieBreakSessionByRank, prizesByRank, tieBreakScoresByTeamId);
         }
 
 
@@ -465,11 +516,18 @@ namespace SealHackathon.Application.Services.Implementations
                 .Where(s => s.Status == TieBreakConstants.Status.PendingScoring)
                 .ToDictionary(s => s.RankPosition, s => s.Id);
 
+            var eventPrizes = await _unitOfWork.GetRepository<Prize>().GetAllAsync(p => p.EventId == eventEntity.Id);
+            var prizesByRank = eventPrizes.ToDictionary(p => p.RankPosition, p => p.Name);
+
+            var tieBreakScoresByTeamId = await _tieBreakService.GetTieBreakScoresByRoundAsync(finalRound.Id);
+
             var finalRoundRanking = BuildLeaderboardResponse(
                 finalRound,
                 rankings,
                 teamById,
-                tieBreakSessionByRank);
+                tieBreakSessionByRank,
+                prizesByRank,
+                tieBreakScoresByTeamId);
             EnsureLeaderboardCalculated(finalRoundRanking);
 
             var trackRankings = new List<TrackFinalRankingResponse>
@@ -596,12 +654,49 @@ namespace SealHackathon.Application.Services.Implementations
             if (ranking == null)
                 throw new NotFoundException(ErrorMessages.Ranking.NotFound);
 
+            var tieBreakScoresByTeamId = await _tieBreakService.GetTieBreakScoresByRoundAsync(roundId);
+            double? tieBreakScore = null;
+            if (tieBreakScoresByTeamId.TryGetValue(teamId, out var tScore))
+            {
+                tieBreakScore = tScore;
+            }
+
+            string? prizeName = null;
+            if (round.AdvancingSlots == null)
+            {
+                var track = await _unitOfWork.GetRepository<Track>().GetFirstOrDefaultAsync(t => t.Id == round.TrackId);
+                if (track != null)
+                {
+                    var prize = await _unitOfWork.GetRepository<Prize>().GetFirstOrDefaultAsync(p => p.EventId == track.EventId && p.RankPosition == ranking.RankPosition);
+                    prizeName = prize?.Name;
+                }
+                
+                if (string.IsNullOrEmpty(prizeName))
+                {
+                    prizeName = ranking.RankPosition switch
+                    {
+                        1 => "Giải Nhất",
+                        2 => "Giải Nhì",
+                        3 => "Giải Ba",
+                        _ => ""
+                    };
+                }
+            }
+
+            var resultMessage = round.AdvancingSlots == null 
+                ? (prizeName ?? "") 
+                : (ranking.IsAdvancing ? "Vào vòng trong" : "Không vào vòng trong");
+
             // Bước 4: Chuyển dữ liệu sang response DTO.
             return MapToRankingResponse(
                 ranking,
                 round.Name,
                 team.TeamName,
-                team.University);
+                team.University,
+                null,
+                prizeName,
+                tieBreakScore,
+                resultMessage);
         }
 
         // =============== Private helpers ===============
@@ -957,7 +1052,9 @@ namespace SealHackathon.Application.Services.Implementations
             Round round,
             IReadOnlyCollection<Domain.Entities.Ranking> rankings,
             IReadOnlyDictionary<Guid, Team> teamById,
-            IReadOnlyDictionary<int, Guid>? tieBreakSessionByRank = null)
+            IReadOnlyDictionary<int, Guid>? tieBreakSessionByRank = null,
+            IReadOnlyDictionary<int, string>? prizesByRank = null,
+            IReadOnlyDictionary<Guid, double>? tieBreakScoresByTeamId = null)
         {
             if (rankings.Count == 0)
             {
@@ -980,13 +1077,39 @@ namespace SealHackathon.Application.Services.Implementations
                     teamById.TryGetValue(ranking.TeamId, out var team);
                     Guid sessionId = Guid.Empty;
                     var hasTieBreak = tieBreakSessionByRank?.TryGetValue(ranking.RankPosition, out sessionId) == true;
+                    string? prizeName = null;
+                    prizesByRank?.TryGetValue(ranking.RankPosition, out prizeName);
+
+                    if (string.IsNullOrEmpty(prizeName) && round.AdvancingSlots == null)
+                    {
+                        prizeName = ranking.RankPosition switch
+                        {
+                            1 => "Giải Nhất",
+                            2 => "Giải Nhì",
+                            3 => "Giải Ba",
+                            _ => ""
+                        };
+                    }
+
+                    var resultMessage = round.AdvancingSlots == null 
+                        ? (prizeName ?? "") 
+                        : (ranking.IsAdvancing ? "Vào vòng trong" : "Không vào vòng trong");
+
+                    double? tieBreakScore = null;
+                    if (tieBreakScoresByTeamId != null && tieBreakScoresByTeamId.TryGetValue(ranking.TeamId, out var tScore))
+                    {
+                        tieBreakScore = tScore;
+                    }
 
                     return MapToRankingResponse(
                         ranking,
                         round.Name,
                         team?.TeamName ?? string.Empty,
                         team?.University ?? string.Empty,
-                        hasTieBreak ? sessionId : null);
+                        hasTieBreak ? sessionId : null,
+                        prizeName,
+                        tieBreakScore,
+                        resultMessage);
                 })
                 .ToList();
 
@@ -1009,7 +1132,10 @@ namespace SealHackathon.Application.Services.Implementations
             string roundName,
             string teamName,
             string university,
-            Guid? tieBreakSessionId = null)
+            Guid? tieBreakSessionId = null,
+            string? prizeName = null,
+            double? tieBreakScore = null,
+            string? resultMessage = null)
         {
             return new RankingResponse
             {
@@ -1023,7 +1149,10 @@ namespace SealHackathon.Application.Services.Implementations
                 RankPosition = ranking.RankPosition,
                 IsAdvancing = ranking.IsAdvancing,
                 CalculatedAt = ranking.CalculatedAt,
-                TieBreakSessionId = tieBreakSessionId
+                TieBreakSessionId = tieBreakSessionId,
+                PrizeName = prizeName,
+                TieBreakScore = tieBreakScore,
+                ResultMessage = resultMessage ?? (ranking.IsAdvancing ? "Vào vòng trong" : "Không vào vòng trong")
             };
         }
     }

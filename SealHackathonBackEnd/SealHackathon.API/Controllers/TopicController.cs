@@ -17,6 +17,20 @@ namespace SealHackathon.API.Controllers
             _topicService = topicService;
         }
 
+        [HttpGet("api/events/{eventId}/topics")]
+        public async Task<IActionResult> GetTopicsByEventId(int eventId)
+        {
+            var result = await _topicService.GetTopicsByEventIdAsync(eventId);
+            return Ok(result);
+        }
+
+        [HttpPost("api/events/{eventId}/topics")]
+        public async Task<IActionResult> CreateEventTopic(int eventId, [FromBody] CreateEventTopicRequest request)
+        {
+            var result = await _topicService.CreateEventTopicAsync(eventId, request);
+            return Ok(result);
+        }
+
         [HttpGet("api/rounds/{roundId}/topics")]
         public async Task<IActionResult> GetTopicsByRoundId(int roundId)
         {

@@ -79,5 +79,11 @@ namespace SealHackathon.Application.Services.Interfaces
         /// Dictionary trả về có Key là RankPosition gốc, Value là danh sách TeamId đã được xếp hạng từ cao xuống thấp.
         /// </summary>
         Task<Dictionary<int, List<Guid>>> GetCompletedTieBreakOrdersAsync(int roundId);
+
+        /// <summary>
+        /// Lấy điểm tie-break đã tính của tất cả các đội tham gia các phiên tie-break trong một Round.
+        /// Dictionary trả về có Key là TeamId, Value là TotalTieBreakScore.
+        /// </summary>
+        Task<Dictionary<Guid, double>> GetTieBreakScoresByRoundAsync(int roundId);
     }
 }

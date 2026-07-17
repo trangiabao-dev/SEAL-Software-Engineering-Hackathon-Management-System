@@ -31,6 +31,7 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Id = t.Id,
                 RoundId = t.RoundId,
+                EventId = t.EventId,
                 Title = t.Title,
                 Description = t.Description,
                 Requirements = t.Requirements,
@@ -38,6 +39,60 @@ namespace SealHackathon.Application.Services.Implementations
             }).ToList();
 
             return ApiResponse<List<TopicResponse>>.SuccessResult(response);
+        }
+
+        public async Task<ApiResponse<List<TopicResponse>>> GetTopicsByEventIdAsync(int eventId)
+        {
+            var eventExists = await _uow.GetRepository<Event>().GetFirstOrDefaultAsync(x => x.Id == eventId);
+            if (eventExists == null) throw new NotFoundException($"Không tìm thấy Event với ID {eventId}");
+
+            var topics = await _uow.GetRepository<Topic>().GetAllAsync(x => x.EventId == eventId && x.RoundId == null);
+            
+            var response = topics.Select(t => new TopicResponse
+            {
+                Id = t.Id,
+                RoundId = t.RoundId,
+                EventId = t.EventId,
+                Title = t.Title,
+                Description = t.Description,
+                Requirements = t.Requirements,
+                AttachmentUrl = t.AttachmentUrl
+            }).ToList();
+
+            return ApiResponse<List<TopicResponse>>.SuccessResult(response);
+        }
+
+        public async Task<ApiResponse<TopicResponse>> CreateEventTopicAsync(int eventId, CreateEventTopicRequest request)
+        {
+            var eventExists = await _uow.GetRepository<Event>().GetFirstOrDefaultAsync(x => x.Id == eventId);
+            if (eventExists == null) throw new NotFoundException($"Không tìm thấy Event với ID {eventId}");
+
+            var newTopic = new Topic
+            {
+                EventId = eventId,
+                RoundId = null,
+                Title = request.Title,
+                Description = request.Description,
+                Requirements = request.Requirements,
+                AttachmentUrl = request.AttachmentUrl,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.GetRepository<Topic>().AddAsync(newTopic);
+            await _uow.SaveChangesAsync();
+
+            var response = new TopicResponse
+            {
+                Id = newTopic.Id,
+                RoundId = newTopic.RoundId,
+                EventId = newTopic.EventId,
+                Title = newTopic.Title,
+                Description = newTopic.Description,
+                Requirements = newTopic.Requirements,
+                AttachmentUrl = newTopic.AttachmentUrl
+            };
+
+            return ApiResponse<TopicResponse>.SuccessResult(response, "Tạo Đề tài chung thành công.");
         }
 
         public async Task<ApiResponse<TopicResponse>> CreateTopicAsync(CreateTopicRequest request)
@@ -62,6 +117,7 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Id = newTopic.Id,
                 RoundId = newTopic.RoundId,
+                EventId = newTopic.EventId,
                 Title = newTopic.Title,
                 Description = newTopic.Description,
                 Requirements = newTopic.Requirements,
@@ -88,6 +144,7 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 Id = existingTopic.Id,
                 RoundId = existingTopic.RoundId,
+                EventId = existingTopic.EventId,
                 Title = existingTopic.Title,
                 Description = existingTopic.Description,
                 Requirements = existingTopic.Requirements,

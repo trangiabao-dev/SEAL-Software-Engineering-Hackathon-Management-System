@@ -8,6 +8,8 @@ namespace SealHackathon.Application.Services.Interfaces
     // Giao diện (Interface) cho Topic Service
     public interface ITopicService
     {
+        Task<ApiResponse<List<TopicResponse>>> GetTopicsByEventIdAsync(int eventId);
+        Task<ApiResponse<TopicResponse>> CreateEventTopicAsync(int eventId, CreateEventTopicRequest request);
         Task<ApiResponse<List<TopicResponse>>> GetTopicsByRoundIdAsync(int roundId);
         Task<ApiResponse<TopicResponse>> CreateTopicAsync(CreateTopicRequest request);
         Task<ApiResponse<TopicResponse>> UpdateTopicAsync(int id, UpdateTopicRequest request);
