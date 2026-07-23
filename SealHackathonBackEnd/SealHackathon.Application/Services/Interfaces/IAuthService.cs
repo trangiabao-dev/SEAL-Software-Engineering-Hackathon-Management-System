@@ -13,6 +13,8 @@ namespace SealHackathon.Application.Services.Interfaces
         Task VerifyEmailAsync(string token);
         Task<LoginResponse> LoginAsync(LoginRequest request);
         Task LogoutAsync(string token);
+        Task ForgotPasswordAsync(ForgotPasswordRequest request);
+        Task ResetPasswordAsync(ResetPasswordRequest request);
 
         // Bảo Thêm
         Task<EventStaffResponse> CreateEventStaffAsync(int eventId, CreateEventStaffRequest request, Guid coordinatorId);

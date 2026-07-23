@@ -207,7 +207,82 @@ public class AuthService : IAuthService
     }
 
     // ==========================================
-    // 4. ĐĂNG XUẤT (LOGOUT)
+    // 4. QUÊN MẬT KHẨU (FORGOT PASSWORD)
+    // ==========================================
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var repo = _uow.GetRepository<Account>();
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Email == request.Email && !a.IsDeleted);
+
+        if (account == null)
+        {
+            // Do not throw error for non-existent email to prevent email enumeration attacks
+            return;
+        }
+
+        // Generate a 6-digit OTP
+        var otpCode = Random.Shared.Next(100000, 999999).ToString();
+
+        account.ResetPasswordToken = otpCode;
+        account.ResetPasswordTokenExpiresAt = DateTime.UtcNow.AddMinutes(10); // 10 minutes expiry
+        account.UpdatedAt = DateTime.UtcNow;
+
+        await _uow.SaveChangesAsync();
+
+        var emailSubject = "Đặt lại mật khẩu - Seal Hackathon";
+        var emailBody = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                <div style='background-color: #28a745; padding: 20px; color: white;'>
+                    <h2 style='margin: 0;'>Seal Hackathon</h2>
+                </div>
+                <div style='padding: 30px;'>
+                    <h3 style='color: #333;'>Đặt lại mật khẩu</h3>
+                    <p style='color: #555; line-height: 1.5;'>Bạn đã yêu cầu đặt lại mật khẩu tài khoản Seal Hackathon. Nhập mã bên dưới để tiếp tục:</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <div style='display: inline-block; padding: 15px 30px; border: 2px solid #28a745; border-radius: 8px; background-color: #f8fff9; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #28a745;'>
+                            {otpCode.Substring(0, 1)} {otpCode.Substring(1, 1)} {otpCode.Substring(2, 1)} {otpCode.Substring(3, 1)} {otpCode.Substring(4, 1)} {otpCode.Substring(5, 1)}
+                        </div>
+                    </div>
+                    <p style='color: #888; font-size: 14px; line-height: 1.5;'>Mã có hiệu lực trong 10 phút. Nếu không phải bạn yêu cầu, hãy đổi mật khẩu ngay và bỏ qua email này.</p>
+                </div>
+                <div style='background-color: #f8f9fa; padding: 15px 30px; border-top: 1px solid #e0e0e0;'>
+                    <p style='color: #999; font-size: 12px; margin: 0;'>Email tự động từ hệ thống Seal Hackathon. Vui lòng không trả lời email này.</p>
+                </div>
+            </div>";
+
+        await _emailService.SendEmailAsync(account.Email, emailSubject, emailBody);
+    }
+
+    // ==========================================
+    // 5. ĐẶT LẠI MẬT KHẨU (RESET PASSWORD)
+    // ==========================================
+    public async Task ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var repo = _uow.GetRepository<Account>();
+        var account = await repo.GetFirstOrDefaultTrackingAsync(a => a.Email == request.Email && !a.IsDeleted);
+
+        if (account == null)
+            throw new BadRequestException("Email không tồn tại trong hệ thống.");
+
+        if (account.ResetPasswordToken != request.OtpCode)
+            throw new BadRequestException("Mã OTP không hợp lệ.");
+
+        if (account.ResetPasswordTokenExpiresAt < DateTime.UtcNow)
+            throw new BadRequestException("Mã OTP đã hết hạn. Vui lòng yêu cầu gửi lại mã mới.");
+
+        // Hash the new password
+        account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        
+        // Clear the token
+        account.ResetPasswordToken = null;
+        account.ResetPasswordTokenExpiresAt = null;
+        account.UpdatedAt = DateTime.UtcNow;
+
+        await _uow.SaveChangesAsync();
+    }
+
+    // ==========================================
+    // 6. ĐĂNG XUẤT (LOGOUT)
     // ==========================================
     public Task LogoutAsync(string token)
     {

@@ -43,6 +43,24 @@ namespace SealHackathon.API.Controllers
             return Ok(ApiResponse<LoginResponse>.SuccessResult(result, "Đăng nhập thành công."));
         }
 
+        // POST api/auth/forgot-password
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            await _authService.ForgotPasswordAsync(request);
+            return Ok(ApiResponse<object>.SuccessResult(null!, "Yêu cầu khôi phục mật khẩu đã được tiếp nhận. Vui lòng kiểm tra email của bạn để nhận mã xác nhận (OTP)."));
+        }
+
+        // POST api/auth/reset-password
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            await _authService.ResetPasswordAsync(request);
+            return Ok(ApiResponse<object>.SuccessResult(null!, "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới."));
+        }
+
         // POST api/auth/logout
         [HttpPost("logout")]
         [Authorize]
