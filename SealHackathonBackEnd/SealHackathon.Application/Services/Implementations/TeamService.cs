@@ -446,8 +446,6 @@ namespace SealHackathon.Application.Services.Implementations
             return result;
         }
 
-
-
         // =======================================================
         //                      COORDINATOR 
         // =======================================================
