@@ -216,8 +216,7 @@ public class AuthService : IAuthService
 
         if (account == null)
         {
-            // Do not throw error for non-existent email to prevent email enumeration attacks
-            return;
+            throw new BadRequestException("Email không tồn tại trong hệ thống.");
         }
 
         // Generate a 6-digit OTP
