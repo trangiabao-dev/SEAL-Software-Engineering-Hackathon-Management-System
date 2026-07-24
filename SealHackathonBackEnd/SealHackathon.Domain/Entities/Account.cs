@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SealHackathon.Domain.Entities;
@@ -23,6 +23,9 @@ public partial class Account
     // Thêm 2 thuộc tính này vào file Account.cs
     public string? EmailConfirmToken { get; set; }
     public DateTime? TokenExpiresAt { get; set; }
+
+    public string? ResetPasswordToken { get; set; }
+    public DateTime? ResetPasswordTokenExpiresAt { get; set; }
 
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 

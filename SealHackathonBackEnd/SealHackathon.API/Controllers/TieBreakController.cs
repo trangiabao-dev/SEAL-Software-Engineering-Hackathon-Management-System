@@ -129,26 +129,6 @@ namespace SealHackathon.API.Controllers
         }
 
         /// <summary>
-        /// Judge chấm nhiều tiêu chí cùng lúc cho một bài trong phiên tie-break (Bulk Submit).
-        /// </summary>
-        [HttpPost("submissions/{tieBreakSubmissionId:guid}/scores/bulk")]
-        [Authorize(Roles = RoleConstants.Judge)]
-        public async Task<IActionResult> SubmitScores(
-            Guid tieBreakSubmissionId,
-            [FromBody] List<SubmitTieBreakScoreRequest> requests)
-        {
-            var judgeId = GetCurrentAccountId();
-            var result = await _tieBreakService.SubmitScoresAsync(
-                tieBreakSubmissionId,
-                judgeId,
-                requests);
-
-            return Ok(ApiResponse<List<TieBreakScoreResponse>>.SuccessResult(
-                result,
-                "Chấm nhiều điểm tie-break cùng lúc thành công."));
-        }
-
-        /// <summary>
         /// Judge sửa điểm tie-break do chính mình đã chấm.
         /// </summary>
         [HttpPut("scores/{tieBreakScoreRecordId:guid}")]
