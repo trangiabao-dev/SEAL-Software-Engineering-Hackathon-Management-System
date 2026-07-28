@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SealHackathon.Application.DTOs.Team
 {
@@ -43,7 +43,6 @@ namespace SealHackathon.Application.DTOs.Team
 
         [Required(ErrorMessage = "Danh sách thành viên không được để trống.")]
         [MinLength(2, ErrorMessage = "Team phải có ít nhất 3 người, bao gồm Leader.")]
-        [MaxLength(4, ErrorMessage = "Team chỉ được có tối đa 5 người, bao gồm Leader.")]
         public List<AddMemberRequest> Members { get; set; } = new();
     }
 }

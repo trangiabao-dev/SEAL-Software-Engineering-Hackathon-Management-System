@@ -768,15 +768,16 @@ namespace SealHackathon.Application.Services.Implementations
             var team = await GetTeamForMemberManagementAsync(
                 teamId, leaderId, ErrorMessages.Team.NoAddMemberPermission);
 
-            // Kiểm tra team không quá 5 người
+            var track = await GetTrackOrThrowAsync(team.TrackId);
+
+            // Kiểm tra team không vượt quá số lượng thành viên tối đa của Bảng (Track)
             var memberCount = await _uow.GetRepository<TeamMember>()
                 .CountAsync(m => m.TeamId == teamId);
 
-            if (memberCount >= TeamConstants.Rules.MaxMembersPerTeam)
+            if (memberCount >= track.MaxMembers)
                 throw new BadRequestException(ErrorMessages.TeamMember.MaxMembersReached);
 
             // StudentCode không được trùng trong cùng Event.
-            var track = await GetTrackOrThrowAsync(team.TrackId);
 
             await CheckStudentCodeNotUsedInEventAsync(track.EventId, request.StudentCode);
 
@@ -1363,15 +1364,15 @@ namespace SealHackathon.Application.Services.Implementations
                 return "TrackId không tồn tại trong sự kiện này.";
             }
 
-            // 2. Kiểm tra điều kiện số lượng thành viên (Từ 3 đến 5 thành viên bao gồm Leader)
+            // 2. Kiểm tra điều kiện số lượng thành viên (Tối thiểu theo quy định và tối đa theo cấu hình Track)
             var totalMembers = teamReq.Members.Count + 1;
             if (totalMembers < TeamConstants.Rules.MinMembersPerTeam)
             {
                 return $"Đội thi không hợp lệ: Cần ít nhất {TeamConstants.Rules.MinMembersPerTeam} thành viên (bao gồm Leader).";
             }
-            if (totalMembers > TeamConstants.Rules.MaxMembersPerTeam)
+            if (totalMembers > track.MaxMembers)
             {
-                return $"Đội thi vượt quá số lượng tối đa {TeamConstants.Rules.MaxMembersPerTeam} thành viên.";
+                return $"Đội thi vượt quá số lượng tối đa {track.MaxMembers} thành viên theo cấu hình của bảng thi.";
             }
 
             // 3. Kiểm tra trùng tên nhóm
