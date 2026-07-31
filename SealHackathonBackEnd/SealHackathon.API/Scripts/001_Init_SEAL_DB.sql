@@ -72,6 +72,7 @@ BEGIN
         Name        NVARCHAR(255)     NOT NULL,
         Description NVARCHAR(MAX)     NULL,
         MaxTeams    INT               NULL,
+        MinMembers  INT               NULL,
         MaxMembers  INT               NULL,
         IsFinal     BIT               NOT NULL DEFAULT 0,
         IsDeleted   BIT               NOT NULL DEFAULT 0,
