@@ -102,6 +102,15 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 ValidateRoundAcceptsSubmissions(round, ErrorMessages.Submission.UpdateDeadlinePassed);
             }
+            else
+            {
+                // Fix: Dù CanEdit = true (Coordinator cho phép sửa đặc biệt),
+                // vẫn phải chặn nếu Round đã sang Scoring hoặc Closed.
+                // CanEdit chỉ bỏ qua kiểm tra deadline thời gian, KHÔNG bỏ qua trạng thái Round.
+                if (round.Status == RoundConstants.Status.Scoring
+                 || round.Status == RoundConstants.Status.Closed)
+                    throw new BadRequestException(ErrorMessages.Submission.CanEditRoundNotActive);
+            }
 
             // Bổ sung kiểm tra RoundTeam khi Update Submission theo yêu cầu (cho Thịnh)
             await EnsureTeamCanSubmitRoundAsync(submission.TeamId, submission.RoundId);
@@ -208,6 +217,13 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new NotFoundException(
                     ErrorMessages.Submission.TeamNotFound);
 
+            // Fix: Chặn loại bài nộp khi Round đã đóng (Closed).
+            // Nếu Ranking đã được tính xong mà loại bài, dữ liệu sẽ không nhất quán.
+            var round = await GetRoundOrThrowAsync(submission.RoundId);
+            if (round.Status == RoundConstants.Status.Closed)
+                throw new BadRequestException(
+                    ErrorMessages.Submission.RoundClosedCannotDisqualify);
+
             var reason = request.Reason.Trim();
             var now = DateTime.UtcNow;
 
@@ -222,9 +238,9 @@ namespace SealHackathon.Application.Services.Implementations
                 new Notification
                 {
                     AccountId = team.LeaderId,
-                    Title = "Bài nộp đã bị loại",
+                    Title = NotificationConstants.Messages.SubmissionDisqualifiedTitle,
                     Message = $"Bài nộp của đội {team.TeamName} đã bị loại. Lý do: {reason}",
-                    Type = "SUBMISSION_DISQUALIFIED",
+                    Type = NotificationConstants.Types.SubmissionDisqualified,
                     IsRead = false,
                     CreatedAt = now
                 });

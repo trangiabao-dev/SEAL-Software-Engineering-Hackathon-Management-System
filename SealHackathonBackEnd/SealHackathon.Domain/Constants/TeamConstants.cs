@@ -1,4 +1,4 @@
-﻿namespace SealHackathon.Domain.Constants
+namespace SealHackathon.Domain.Constants
 {
     public static class TeamConstants
     {
@@ -16,10 +16,6 @@
         /// <summary>
         /// Chuyên quản lý giới hạn team/member
         /// </summary>
-        public static class Rules
-        {
-            public const int MinMembersPerTeam = 3;
-            public const int MaxMembersPerTeam = 5;
-        }
+
     }
 }

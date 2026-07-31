@@ -50,6 +50,18 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException("Không thể đăng ký trực tiếp vào Track Chung Kết.");
             }
 
+            // Kiểm tra số lượng thành viên (Bao gồm Leader + Members)
+            var totalMembers = request.Members.Count + 1;
+            var minMembers = track.MinMembers ?? 3;
+            if (totalMembers < minMembers)
+            {
+                throw new BadRequestException($"Đội thi phải có ít nhất {minMembers} thành viên (bao gồm nhóm trưởng) theo quy định của bảng thi.");
+            }
+            if (track.MaxMembers.HasValue && totalMembers > track.MaxMembers.Value)
+            {
+                throw new BadRequestException($"Đội thi chỉ được có tối đa {track.MaxMembers.Value} thành viên theo quy định của bảng thi.");
+            }
+
             // Không cho tạo thêm Team khi Track đã đủ số lượng.
             if (track.MaxTeams is not null)
             {
@@ -344,6 +356,14 @@ namespace SealHackathon.Application.Services.Implementations
             if (team.Status == TeamConstants.Status.Rejected)
                 throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
 
+            // Fix: Chặn chỉnh sửa đội khi Event đã kết thúc.
+            // Lấy Track → Event để kiểm tra trạng thái Event.
+            var track = await GetTrackOrThrowAsync(team.TrackId);
+            var eventEntity = await _uow.GetRepository<Event>()
+                .GetFirstOrDefaultAsync(e => e.Id == track.EventId && !e.IsDeleted);
+            if (eventEntity?.Status == EventConstants.Status.Completed)
+                throw new BadRequestException(ErrorMessages.Team.EventCompletedCannotModify);
+
             var normalizedTeamName = request.TeamName.Trim();
 
             // Kiểm tra nếu team đã được duyệt thì chỉ được phép cập nhật Link Github và không được đổi gì khác
@@ -593,14 +613,18 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(
                     ErrorMessages.Team.OnlyPendingCanApprove);
 
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId);
+
+            var minMembers = track?.MinMembers ?? 3;
+
             var memberCount = await _uow.GetRepository<TeamMember>()
                 .CountAsync(member => member.TeamId == teamId);
 
-            if (memberCount < TeamConstants.Rules.MinMembersPerTeam)
+            if (memberCount < minMembers)
             {
                 throw new BadRequestException(
-                    $"Đội thi phải có ít nhất " +
-                    $"{TeamConstants.Rules.MinMembersPerTeam} thành viên mới đủ điều kiện duyệt.");
+                    $"Đội thi phải có ít nhất {minMembers} thành viên mới đủ điều kiện duyệt.");
             }
 
             var now = DateTime.UtcNow;
@@ -613,10 +637,10 @@ namespace SealHackathon.Application.Services.Implementations
                 .AddAsync(new Notification
                 {
                     AccountId = team.LeaderId,
-                    Title = "Đội thi đã được duyệt",
+                    Title = NotificationConstants.Messages.TeamApprovedTitle,
                     Message =
                         $"Đội thi {team.TeamName} của bạn đã được duyệt để tham gia sự kiện.",
-                    Type = "TEAM_APPROVED",
+                    Type = NotificationConstants.Types.TeamApproved,
                     IsRead = false,
                     CreatedAt = now
                 });
@@ -650,9 +674,9 @@ namespace SealHackathon.Application.Services.Implementations
             await _uow.GetRepository<Notification>().AddAsync(new Notification
             {
                 AccountId = team.LeaderId,
-                Title = "Đội thi đã bị từ chối",
+                Title = NotificationConstants.Messages.TeamRejectedTitle,
                 Message = $"Đội thi {team.TeamName} đã bị từ chối. Lý do: {reason}",
-                Type = "TEAM_REJECTED",
+                Type = NotificationConstants.Types.TeamRejected,
                 IsRead = false,
                 CreatedAt = now
             });
@@ -702,10 +726,10 @@ namespace SealHackathon.Application.Services.Implementations
                 .AddAsync(new Notification
                 {
                     AccountId = team.LeaderId,
-                    Title = "Đội thi đã bị loại",
+                    Title = NotificationConstants.Messages.TeamDisqualifiedTitle,
                     Message =
                         $"Đội thi {team.TeamName} của bạn đã bị loại. Lý do: {reason}",
-                    Type = "TEAM_DISQUALIFIED",
+                    Type = NotificationConstants.Types.TeamDisqualified,
                     IsRead = false,
                     CreatedAt = now
                 });
@@ -858,11 +882,12 @@ namespace SealHackathon.Application.Services.Implementations
             if (member.IsLeader)
                 throw new BadRequestException(ErrorMessages.TeamMember.CannotDeleteLeader);
 
-            // Team đã duyệt phải luôn giữ tối thiểu 3 thành viên theo rule cuộc thi.
+            // Team đã duyệt phải luôn giữ tối thiểu thành viên theo rule của Track.
             if (team.Status == TeamConstants.Status.Approved)
             {
+                var minMembers = team.Track?.MinMembers ?? 3;
                 var memberCount = await memberRepo.CountAsync(m => m.TeamId == teamId);
-                if (memberCount <= TeamConstants.Rules.MinMembersPerTeam)
+                if (memberCount <= minMembers)
                     throw new BadRequestException(ErrorMessages.TeamMember.ApprovedTeamMinMembersRequired);
             }
 
@@ -908,6 +933,20 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (team.Status == TeamConstants.Status.Rejected)
                 throw new BadRequestException(ErrorMessages.Team.RejectedCannotModify);
+
+            // Fix: Chặn thao tác quản lý thành viên khi Event đã kết thúc.
+            // Truy vấn Track → Event vì team hiện tại chỉ load Team, chưa include Track.
+            var track = await _uow.GetRepository<Track>()
+                .GetFirstOrDefaultAsync(t => t.Id == team.TrackId && !t.IsDeleted);
+            if (track is not null)
+            {
+                var eventEntity = await _uow.GetRepository<Event>()
+                    .GetFirstOrDefaultAsync(e => e.Id == track.EventId && !e.IsDeleted);
+                if (eventEntity?.Status != EventConstants.Status.Registration)
+                    throw new BadRequestException(ErrorMessages.Event.TeamRegistrationNotOpen);
+                    
+                team.Track = track; // Gắn track vào team để các hàm gọi có thể sử dụng (ví dụ: lấy MinMembers)
+            }
 
             return team;
         }
@@ -1366,9 +1405,10 @@ namespace SealHackathon.Application.Services.Implementations
 
             // 2. Kiểm tra điều kiện số lượng thành viên (Tối thiểu theo quy định và tối đa theo cấu hình Track)
             var totalMembers = teamReq.Members.Count + 1;
-            if (totalMembers < TeamConstants.Rules.MinMembersPerTeam)
+            var minMembers = track.MinMembers ?? 3;
+            if (totalMembers < minMembers)
             {
-                return $"Đội thi không hợp lệ: Cần ít nhất {TeamConstants.Rules.MinMembersPerTeam} thành viên (bao gồm Leader).";
+                return $"Đội thi không hợp lệ: Cần ít nhất {minMembers} thành viên (bao gồm Leader).";
             }
             if (totalMembers > track.MaxMembers)
             {

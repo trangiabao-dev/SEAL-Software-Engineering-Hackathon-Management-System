@@ -44,6 +44,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = t.Description,
                 MaxTeams = t.MaxTeams, // Số đội tối đa được phép thi ở bảng này
                 MaxMembers = t.MaxMembers,
+                MinMembers = t.MinMembers,
                 CurrentTeamCount = t.Teams != null ? t.Teams.Count(tm => !tm.IsDeleted) : 0,
                 IsFinal = t.IsFinal,
                 IsDeleted = t.IsDeleted
@@ -61,6 +62,8 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Bước 2: Khởi tạo một đối tượng Track mới
             await EnsureSingleFinalTrackAsync(request.EventId, request.IsFinal);
+            
+            ValidateTrackMembers(request.MinMembers, request.MaxMembers);
 
             var newTrack = new Track
             {
@@ -69,6 +72,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = request.Description,
                 MaxTeams = request.MaxTeams,
                 MaxMembers = request.MaxMembers,
+                MinMembers = request.MinMembers,
                 IsFinal = request.IsFinal,
                 CreatedAt = DateTime.UtcNow, // Lấy thời gian hệ thống
                 IsDeleted = false
@@ -87,6 +91,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = newTrack.Description,
                 MaxTeams = newTrack.MaxTeams,
                 MaxMembers = newTrack.MaxMembers,
+                MinMembers = newTrack.MinMembers,
                 CurrentTeamCount = 0,
                 IsFinal = newTrack.IsFinal,
                 IsDeleted = newTrack.IsDeleted
@@ -104,11 +109,14 @@ namespace SealHackathon.Application.Services.Implementations
 
             // Bước 2: Cập nhật các trường thông tin mới từ Request
             await EnsureSingleFinalTrackAsync(existingTrack.EventId, request.IsFinal, existingTrack.Id);
+            
+            ValidateTrackMembers(request.MinMembers, request.MaxMembers);
 
             existingTrack.Name = request.Name;
             existingTrack.Description = request.Description;
             existingTrack.MaxTeams = request.MaxTeams;
             existingTrack.MaxMembers = request.MaxMembers;
+            existingTrack.MinMembers = request.MinMembers;
             existingTrack.IsFinal = request.IsFinal;
             existingTrack.UpdatedAt = DateTime.UtcNow; // Ghi nhận thời điểm bị sửa
 
@@ -124,6 +132,7 @@ namespace SealHackathon.Application.Services.Implementations
                 Description = existingTrack.Description,
                 MaxTeams = existingTrack.MaxTeams,
                 MaxMembers = existingTrack.MaxMembers,
+                MinMembers = existingTrack.MinMembers,
                 CurrentTeamCount = await _uow.GetRepository<Team>().CountAsync(t => t.TrackId == existingTrack.Id && !t.IsDeleted),
                 IsFinal = existingTrack.IsFinal,
                 IsDeleted = existingTrack.IsDeleted
@@ -429,6 +438,24 @@ namespace SealHackathon.Application.Services.Implementations
 
             if (mentorAssign is null)
                 throw new BadRequestException(ErrorMessages.Team.MentorNotAssignedToTrack);
+        }
+
+        private void ValidateTrackMembers(int? minMembers, int? maxMembers)
+        {
+            if (minMembers.HasValue && minMembers.Value < 2)
+            {
+                throw new BadRequestException("Số thành viên tối thiểu của Đội thi phải từ 2 trở lên.");
+            }
+
+            if (maxMembers.HasValue && maxMembers.Value < 2)
+            {
+                throw new BadRequestException("Số thành viên tối đa của Đội thi phải từ 2 trở lên.");
+            }
+
+            if (minMembers.HasValue && maxMembers.HasValue && minMembers.Value > maxMembers.Value)
+            {
+                throw new BadRequestException("Số thành viên tối đa không được nhỏ hơn số thành viên tối thiểu.");
+            }
         }
 
         private static MentorTeamAssignmentResponse MapToMentorTeamAssignmentResponse(

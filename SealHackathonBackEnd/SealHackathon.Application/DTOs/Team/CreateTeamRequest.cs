@@ -42,7 +42,6 @@ namespace SealHackathon.Application.DTOs.Team
         public bool IsFPTStudent { get; set; }
 
         [Required(ErrorMessage = "Danh sách thành viên không được để trống.")]
-        [MinLength(2, ErrorMessage = "Team phải có ít nhất 3 người, bao gồm Leader.")]
         public List<AddMemberRequest> Members { get; set; } = new();
     }
 }

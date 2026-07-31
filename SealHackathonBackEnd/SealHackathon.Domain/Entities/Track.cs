@@ -17,6 +17,8 @@ public partial class Track
 
     public int? MaxMembers { get; set; }
 
+    public int? MinMembers { get; set; }
+
     /// <summary>
     /// Xác định Track này là Track Final dùng để gom các đội vượt qua vòng loại.
     /// </summary>

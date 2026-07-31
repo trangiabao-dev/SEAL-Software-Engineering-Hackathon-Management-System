@@ -28,6 +28,7 @@ namespace SealHackathon.Domain.Constants
             public const string NoViewPermission = "Bạn không có quyền xem thông tin đội này.";
             public const string CannotRemoveGithubAfterSubmission = "Không thể xóa link GitHub vì đội đã có bài nộp.";
             public const string OnlyApprovedCanDisqualify = "Chỉ có thể loại đội đã được duyệt.";
+            public const string EventCompletedCannotModify = "Sự kiện đã kết thúc, không thể chỉnh sửa thông tin đội.";
         }
 
         public static class TeamMember
@@ -62,6 +63,8 @@ namespace SealHackathon.Domain.Constants
             public const string RoundNotStarted = "Vòng thi chưa bắt đầu.";
             public const string TeamNotQualifiedForRound = "Đội thi này chưa đủ điều kiện tham gia Round này.";
             public const string PresentationUrlRequired = "Link bài thuyết trình không được để trống.";
+            public const string CanEditRoundNotActive = "Vòng thi đã chuyển sang trạng thái chấm điểm hoặc đã đóng, không thể cập nhật bài nộp.";
+            public const string RoundClosedCannotDisqualify = "Vòng thi đã đóng, không thể loại bài nộp. Vui lòng liên hệ quản trị viên nếu cần xử lý.";
         }
 
         public static class Common

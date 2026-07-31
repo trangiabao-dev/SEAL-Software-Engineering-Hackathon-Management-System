@@ -1,4 +1,4 @@
-﻿using SealHackathon.Infrastructure.Services;
+using SealHackathon.Infrastructure.Services;
 
 namespace SealHackathon.API.Middleware
 {
@@ -20,9 +20,11 @@ namespace SealHackathon.API.Middleware
                 {
                     context.Response.StatusCode = 401;
                     context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync(
-                        """{"success":false,"message":"Token đã bị thu hồi. Vui lòng đăng nhập lại.","data":null}"""
-                    );
+                    
+                    var apiResponse = SealHackathon.Application.Common.Responses.ApiResponse<string>.FailResult(
+                        "Token đã bị thu hồi. Vui lòng đăng nhập lại.");
+                        
+                    await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(apiResponse));
                     return;
                 }
             }
