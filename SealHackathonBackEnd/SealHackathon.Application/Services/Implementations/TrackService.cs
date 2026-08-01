@@ -64,6 +64,7 @@ namespace SealHackathon.Application.Services.Implementations
             await EnsureSingleFinalTrackAsync(request.EventId, request.IsFinal);
             
             ValidateTrackMembers(request.MinMembers, request.MaxMembers);
+            ValidateFinalTrackCapacity(request.IsFinal, request.MaxTeams);
 
             var newTrack = new Track
             {
@@ -71,8 +72,10 @@ namespace SealHackathon.Application.Services.Implementations
                 Name = request.Name,
                 Description = request.Description,
                 MaxTeams = request.MaxTeams,
-                MaxMembers = request.MaxMembers,
-                MinMembers = request.MinMembers,
+                // Final Track chỉ nhận Team đi tiếp, không nhận Team đăng ký mới.
+                // Đội hình của Team được kế thừa từ Track nguồn nên không áp dụng min/max member mới.
+                MaxMembers = request.IsFinal ? null : request.MaxMembers,
+                MinMembers = request.IsFinal ? null : request.MinMembers,
                 IsFinal = request.IsFinal,
                 CreatedAt = DateTime.UtcNow, // Lấy thời gian hệ thống
                 IsDeleted = false
@@ -111,12 +114,13 @@ namespace SealHackathon.Application.Services.Implementations
             await EnsureSingleFinalTrackAsync(existingTrack.EventId, request.IsFinal, existingTrack.Id);
             
             ValidateTrackMembers(request.MinMembers, request.MaxMembers);
+            ValidateFinalTrackCapacity(request.IsFinal, request.MaxTeams);
 
             existingTrack.Name = request.Name;
             existingTrack.Description = request.Description;
             existingTrack.MaxTeams = request.MaxTeams;
-            existingTrack.MaxMembers = request.MaxMembers;
-            existingTrack.MinMembers = request.MinMembers;
+            existingTrack.MaxMembers = request.IsFinal ? null : request.MaxMembers;
+            existingTrack.MinMembers = request.IsFinal ? null : request.MinMembers;
             existingTrack.IsFinal = request.IsFinal;
             existingTrack.UpdatedAt = DateTime.UtcNow; // Ghi nhận thời điểm bị sửa
 
@@ -456,6 +460,12 @@ namespace SealHackathon.Application.Services.Implementations
             {
                 throw new BadRequestException("Số thành viên tối đa không được nhỏ hơn số thành viên tối thiểu.");
             }
+        }
+
+        private static void ValidateFinalTrackCapacity(bool isFinal, int? maxTeams)
+        {
+            if (isFinal && (!maxTeams.HasValue || maxTeams.Value <= 0))
+                throw new BadRequestException(ErrorMessages.Track.FinalTrackMaxTeamsRequired);
         }
 
         private static MentorTeamAssignmentResponse MapToMentorTeamAssignmentResponse(

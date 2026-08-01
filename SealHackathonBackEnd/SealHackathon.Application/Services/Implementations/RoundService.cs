@@ -653,6 +653,22 @@ namespace SealHackathon.Application.Services.Implementations
                         qualifiedTeams.AddRange(teams);
                     }
                 }
+                // Team không bị copy sang Final Track. Danh sách này chỉ chứa các Team đi tiếp
+                // từ Ranking của những Track nguồn; TeamMember của mỗi Team vẫn được giữ nguyên.
+                qualifiedTeams = qualifiedTeams
+                    .GroupBy(team => team.Id)
+                    .Select(group => group.First())
+                    .ToList();
+
+                // MaxTeams của Final Track là sức chứa số Team được phép vào vòng chung kết.
+                if (!track!.MaxTeams.HasValue || track.MaxTeams.Value <= 0)
+                    throw new BadRequestException(ErrorMessages.Track.FinalTrackMaxTeamsRequired);
+
+                if (qualifiedTeams.Count > track.MaxTeams.Value)
+                    throw new BadRequestException(
+                        $"{ErrorMessages.Track.FinalTrackCapacityExceeded} " +
+                        $"Cấu hình: {track.MaxTeams.Value}; đội đủ điều kiện: {qualifiedTeams.Count}.");
+
                 return qualifiedTeams;
             }
 

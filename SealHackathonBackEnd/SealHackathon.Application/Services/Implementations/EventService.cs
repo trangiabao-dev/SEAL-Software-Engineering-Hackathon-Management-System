@@ -167,6 +167,7 @@ namespace SealHackathon.Application.Services.Implementations
         {
             await EnsureNoOtherCurrentEventAsync(EventConstants.Status.Registration);
             EnsureSingleFinalTrackRequest(request.Tracks);
+            EnsureFinalTrackCapacityRequest(request.Tracks);
 
             // 1. Tạo Event gốc
             var newEvent = new Event
@@ -203,7 +204,9 @@ namespace SealHackathon.Application.Services.Implementations
                     Name = trackDto.Name,
                     Description = trackDto.Description,
                     MaxTeams = trackDto.MaxTeams,
-                    MaxMembers = trackDto.MaxMembers,
+                    // Final Track chỉ là nơi tập hợp Team đi tiếp; đội hình Team được kế thừa
+                    // từ Track nguồn nên không cấu hình MaxMembers tại đây.
+                    MaxMembers = trackDto.IsFinal ? null : trackDto.MaxMembers,
                     IsFinal = trackDto.IsFinal,
                     CreatedAt = DateTime.UtcNow,
                     IsDeleted = false,
@@ -476,6 +479,13 @@ namespace SealHackathon.Application.Services.Implementations
                 throw new BadRequestException(ErrorMessages.Track.OnlyOneFinalTrackAllowed);
         }
 
+        private static void EnsureFinalTrackCapacityRequest(IEnumerable<CreateFullEventTrackDto> tracks)
+        {
+            var finalTrack = tracks.FirstOrDefault(track => track.IsFinal);
+            if (finalTrack is not null && (!finalTrack.MaxTeams.HasValue || finalTrack.MaxTeams.Value <= 0))
+                throw new BadRequestException(ErrorMessages.Track.FinalTrackMaxTeamsRequired);
+        }
+
         private static string NormalizeEventStatus(string status)
         {
             if (string.IsNullOrWhiteSpace(status))
@@ -575,7 +585,7 @@ namespace SealHackathon.Application.Services.Implementations
                 {
                     Name = oldTrack.Name,
                     Description = oldTrack.Description,
-                    MaxMembers = oldTrack.MaxMembers,
+                    MaxMembers = oldTrack.IsFinal ? null : oldTrack.MaxMembers,
                     IsFinal = oldTrack.IsFinal,
                     MaxTeams = oldTrack.MaxTeams, // Đã bổ sung clone cả MaxTeams
                     IsDeleted = false,

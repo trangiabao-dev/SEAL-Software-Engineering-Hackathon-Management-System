@@ -176,6 +176,8 @@ namespace SealHackathon.Domain.Constants
         public static class Track
         {
             public const string OnlyOneFinalTrackAllowed = "Event chỉ được có một Track Final.";
+            public const string FinalTrackMaxTeamsRequired = "Track Chung Kết phải cấu hình số đội tối đa lớn hơn 0.";
+            public const string FinalTrackCapacityExceeded = "Số đội đi tiếp vào Track Chung Kết vượt quá số đội tối đa đã cấu hình.";
         }
 
         public static class TieBreak
