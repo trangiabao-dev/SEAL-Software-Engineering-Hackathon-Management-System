@@ -47,6 +47,11 @@ namespace SealHackathon.API.BackgroundServices
 
         private async Task ProcessTransitionsAsync()
         {
+            // [TEMPORARILY DISABLED FOR TESTING] 
+            // Vô hiệu hóa tính năng tự động chuyển đổi trạng thái (Registration -> Active) 
+            // để không ảnh hưởng đến quá trình test thủ công.
+            
+            /*
             using var scope = _serviceProvider.CreateScope();
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var roundService = scope.ServiceProvider.GetRequiredService<IRoundService>();
@@ -156,6 +161,9 @@ namespace SealHackathon.API.BackgroundServices
                     _logger.LogError(ex, $"Failed to auto-activate Round {round.Id}");
                 }
             }
+            */
+            
+            await Task.CompletedTask;
         }
     }
 }
