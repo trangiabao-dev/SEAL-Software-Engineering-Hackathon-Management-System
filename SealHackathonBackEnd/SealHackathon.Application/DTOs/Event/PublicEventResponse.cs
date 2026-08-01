@@ -15,5 +15,6 @@ namespace SealHackathon.Application.DTOs.Event
         public string Status { get; set; } = null!;
         public int TrackCount { get; set; }
         public bool ResultsAvailable { get; set; }
+        public PublicEventTopicResponse? QualifyingTopic { get; set; }
     }
 }

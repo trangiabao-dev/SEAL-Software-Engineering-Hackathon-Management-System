@@ -720,7 +720,20 @@ namespace SealHackathon.Application.Services.Implementations
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     Status = e.Status,
-                    TrackCount = e.Tracks.Count(t => !t.IsDeleted)
+                    TrackCount = e.Tracks.Count(t => !t.IsDeleted),
+                    QualifyingTopic = e.Topics
+                        .Where(topic => topic.RoundId == null)
+                        .OrderBy(topic => topic.CreatedAt)
+                        .ThenBy(topic => topic.Id)
+                        .Select(topic => new PublicEventTopicResponse
+                        {
+                            Id = topic.Id,
+                            Title = topic.Title,
+                            Description = topic.Description,
+                            Requirements = topic.Requirements,
+                            AttachmentUrl = topic.AttachmentUrl
+                        })
+                        .FirstOrDefault()
                 })
                 .ToList();
 
@@ -744,7 +757,20 @@ namespace SealHackathon.Application.Services.Implementations
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     Status = e.Status,
-                    TrackCount = e.Tracks.Count(t => !t.IsDeleted)
+                    TrackCount = e.Tracks.Count(t => !t.IsDeleted),
+                    QualifyingTopic = e.Topics
+                        .Where(topic => topic.RoundId == null)
+                        .OrderBy(topic => topic.CreatedAt)
+                        .ThenBy(topic => topic.Id)
+                        .Select(topic => new PublicEventTopicResponse
+                        {
+                            Id = topic.Id,
+                            Title = topic.Title,
+                            Description = topic.Description,
+                            Requirements = topic.Requirements,
+                            AttachmentUrl = topic.AttachmentUrl
+                        })
+                        .FirstOrDefault()
                 })
                 .FirstOrDefault();
 
