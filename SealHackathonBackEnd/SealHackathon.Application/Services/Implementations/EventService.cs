@@ -261,6 +261,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
+                    MinMembers = tr.MinMembers,
                     CurrentTeamCount = 0,
                     IsFinal = tr.IsFinal,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
@@ -659,6 +660,7 @@ namespace SealHackathon.Application.Services.Implementations
                     Description = tr.Description,
                     MaxTeams = tr.MaxTeams,
                     MaxMembers = tr.MaxMembers,
+                    MinMembers = tr.MinMembers,
                     CurrentTeamCount = 0,
                     IsFinal = tr.IsFinal,
                     Rounds = tr.Rounds.Select(r => new FullRoundResponse
